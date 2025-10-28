@@ -125,16 +125,19 @@ useEffect(() => {
             </Button> */}
             <Button
               variant="outline"
-              onClick={() => router.push("dashboard/fund-account/withdraw-page")}
+              onClick={() => router.push("dashboard/fund-account/transfer-page")}
               className="md:px-8 md:py-3 bg-transparent"
             >
               <Receipt className="w-4 h-4 mr-2" />
-              Withdraw Cash
+             Transfer Cash
             </Button>
           </div>
 
           {userData?.referralCode && (
-            <div className="bg-gray-100 p-4 rounded-lg text-center">
+
+            // pointer-events-none opacity-50
+           
+            <div className="bg-gray-100 p-4 rounded-lg text-center ">
               <p className="text-gray-700 text-sm mb-2 font-semibold">
                 Invite friends & earn rewards 🎉
               </p>
@@ -157,6 +160,7 @@ useEffect(() => {
                 Share your link and earn bonuses when friends sign up!
               </p>
             </div>
+          
           )}
         </div>
       </CardContent>

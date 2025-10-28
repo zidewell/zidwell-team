@@ -6,45 +6,27 @@ import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { useUserContextData } from "../context/userData";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
-  const [session, setSession] = useState<any>(null);
+  const { user } = useUserContextData();
   const router = useRouter();
-  const supabase = createClientComponentClient();
 
-  // ✅ Check session on mount
-  useEffect(() => {
-    const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setSession(session);
-    };
-    getSession();
-
-    // ✅ Listen for login/logout changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase]);
-
-  // ✅ Scroll listener
   useEffect(() => {
     const handleScroll = () => setHasScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ✅ Body overflow toggle
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", isOpen);
     return () => document.body.classList.remove("overflow-hidden");
@@ -62,10 +44,13 @@ const Header = () => {
 
   const links = [
     { name: "Services", href: "services" },
-    { name: "Features", href: "features" },
     { name: "Testimonial", href: "testimonials" },
     { name: "Pricing", href: "pricing" },
-    { name: "Academy", href: "podcast" },
+    {
+      name: "Academy",
+      href: "https://www.instagram.com/digitalbusinessschool_/",
+      external: true,
+    },
     { name: "Faq", href: "faq" },
     { name: "Contact", href: "contact" },
   ];
@@ -76,7 +61,7 @@ const Header = () => {
         hasScrolled ? "border-b border-gray-200 shadow-sm" : "border-none"
       }`}
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center">
@@ -87,32 +72,67 @@ const Header = () => {
               height={32}
               className="w-20 object-contain"
             />
-            <h1 className="font-bold text-lg">Zidwell</h1>
+            <h1 className="font-bold text-lg ml-1">Zidwell</h1>
           </Link>
 
           {/* Desktop Nav */}
-          <nav className="hidden md:flex ml-10 space-x-8">
-            {links.map((link) => (
-              <button
-                key={link.href}
-                onClick={() => scrollToId(link.href)}
-                className="cursor-pointer text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
-              >
-                {link.name}
-              </button>
-            ))}
+          <nav className="hidden lg:flex  space-x-6 items-center">
+            {links.map((link) =>
+              link.external ? (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-600 cursor-pointer hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  {link.name}
+                </Link>
+              ) : (
+                <button
+                  key={link.name}
+                  onClick={() => scrollToId(link.href)}
+                  className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  {link.name}
+                </button>
+              )
+            )}
+
+            {/* 🛡️ Support Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative">
+                  🛡️ Support
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href="/support/create-ticket">
+                    📝 Create Support Ticket
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/support/tickets">📋 View My Tickets</Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/help">❓ Help Center</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </nav>
 
-          {/* Desktop Buttons */}
-          {session ? (
+          {/* Auth Buttons */}
+          {user ? (
             <Button
-              className="bg-[#C29307] text-white hover:bg-[#a87e06] lg:block hidden"
+              className="bg-[#C29307] text-white hover:bg-[#a87e06] hidden lg:block"
               onClick={() => router.push("/dashboard")}
             >
               Dashboard
             </Button>
           ) : (
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden lg:flex items-center space-x-4">
               <Button
                 variant="ghost"
                 onClick={() => router.push("/auth/login")}
@@ -128,11 +148,11 @@ const Header = () => {
             </div>
           )}
 
-          {/* Mobile Menu Toggle */}
-          <div className="md:hidden">
+          {/* Mobile Menu Button */}
+          <div className="lg:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 z-50"
+              className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
             >
               {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -141,21 +161,69 @@ const Header = () => {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden mt-2">
-            <div className="fixed h-screen z-[-1] inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setIsOpen(false)}></div>
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-t z-50 rounded-md shadow-lg">
-              {links.map((link) => (
-                <button
-                  key={link.href}
-                  onClick={() => scrollToId(link.href)}
-                  className="w-full text-left text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
-                >
-                  {link.name}
-                </button>
-              ))}
+          <div className="lg:hidden mt-2">
+            <div
+              className="fixed h-screen inset-0 bg-black/20 backdrop-blur-sm"
+              onClick={() => setIsOpen(false)}
+            ></div>
+            <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-t rounded-md shadow-lg relative z-50">
+              {links.map((link) =>
+                link.external ? (
+                  <Link
+                    key={link.name}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-gray-600 cursor-pointer hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                  >
+                    {link.name}
+                  </Link>
+                ) : (
+                  <button
+                    key={link.name}
+                    onClick={() => scrollToId(link.href)}
+                    className="w-full text-left text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                  >
+                    {link.name}
+                  </button>
+                )
+              )}
 
+              {/* 🛡️ Support Dropdown (Mobile) */}
+              <div className="border-t border-gray-200 pt-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-gray-700"
+                    >
+                      🛡️ Support
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-full">
+                    <DropdownMenuItem asChild>
+                      <Link href="/support/create-ticket" className="w-full">
+                        📝 Create Support Ticket
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/support/tickets" className="w-full">
+                        📋 View My Tickets
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/help" className="w-full">
+                        ❓ Help Center
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Auth Section */}
               <div className="pt-4 pb-3 border-t border-gray-200">
-                {session ? (
+                {user ? (
                   <Button
                     className="bg-[#C29307] text-white hover:bg-[#a87e06] w-full"
                     onClick={() => router.push("/dashboard")}
@@ -167,13 +235,12 @@ const Header = () => {
                     <Button
                       onClick={() => router.push("/auth/login")}
                       variant="outline"
-                      className=""
                     >
                       Sign In
                     </Button>
                     <Button
-                      onClick={() => router.push("/auth/signup")}
                       className="bg-[#C29307] text-white hover:bg-[#a87e06]"
+                      onClick={() => router.push("/auth/signup")}
                     >
                       Register
                     </Button>

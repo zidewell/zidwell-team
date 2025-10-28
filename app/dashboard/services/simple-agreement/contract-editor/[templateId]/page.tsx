@@ -190,9 +190,7 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
     return !Object.values(newErrors).some((error) => error);
   };
 
-  const handleSend = async () => {
-
-
+  const handleSubmit = async () => {
     if (!validateInputs()) {
       Swal.fire({
         icon: "error",
@@ -201,14 +199,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
       });
       return;
     }
-
-    const paid = await handleDeduct();
-
-    if (!paid) {
-      setLoading(false);
-      return;
-    }
-
     Swal.fire({
       title: "Sending contract...",
       text: "Please wait while we send your contract for signature.",
@@ -264,56 +254,58 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
   };
 
   const handleDeduct = async (): Promise<boolean> => {
+    setLoading(true);
     return new Promise((resolve) => {
       Swal.fire({
         title: "Confirm Deduction",
-        text: "₦1,000 will be deducted from your wallet for generating this Contract.",
+        text: "₦100 will be deducted from your wallet for generating this Contract.",
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#3085d6",
         cancelButtonColor: "#d33",
         confirmButtonText: "Yes, proceed",
-      }).then(async (result) => {
+      }).then((result) => {
         if (!result.isConfirmed) {
+          setLoading(false);
           return resolve(false);
         }
 
-        try {
-          const res = await fetch("/api/pay-app-service", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: userData?.id,
-              pin,
-              amount: 1000,
-              description: "Contract successfully generated",
-            }),
-          });
+        // ✅ Wait until PIN is entered
+        const checkPinInterval = setInterval(() => {
+          if (pin.join("").length === 4) {
+            clearInterval(checkPinInterval);
 
-          const result = await res.json();
-
-          if (!res.ok) {
-            await Swal.fire(
-              "Error",
-              result.error || "Something went wrong",
-              "error"
-            );
-            return resolve(false);
+            fetch("/api/pay-app-service", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: userData?.id,
+                pin,
+                amount: 100,
+                description: "Contract successfully generated",
+              }),
+            })
+              .then(async (res) => {
+                const data = await res.json();
+                if (!res.ok) {
+                  Swal.fire(
+                    "Error",
+                    data.error || "Something went wrong",
+                    "error"
+                  );
+                  setLoading(false);
+                  resolve(false);
+                } else {
+                  resolve(true);
+                }
+              })
+              .catch((err) => {
+                setLoading(false);
+                Swal.fire("Error", err.message, "error");
+                resolve(false);
+              });
           }
-
-          if (result.newWalletBalance !== undefined) {
-            setUserData((prev: any) => {
-              const updated = { ...prev, walletBalance: result.result };
-              localStorage.setItem("userData", JSON.stringify(updated));
-              return updated;
-            });
-          }
-
-          resolve(true);
-        } catch (err: any) {
-          await Swal.fire("Error", err.message, "error");
-          resolve(false);
-        }
+        }, 300);
       });
     });
   };
@@ -325,14 +317,14 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
-          amount: 2000,
+          amount: 100,
           description: "Refund for failed contract generation",
         }),
       });
       Swal.fire({
         icon: "info",
         title: "Refund Processed",
-        text: "₦1,000 has been refunded to your wallet due to failed contract sending.",
+        text: "₦100 has been refunded to your wallet due to failed contract sending.",
       });
     } catch (err) {
       console.error("Refund failed:", err);
@@ -358,8 +350,11 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
             pin={pin}
             setPin={setPin}
             inputCount={inputCount}
-            onConfirm={() => {
-              handleSend();
+            onConfirm={async () => {
+              const paid = await handleDeduct();
+              if (paid) {
+                await handleSubmit();
+              }
             }}
           />
           <div className="border-b bg-card">
@@ -369,14 +364,20 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
                   <Button
                     variant="ghost"
                     onClick={() => router.back()}
-                    className="flex items-center gap-2"
+                    className="flex text-[#C29307]  items-center gap-2"
                   >
                     <ArrowLeft className="h-4 w-4" />
                     Back
                   </Button>
                   <div>
-                    <h1 className="text-2xl font-bold text-foreground">
-                      Contract Editor
+                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-3" >
+                      Contract Editor{" "}
+                      <button
+                        disabled
+                        className="pointer-events-none text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded-md"
+                      >
+                        ₦1,000 
+                      </button>
                     </h1>
                     <p className="text-muted-foreground">
                       Based on: <strong>{template?.title}</strong>
@@ -397,7 +398,11 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
                         ? "bg-gray-500 cursor-not-allowed"
                         : "bg-[#C29307] hover:bg-[#b28a06]"
                     }`}
-                    onClick={handleSend}
+                    onClick={() => {
+                      if (validateInputs()) {
+                        setIsOpen(true);
+                      }
+                    }}
                   >
                     {loading ? (
                       <>

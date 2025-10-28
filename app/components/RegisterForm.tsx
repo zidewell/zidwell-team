@@ -24,7 +24,7 @@ function RegisterForm() {
     if (ref) setReferralCode(ref);
   }, [searchParams]);
 
-  console.log(referralCode);
+  // console.log(referralCode);
 
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -164,7 +164,7 @@ function RegisterForm() {
       const data = await res.json();
       console.log("saveToDatabase response:", data);
       if (!res.ok) {
-        // Stop execution by throwing
+      
         throw new Error(data.error || "Something went wrong");
       }
 

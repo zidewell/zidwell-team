@@ -39,23 +39,6 @@ const Page = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  useEffect(() => {
-    const checkSession = async () => {
-      const res = await fetch("/api/session");
-      const data = await res.json();
-     
-      if (data?.session) {
-        // Optional: redirect admin directly
-        if (data.session.role === "admin") {
-          router.push("/admin/dashboard");
-        } else {
-          router.push("/dashboard");
-        }
-      }
-    };
-    checkSession();
-  }, [router]);
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -74,6 +57,16 @@ const Page = () => {
       const isVerified = result.isVerified;
 
       if (!profile) throw new Error("User profile not found.");
+
+      if (profile) {
+        await fetch("/api/activity/last-login", {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: profile.id,
+            email: profile.email,
+          }),
+        });
+      }
 
       // 2️⃣ Save profile locally
       setUserData(profile);

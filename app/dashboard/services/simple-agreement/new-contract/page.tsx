@@ -84,27 +84,20 @@ const Page = () => {
     });
   };
 
-  const handleDownload = () => {
-    console.log({
-      title: contractTitle,
-      message: "Downloading contract as PDF...",
-    });
-  };
+  // const handleDownload = () => {
+  //   console.log({
+  //     title: contractTitle,
+  //     message: "Downloading contract as PDF...",
+  //   });
+  // };
 
-  const handleSend = async () => {
+  const handleSubmit = async () => {
     if (!validateInputs()) {
       Swal.fire({
         icon: "error",
         title: "Validation Failed",
         text: "Please correct the errors before sending the contract.",
       });
-      return;
-    }
-
-    const paid = await handleDeduct();
-
-    if (!paid) {
-      setLoading(false);
       return;
     }
 
@@ -118,7 +111,6 @@ const Page = () => {
     });
 
     try {
-      setLoading(true);
       const res = await fetch("/api/send-contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -139,13 +131,13 @@ const Page = () => {
           text: "Contract sent for signature successfully!",
         });
 
-        if (result.newWalletBalance !== undefined) {
-          setUserData((prev: any) => {
-            const updated = { ...prev, walletBalance: result.result };
-            localStorage.setItem("userData", JSON.stringify(updated));
-            return updated;
-          });
-        }
+        // if (result.newWalletBalance !== undefined) {
+        //   setUserData((prev: any) => {
+        //     const updated = { ...prev, walletBalance: result.result };
+        //     localStorage.setItem("userData", JSON.stringify(updated));
+        //     return updated;
+        //   });
+        // }
 
         setLoading(false);
         window.location.reload();
@@ -172,48 +164,58 @@ const Page = () => {
   };
 
   const handleDeduct = async (): Promise<boolean> => {
+    setLoading(true);
     return new Promise((resolve) => {
       Swal.fire({
         title: "Confirm Deduction",
-        text: "₦1,000 will be deducted from your wallet for generating this Contract.",
+        text: "₦100 will be deducted from your wallet for generating this Contract.",
         icon: "warning",
         showCancelButton: true,
         confirmButtonColor: "#3085d6",
         cancelButtonColor: "#d33",
         confirmButtonText: "Yes, proceed",
-      }).then(async (result) => {
+      }).then((result) => {
         if (!result.isConfirmed) {
+          setLoading(false);
           return resolve(false);
         }
 
-        try {
-          const res = await fetch("/api/pay-app-service", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: userData?.id,
-              pin,
-              amount: 2000,
-              description: "Contract successfully generated",
-            }),
-          });
+        // ✅ Wait until PIN is entered
+        const checkPinInterval = setInterval(() => {
+          if (pin.join("").length === 4) {
+            clearInterval(checkPinInterval);
 
-          const data = await res.json();
-
-          if (!res.ok) {
-            await Swal.fire(
-              "Error",
-              data.error || "Something went wrong",
-              "error"
-            );
-            return resolve(false);
+            fetch("/api/pay-app-service", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: userData?.id,
+                pin,
+                amount: 100,
+                description: "Contract successfully generated",
+              }),
+            })
+              .then(async (res) => {
+                const data = await res.json();
+                if (!res.ok) {
+                  Swal.fire(
+                    "Error",
+                    data.error || "Something went wrong",
+                    "error"
+                  );
+                  setLoading(false);
+                  resolve(false);
+                } else {
+                  resolve(true);
+                }
+              })
+              .catch((err) => {
+                setLoading(false);
+                Swal.fire("Error", err.message, "error");
+                resolve(false);
+              });
           }
-
-          resolve(true);
-        } catch (err: any) {
-          await Swal.fire("Error", err.message, "error");
-          resolve(false);
-        }
+        }, 300);
       });
     });
   };
@@ -225,14 +227,14 @@ const Page = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
-          amount: 1000,
+          amount: 100,
           description: "Refund for failed contract generation",
         }),
       });
       Swal.fire({
         icon: "info",
         title: "Refund Processed",
-        text: "₦1,000 has been refunded to your wallet due to failed contract sending.",
+        text: "₦100 has been refunded to your wallet due to failed contract sending.",
       });
     } catch (err) {
       console.error("Refund failed:", err);
@@ -258,8 +260,11 @@ const Page = () => {
             pin={pin}
             setPin={setPin}
             inputCount={inputCount}
-            onConfirm={() => {
-              handleSend();
+            onConfirm={async () => {
+              const paid = await handleDeduct();
+              if (paid) {
+                await handleSubmit();
+              }
             }}
           />
           <div className="border-b bg-card">
@@ -275,8 +280,14 @@ const Page = () => {
                     Back
                   </Button>
                   <div>
-                    <h1 className="text-2xl font-bold text-foreground">
-                      New Contract
+                    <h1 className="text-2xl font-bold text-foreground flex gap-3 items-center">
+                      New Contract{" "}
+                      <button
+                        disabled
+                        className="pointer-events-none text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded-md"
+                      >
+                        ₦1,000
+                      </button>
                     </h1>
                     <p className="text-muted-foreground">
                       Create a contract from scratch
@@ -301,7 +312,11 @@ const Page = () => {
                         ? "bg-gray-500 cursor-not-allowed"
                         : "bg-[#C29307] hover:bg-[#b28a06]"
                     }`}
-                    onClick={handleSend}
+                    onClick={() => {
+                      if (validateInputs()) {
+                        setIsOpen(true);
+                      }
+                    }}
                   >
                     {loading ? (
                       <>

@@ -2,7 +2,6 @@
 
 import { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { set } from "react-hook-form";
 import { Button } from "./ui/button";
 
 interface PinPopOverProps {
@@ -11,7 +10,7 @@ interface PinPopOverProps {
   pin: string[];
   setPin: (pin: string[]) => void;
   inputCount: number;
-  onConfirm?: (code: string) => void; 
+  onConfirm?: (code: string) => void;
 }
 
 export default function PinPopOver({
@@ -61,7 +60,6 @@ export default function PinPopOver({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const code = pin.join("");
-    console.log("Submitted OTP:", code);
 
     // 👇 Trigger parent's API call if provided
     if (onConfirm) {
@@ -104,10 +102,10 @@ export default function PinPopOver({
 
               <header className="mb-8">
                 <h1 className="text-2xl font-bold mb-1">
-                  Mobile Phone Verification
+                  Transaction Pin Verification
                 </h1>
                 <p className="text-[15px] text-slate-500">
-                  Enter the 4-digit verification code sent to your phone number.
+                  Input your 4-digit pin to complete transaction.
                 </p>
               </header>
 
@@ -120,9 +118,14 @@ export default function PinPopOver({
                         inputsRef.current[i] = el;
                       }}
                       type="text"
+                      inputMode="numeric" 
+                      pattern="[0-9]*" 
                       maxLength={1}
                       value={digit}
-                      onChange={(e) => handleInput(i, e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, ""); 
+                        handleInput(i, val);
+                      }}
                       onKeyDown={(e) => handleKeyDown(e, i)}
                       onFocus={(e) => e.target.select()}
                       onPaste={handlePaste}
@@ -140,16 +143,6 @@ export default function PinPopOver({
                   </Button>
                 </div>
               </form>
-
-              <div className="text-sm text-slate-500 mt-4">
-                Didn't receive code?{" "}
-                <a
-                  className="font-medium text-indigo-500 hover:text-indigo-600"
-                  href="#"
-                >
-                  Resend
-                </a>
-              </div>
             </div>
           </motion.div>
         </>

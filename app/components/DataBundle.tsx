@@ -73,6 +73,7 @@ export default function DataBundlePurchase() {
   const [selectedPlan, setSelectedPlan] = useState<any | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState(false);
+  const [loading2, setLoading2] = useState(false);
   const { userData, setUserData } = useUserContextData();
   const router = useRouter();
   const handlePhoneNumberChange = (value: string) => {
@@ -150,7 +151,7 @@ export default function DataBundlePurchase() {
 
     // Step 5: Make request
     try {
-      setLoading(true);
+      setLoading2(true);
       const response = await fetch("/api/buy-data-bundle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -161,19 +162,21 @@ export default function DataBundlePurchase() {
       console.log("DataBundle Purchase Response Data:", data);
       if (!response.ok) throw data;
 
-      if (data.newWalletBalance !== undefined) {
-        setUserData((prev: any) => {
-          const updated = { ...prev, walletBalance: data.newWalletBalance };
-          localStorage.setItem("userData", JSON.stringify(updated));
-          return updated;
-        });
-      }
+      // if (data.newWalletBalance !== undefined) {
+      //   setUserData((prev: any) => {
+      //     const updated = { ...prev, walletBalance: data.newWalletBalance };
+      //     localStorage.setItem("userData", JSON.stringify(updated));
+      //     return updated;
+      //   });
+      // }
 
       Swal.fire({
         icon: "success",
         title: "Data Bundle Purchase Successful",
         text: `₦${payload.amount} sent to ${payload.phoneNumber}`,
         confirmButtonColor: "#0f172a",
+      }).then(() => {
+        window.location.reload();
       });
 
       // Clear inputs after successful purchase
@@ -192,7 +195,7 @@ export default function DataBundlePurchase() {
         confirmButtonColor: "#dc2626",
       });
     } finally {
-      setLoading(false);
+      setLoading2(false);
     }
   };
 
@@ -274,14 +277,6 @@ export default function DataBundlePurchase() {
       maximumFractionDigits: 2,
     }).format(value);
   };
-
-  // if (loading && !providers) {
-  //   return (
-  //     <div className="flex items-center justify-center min-h-screen">
-  //       <Loader />
-  //     </div>
-  //   );
-  // }
 
   return (
     <div className="space-y-6 md:max-w-5xl md:mx-auto">
@@ -423,6 +418,7 @@ export default function DataBundlePurchase() {
               plans={bundles || []}
               selectedPlan={selectedPlan}
               onSelect={(plan) => setSelectedPlan(plan)}
+              loading={loading}
             />
             {errors.plan && (
               <p className="text-sm text-red-500">{errors.plan}</p>
@@ -518,7 +514,7 @@ export default function DataBundlePurchase() {
                 disabled={!phoneNumber || !selectedPlan}
                 className="w-full bg-[#C29307] hover:bg-[#C29307] text-white py-3 font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                {loading ? (
+                {loading2 ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Processing...

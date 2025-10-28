@@ -19,42 +19,33 @@ const statusConfig: any = {
   failed: { color: "text-red-600", dotColor: "bg-red-500" },
 };
 
+// Define transaction types that should show as positive amounts (incoming money)
+const inflowTypes = [
+  "deposit",                    
+  "virtual_account_deposit",   
+  "card_deposit",             
+  "p2p_received",              
+  "referral",                  
+  "referral_reward"            
+];
+
+// Define transaction types that should show as negative amounts (outgoing money)
+const outflowTypes = [
+  "withdrawal",
+  "debit", 
+  "airtime",
+  "data",
+  "electricity",
+  "cable",
+  "transfer",
+  "p2p_transfer"
+];
+
 export default function TransactionHistory() {
   const [filter, setFilter] = useState("All transactions");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const { userData } = useUserContextData();
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!userData?.id) return;
-
-      setLoading(true);
-
-      try {
-        const params = new URLSearchParams({
-          userId: userData.id,
-          limit: "5",
-        });
-
-        if (searchTerm) {
-          params.set("search", searchTerm);
-        }
-
-        const res = await fetch(`/api/bill-transactions?${params.toString()}`);
-        const data = await res.json();
-        setTransactions(data.transactions || []);
-      } catch (error) {
-        console.error("Failed to fetch transactions:", error);
-        setTransactions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTransactions();
-  }, [userData?.id, searchTerm]);
+  const { userData, loading, transactions, searchTerm, setSearchTerm } =
+    useUserContextData();
 
   const filteredTransactions = transactions.filter((tx) => {
     const matchesFilter =
@@ -62,6 +53,16 @@ export default function TransactionHistory() {
       tx.status?.toLowerCase() === filter.toLowerCase();
     return matchesFilter;
   });
+
+  // Function to determine if transaction amount should be negative
+  const isOutflow = (transactionType: string) => {
+    return outflowTypes.includes(transactionType?.toLowerCase());
+  };
+
+  // Function to determine if transaction amount should be positive
+  const isInflow = (transactionType: string) => {
+    return inflowTypes.includes(transactionType?.toLowerCase());
+  };
 
   return (
     <Card className="bg-white shadow-sm">
@@ -111,7 +112,7 @@ export default function TransactionHistory() {
         </div>
       </CardHeader>
 
-      <div className="space-y-4 p-3">
+      <div className="space-y-4 p-2">
         {/* ✅ Loading State */}
         {loading ? (
           <div className="flex justify-center items-center py-12">
@@ -128,35 +129,8 @@ export default function TransactionHistory() {
               className="flex items-center justify-between p-2 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors duration-150"
             >
               <div className="flex justify-start gap-3">
-                <div className="flex items-center gap-2 md:hidden">
-                  {tx.status?.toLowerCase() === "success" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-green-600 border-green-600"
-                    >
-                      <Check className="w-4 h-4" />
-                    </Button>
-                  ) : tx.status?.toLowerCase() === "pending" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-blue-600 border-blue-600"
-                    >
-                      <Clock className="w-4 h-4 animate-pulse" />
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-red-600 border-red-600"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 md:text-lg">
+                  <h3 className="font-semibold text-gray-900 md:text-lg text-sm">
                     {tx.description || tx.type}
                   </h3>
                   <p className="text-gray-500 text-sm">
@@ -169,8 +143,8 @@ export default function TransactionHistory() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-6">
-                <div className="hidden md:flex items-center gap-2">
+              <div className="flex items-center flex-col">
+                <div className="flex items-center gap-2">
                   <div
                     className={`w-2 h-2 rounded-full ${
                       statusConfig[tx.status?.toLowerCase()]?.dotColor ||
@@ -188,11 +162,21 @@ export default function TransactionHistory() {
                 </div>
 
                 <div className="text-right">
-                  <p className="font-bold text-gray-900 md:text-lg">
-                    ₦
-                    {Number(tx.amount).toLocaleString("en-NG", {
-                      minimumFractionDigits: 2,
-                    })}
+                 
+                  <p
+                    className={`font-bold md:text-lg text-sm ${
+                      isOutflow(tx.type) 
+                        ? "text-red-500" 
+                        : "text-green-600"
+                    }`}
+                  >
+                    {isOutflow(tx.type)
+                      ? `-₦${Number(tx.amount).toLocaleString("en-NG", {
+                          minimumFractionDigits: 2,
+                        })}`
+                      : `₦${Number(tx.amount).toLocaleString("en-NG", {
+                          minimumFractionDigits: 2,
+                        })}`}
                   </p>
                 </div>
               </div>

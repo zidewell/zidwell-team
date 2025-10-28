@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getNombaToken } from "@/lib/nomba";
+import bcrypt from "bcryptjs";
 
 export async function POST(req: Request) {
   const supabase = createClient(
@@ -9,152 +9,112 @@ export async function POST(req: Request) {
   );
 
   try {
-    const { userId, receiverAccountId, amount, narration } = await req.json();
+    const body = await req.json();
+    const { userId, receiverAccountId, amount: rawAmount, narration, pin } = body;
 
-
-    // 2. Fetch sender balance
-    const { data: sender, error: senderError } = await supabase
-      .from("users")
-      .select("first_name, last_name, wallet_balance")
-      .eq("id", userId)
-      .single();
-
-    if (senderError || !sender) {
-      return NextResponse.json({ error: "Sender not found" }, { status: 404 });
-    }
-
-    if (sender.wallet_balance < amount) {
+    // Validate input
+    if (!userId || !receiverAccountId || !rawAmount || !pin) {
       return NextResponse.json(
-        { message: "Insufficient wallet balance (including fee)" },
+        { message: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // 3. Fetch receiver balance
+    const amount = Number(rawAmount);
+    if (isNaN(amount) || amount <= 0) {
+      return NextResponse.json({ message: "Invalid transfer amount" }, { status: 400 });
+    }
+
+    // Fetch sender details
+    const { data: sender, error: senderError } = await supabase
+      .from("users")
+      .select("id, first_name, last_name, wallet_balance, transaction_pin, wallet_id")
+      .eq("id", userId)
+      .single();
+
+    if (senderError || !sender)
+      return NextResponse.json({ message: "Sender not found" }, { status: 404 });
+
+    // Prevent self-transfer
+    if (sender.wallet_id && sender.wallet_id === receiverAccountId)
+      return NextResponse.json({ message: "You cannot transfer to your own wallet" }, { status: 400 });
+
+    // Verify PIN
+    const plainPin = Array.isArray(pin) ? pin.join("") : pin;
+    const isValidPin = await bcrypt.compare(plainPin, sender.transaction_pin);
+    if (!isValidPin)
+      return NextResponse.json({ message: "Invalid transaction PIN" }, { status: 401 });
+
+    // Check receiver
     const { data: receiver, error: receiverError } = await supabase
       .from("users")
-      .select("first_name, last_name, wallet_balance ")
+      .select("id, first_name, last_name")
       .eq("wallet_id", receiverAccountId)
       .single();
 
-    if (receiverError || !receiver) {
+    if (receiverError || !receiver)
+      return NextResponse.json({ message: "Receiver not found" }, { status: 404 });
+
+    const reference = `P2P_${Date.now()}`;
+    const description = `P2P transfer to ${receiver.first_name || ""} ${receiver.last_name || ""}`;
+
+    // ✅ 1. Use RPC to deduct balance and create sender transaction
+    const { data: rpcData, error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
+      user_id: userId,
+      amt: amount,
+      transaction_type: "p2p_transfer",
+      reference,
+      description,
+    });
+
+    if (rpcError) {
+      console.error("RPC Error (deduct_wallet_balance):", rpcError);
+      return NextResponse.json({ message: "Failed to deduct wallet", detail: rpcError }, { status: 500 });
+    }
+
+    const [rpcResult] = rpcData || [];
+    if (!rpcResult || rpcResult.status !== "OK") {
       return NextResponse.json(
-        { error: "Receiver not found" },
-        { status: 404 }
+        { message: rpcResult?.status || "Debit failed", balance: rpcResult?.current_balance },
+        { status: 400 }
       );
     }
 
-    // 4. Create pending transaction for sender
-    const merchantTxRef = `P2P_${Date.now()}`;
+    // ✅ 2. Credit receiver
+    const { error: creditError } = await supabase.rpc("increment_wallet_balance", {
+      user_id: receiver.id,
+      amt: amount,
+    });
 
-    const { data: pendingTx, error: txError } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        type: "p2p_transfer",
-        amount,
-        status: "pending",
-        description: `P2P transfer to ${receiver?.first_name} ${receiver?.last_name}`,
-        merchant_tx_ref: merchantTxRef,
-      })
-      .select("id")
-      .single();
-
-    if (txError) {
-      console.log("txError", txError);
+    if (creditError) {
+      console.error("Receiver credit failed:", creditError);
+      // Refund sender if credit fails
+      await supabase.rpc("increment_wallet_balance", { user_id: userId, amt: amount });
       return NextResponse.json(
-        { error: "Could not create transaction record" },
+        { message: "Receiver credit failed. Sender refunded." },
         { status: 500 }
       );
     }
 
-    const token = await getNombaToken();
-    if (!token) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    // ✅ 5. Call Nomba Wallet API for actual transfer
-    try {
-      const nombaRes = await fetch(
-        `${process.env.NOMBA_URL}/v1/transfers/wallet`,
-        {
-          method: "POST",
-          headers: {
-            accountId: process.env.NOMBA_ACCOUNT_ID!,
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount,
-            receiverAccountId,
-            merchantTxRef,
-            narration: narration || "P2P Transfer",
-          }),
-        }
-      );
-
-      const nombaData = await nombaRes.json();
-      console.log("🔁 Nomba API response:", nombaData);
-
-      if (!nombaRes.ok) {
-        console.error("❌ Nomba Transfer Failed:", nombaData);
-        return NextResponse.json(
-          { error: "Nomba transfer failed", detail: nombaData },
-          { status: 502 }
-        );
-      }
-    } catch (apiErr: any) {
-      console.error("❌ Nomba API Error:", apiErr.message);
-      return NextResponse.json(
-        { error: "Failed to contact Nomba API", detail: apiErr.message },
-        { status: 502 }
-      );
-    }
-
-    // ✅ 6. Update balances in Supabase
-    await supabase
-      .from("users")
-      .update({
-        wallet_balance: sender.wallet_balance - amount,
-      })
-      .eq("id", userId);
-
-    await supabase
-      .from("users")
-      .update({
-        wallet_balance: receiver.wallet_balance + amount,
-      })
-      .eq("wallet_id", receiverAccountId);
-
-    // ✅ 7. Update sender transaction to success
-    await supabase
-      .from("transactions")
-      .update({
-        status: "success",
-        reference: merchantTxRef,
-      })
-      .eq("id", pendingTx.id);
-
-   
-
-    // ✅ 9. Add transaction history for receiver
+    // ✅ 3. Record receiver transaction
     await supabase.from("transactions").insert({
-      user_id: receiverAccountId,
+      user_id: receiver.id,
       type: "p2p_received",
       amount,
       status: "success",
-      description: `Received ₦${amount} from ${sender?.first_name} ${sender?.last_name}`,
-      merchant_tx_ref: merchantTxRef,
+      description: `Received ₦${amount} from ${sender.first_name || ""} ${sender.last_name || ""}`,
+      narration: narration || "P2P Received",
+      reference,
     });
 
     return NextResponse.json({
       status: "success",
-      message: "P2P transfer completed successfully",
-      amount,
-      reference: merchantTxRef,
+      message: "Transfer completed successfully",
+      reference,
+      sender_tx_id: rpcResult.tx_id,
     });
-  } catch (error: any) {
-    console.error("P2P Transfer Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: any) {
+    console.error("Transfer Error:", err);
+    return NextResponse.json({ message: err.message || "Unexpected server error" }, { status: 500 });
   }
 }

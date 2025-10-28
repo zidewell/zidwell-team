@@ -1,19 +1,27 @@
+"use client";
 import { useRouter } from "next/navigation";
 import { useUserContextData } from "../context/userData";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
 import { Check } from "lucide-react";
+import Swal from "sweetalert2";
+import { useState } from "react";
 
 const Pricing = () => {
   const router = useRouter();
-  const { user } = useUserContextData();
+
+const handleSubscribe = (plan: any) => {
+  router.push(`/subscribe?plan=${encodeURIComponent(plan.name)}&amount=${plan.price}`);
+};
+
 
   const plans = [
     {
       name: "Pay Per Use",
       price: "Free",
       interval: "Join anytime",
-      bestFor: "solo hustlers and side businesses who want to pay as they grow.",
+      bestFor:
+        "solo hustlers and side businesses who want to pay as they grow.",
       features: [
         "Bill Payments: Airtime, Data, Electricity, Cable (Govt. standard fees apply)",
         "Invoices/payment links: ₦100 each + 3% per paid invoice (transferable to payee)",
@@ -38,12 +46,10 @@ const Pricing = () => {
       features: [
         "Unlimited Invoices & Receipts (no ₦100 fee)",
         "Invoice payment fees: 1.5% (reduced from 3%)",
-        "Contracts: 10 per month",
-        "Lawyer-Signed Contracts: ₦9,500 each (discounted)",
+        "Contracts: 10 contracts per month",
+        "Lawyer-Signed Contracts: ₦9,500 each",
+        "Cashback & rewards included",
         "Tax Filing Support: 2% of monthly revenue capped at ₦100k",
-        "Cashback & rewards same as Free plan",
-        "Wallet charges same as Free plan",
-        "Discounted access to all BOH events",
       ],
       buttonText: "Subscribe",
       highlighted: true,
@@ -55,25 +61,27 @@ const Pricing = () => {
       bestFor:
         "serious entrepreneurs who want peace of mind, growth, and full access.",
       features: [
-        "Unlimited Invoices, Receipts & Contracts (no per-use fees)",
-        "Unlimited Lawyer-Signed Contracts (worth ₦11k each – free!)",
-        "Zero transaction fees on invoice payments",
-        "Tax Filing Support: 1% of monthly revenue capped at ₦200k",
-        "Wallet: Zero fees on deposits & withdrawals",
-        "Free access to all BOH events",
-        "Priority Support Line",
+        "Unlimited Invoices & Receipts",
+        "Unlimited Contracts",
+        "Zero Transaction Fees on invoices",
+        "Priority Support",
+      ],
+      buttonText: "Subscribe",
+    },
+    {
+      name: "Diamond CFO",
+      price: "₦20,000",
+      interval: "per month",
+      bestFor:
+        "Entrepreneurs who want one-on-one financial support.",
+      features: [
+        "Dedicated Business Advisor",
+        "Premium CFO Support",
+        "Free Access to BOH Events",
       ],
       buttonText: "Subscribe",
     },
   ];
-
-  const handleSubscribe = (plan: any) => {
-    if (!user) {
-      router.push(`/auth/login?redirect=/pricing?plan=${plan.name}`);
-    } else {
-      router.push(`/checkout?plan=${plan.name}&price=${plan.price}`);
-    }
-  };
 
   return (
     <section id="pricing" className="py-20 bg-white">
@@ -90,7 +98,7 @@ const Pricing = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mx-auto">
           {plans.map((plan, index) => (
             <Card
               key={index}
@@ -109,14 +117,10 @@ const Pricing = () => {
               )}
 
               <CardHeader className="text-center pb-8">
-                <h3 className="text-2xl font-bold  mb-2">
-                  {plan.name}
-                </h3>
+                <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
                 <p className="text-gray-500 mb-4">{plan.bestFor}</p>
                 <div className="mb-4">
-                  <span className="text-4xl font-bold">
-                    {plan.price}
-                  </span>
+                  <span className="text-4xl font-bold">{plan.price}</span>
                   <span className="text-gray-500 ml-1">{plan.interval}</span>
                 </div>
               </CardHeader>
@@ -124,32 +128,19 @@ const Pricing = () => {
               <CardContent>
                 <Button
                   onClick={() => handleSubscribe(plan)}
-                  className={`w-full mb-6 ${
-                    plan.highlighted
-                      ? " border hover:border-[#7b5f0b] bg-[#C29307] "
-                      : "bg-[#C29307] hover:border-[#7b5f0b]"
-                  } text-white py-3 rounded-lg font-semibold transition-all duration-300`}
+                  className="w-full bg-[#C29307] hover:bg-[#a67a05] text-white py-3 rounded-lg font-semibold"
                 >
-                  {plan.buttonText}
+                 {plan.buttonText}
                 </Button>
 
-                <ul className="space-y-3">
-                  {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center">
-                      <Check className="h-5 w-5 text-white mr-3 flex-shrink-0" />
-                      <span className="text-gray-600">{feature}</span>
-                    </li>
+                <ul className="space-y-3 list-disc list-inside mt-4">
+                  {plan.features.map((feature, i) => (
+                    <li key={i} className="text-gray-600 text-sm">{feature}</li>
                   ))}
                 </ul>
               </CardContent>
             </Card>
           ))}
-        </div>
-
-        <div className="text-center mt-12">
-          <p className="text-gray-600 mb-4">
-            All plans include secure payments and 24/7 customer support.
-          </p>
         </div>
       </div>
     </section>

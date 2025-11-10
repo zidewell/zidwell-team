@@ -222,7 +222,7 @@ export default function DisputesSupportPage() {
     return <Badge className={config.color}>{config.text}</Badge>;
   };
 
-  console.log("selectedTicket", selectedTicket)
+  
 
   if (isLoading) {
     return (

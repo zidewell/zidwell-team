@@ -1,6 +1,7 @@
 // app/api/admin-apis/disputes/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createAuditLog, getClientInfo } from '@/lib/audit-log';
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -52,9 +53,38 @@ function getRangeDates(range: string | null) {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
+// Helper function to extract admin user info from cookies
+async function getAdminUserInfo(cookieHeader: string) {
+  try {
+    // Extract access token from cookies
+    const accessTokenMatch = cookieHeader.match(/sb-access-token=([^;]+)/);
+    if (!accessTokenMatch) return null;
+
+    const accessToken = accessTokenMatch[1];
+    
+    // Verify the token and get user info
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(accessToken);
+    
+    if (error || !user) {
+      console.error('Error getting admin user:', error);
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email
+    };
+  } catch (error) {
+    console.error('Error extracting admin user info:', error);
+    return null;
+  }
+}
+
 // GET: List disputes with filters and pagination
 export async function GET(req: Request) {
   try {
+   
+  
     const url = new URL(req.url);
     const page = Number(url.searchParams.get("page") ?? 1);
     const limit = Number(url.searchParams.get("limit") ?? 10);
@@ -109,6 +139,9 @@ export async function GET(req: Request) {
 
     if (countError) {
       console.error("Error counting disputes:", countError);
+      
+    
+      
       return NextResponse.json({ error: countError.message }, { status: 500 });
     }
 
@@ -119,6 +152,8 @@ export async function GET(req: Request) {
 
     if (error) {
       console.error("Error fetching paginated disputes:", error);
+      
+     
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -127,6 +162,8 @@ export async function GET(req: Request) {
       ...ticket,
       message_count: ticket.messages?.[0]?.count || 0
     })) || [];
+
+ 
 
     return NextResponse.json({
       page,
@@ -137,6 +174,26 @@ export async function GET(req: Request) {
     });
   } catch (err: any) {
     console.error("Server error (disputes route):", err);
+    
+    // 🕵️ AUDIT LOG: Track unexpected errors
+    const cookieHeader = req.headers.get("cookie") || "";
+    const adminUser = await getAdminUserInfo(cookieHeader);
+    const clientInfo = getClientInfo(req.headers);
+    
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "disputes_list_error",
+      resourceType: "Dispute",
+      description: `Unexpected error in disputes list: ${err.message}`,
+      metadata: {
+        error: err.message,
+        stack: err.stack
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    });
+    
     return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
   }
 }
@@ -144,7 +201,12 @@ export async function GET(req: Request) {
 // PATCH: Update ticket status
 export async function PATCH(req: Request) {
   try {
-    const { id, status } = await req.json();
+    // Get admin user info for audit logging
+    const cookieHeader = req.headers.get("cookie") || "";
+    const adminUser = await getAdminUserInfo(cookieHeader);
+    const clientInfo = getClientInfo(req.headers);
+
+    const { id, status, resolution_notes, assigned_to } = await req.json();
 
     if (!id || !status) {
       return NextResponse.json(
@@ -153,24 +215,307 @@ export async function PATCH(req: Request) {
       );
     }
 
+    // Get current ticket state for audit log
+    const { data: currentTicket, error: fetchError } = await supabaseAdmin
+      .from("dispute_tickets")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching current ticket:", fetchError);
+      
+      // 🕵️ AUDIT LOG: Track ticket not found
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "dispute_update_failed",
+        resourceType: "Dispute",
+        resourceId: id,
+        description: `Failed to update dispute ${id}: Ticket not found`,
+        metadata: {
+          ticketId: id,
+          attemptedStatus: status,
+          error: fetchError.message
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+      
+      return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+    }
+
+    // Prepare update data
+    const updateData: any = { 
+      status, 
+      updated_at: new Date().toISOString() 
+    };
+
+    // Add resolution timestamp if resolved
+    if (status === 'resolved' && currentTicket.status !== 'resolved') {
+      updateData.resolved_at = new Date().toISOString();
+    }
+
+    // Add closure timestamp if closed
+    if (status === 'closed' && currentTicket.status !== 'closed') {
+      updateData.closed_at = new Date().toISOString();
+    }
+
+    // Add resolution notes if provided
+    if (resolution_notes) {
+      updateData.resolution_notes = resolution_notes;
+    }
+
+    // Handle assignment changes
+    if (assigned_to !== undefined) {
+      updateData.assigned_to = assigned_to;
+    }
+
     const { data, error } = await supabaseAdmin
       .from("dispute_tickets")
-      .update({ 
-        status, 
-        updated_at: new Date().toISOString(),
-        ...(status === 'resolved' && { resolved_at: new Date().toISOString() }),
-        ...(status === 'closed' && { closed_at: new Date().toISOString() })
-      })
+      .update(updateData)
       .eq("id", id)
       .select();
 
     if (error) {
+      console.error("Error updating dispute ticket:", error);
+      
+      // 🕵️ AUDIT LOG: Track update failure
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "dispute_update_failed",
+        resourceType: "Dispute",
+        resourceId: id,
+        description: `Failed to update dispute ${id}: ${error.message}`,
+        metadata: {
+          ticketId: id,
+          ticketSubject: currentTicket.subject,
+          attemptedUpdates: updateData,
+          previousStatus: currentTicket.status,
+          error: error.message
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+      
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ message: "Ticket status updated", data });
+    const updatedTicket = data?.[0];
+
+    // 🕵️ AUDIT LOG: Track successful status update
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "update_dispute_status",
+      resourceType: "Dispute",
+      resourceId: id,
+      description: `Updated dispute ${id} status from ${currentTicket.status} to ${status}`,
+      metadata: {
+        ticketId: id,
+        ticketSubject: currentTicket.subject,
+        userEmail: currentTicket.user_email,
+        previousStatus: currentTicket.status,
+        newStatus: status,
+        resolutionNotes: resolution_notes,
+        assignedTo: assigned_to !== undefined ? assigned_to : currentTicket.assigned_to,
+        priority: currentTicket.priority,
+        category: currentTicket.category
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    });
+
+    // Special audit for resolution
+    if (status === 'resolved' && currentTicket.status !== 'resolved') {
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "resolve_dispute",
+        resourceType: "Dispute",
+        resourceId: id,
+        description: `Resolved dispute ${id}: ${currentTicket.subject}`,
+        metadata: {
+          ticketId: id,
+          ticketSubject: currentTicket.subject,
+          userEmail: currentTicket.user_email,
+          resolutionNotes: resolution_notes,
+          resolvedBy: adminUser?.email,
+          resolutionTime: new Date().toISOString()
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+    }
+
+    // Special audit for closure
+    if (status === 'closed' && currentTicket.status !== 'closed') {
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "close_dispute",
+        resourceType: "Dispute",
+        resourceId: id,
+        description: `Closed dispute ${id}: ${currentTicket.subject}`,
+        metadata: {
+          ticketId: id,
+          ticketSubject: currentTicket.subject,
+          userEmail: currentTicket.user_email,
+          closedBy: adminUser?.email,
+          closureTime: new Date().toISOString()
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+    }
+
+    // Special audit for assignment changes
+    if (assigned_to !== undefined && assigned_to !== currentTicket.assigned_to) {
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "reassign_dispute",
+        resourceType: "Dispute",
+        resourceId: id,
+        description: `Reassigned dispute ${id} from ${currentTicket.assigned_to || 'unassigned'} to ${assigned_to || 'unassigned'}`,
+        metadata: {
+          ticketId: id,
+          ticketSubject: currentTicket.subject,
+          previousAssignee: currentTicket.assigned_to,
+          newAssignee: assigned_to,
+          assignedBy: adminUser?.email
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+    }
+
+    return NextResponse.json({ 
+      message: "Ticket status updated", 
+      data: updatedTicket,
+      auditLogged: true
+    });
   } catch (err: any) {
     console.error("Server error (disputes PATCH):", err);
+    
+    // 🕵️ AUDIT LOG: Track unexpected errors
+    const cookieHeader = req.headers.get("cookie") || "";
+    const adminUser = await getAdminUserInfo(cookieHeader);
+    const clientInfo = getClientInfo(req.headers);
+    
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "dispute_update_error",
+      resourceType: "Dispute",
+      description: `Unexpected error during dispute update: ${err.message}`,
+      metadata: {
+        error: err.message,
+        stack: err.stack
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    });
+    
+    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
+  }
+}
+
+// POST: Add new dispute message (if you have this endpoint)
+export async function POST(req: Request) {
+  try {
+    // Get admin user info for audit logging
+    const cookieHeader = req.headers.get("cookie") || "";
+    const adminUser = await getAdminUserInfo(cookieHeader);
+    const clientInfo = getClientInfo(req.headers);
+
+    const { ticket_id, message, is_internal, attachments } = await req.json();
+
+    if (!ticket_id || !message) {
+      return NextResponse.json(
+        { error: "Ticket ID and message are required." },
+        { status: 400 }
+      );
+    }
+
+    // Get ticket info for audit log
+    const { data: ticket, error: ticketError } = await supabaseAdmin
+      .from("dispute_tickets")
+      .select("subject, status, user_email")
+      .eq("id", ticket_id)
+      .single();
+
+    if (ticketError) {
+      return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+    }
+
+    // Insert the message
+    const { data, error } = await supabaseAdmin
+      .from("dispute_messages")
+      .insert({
+        ticket_id,
+        message,
+        is_internal: is_internal || false,
+        created_by: adminUser?.id,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error adding dispute message:", error);
+      
+      // 🕵️ AUDIT LOG: Track message failure
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "dispute_message_failed",
+        resourceType: "Dispute",
+        resourceId: ticket_id,
+        description: `Failed to add message to dispute ${ticket_id}`,
+        metadata: {
+          ticketId: ticket_id,
+          ticketSubject: ticket.subject,
+          messageLength: message.length,
+          isInternal: is_internal,
+          error: error.message
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+      
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // 🕵️ AUDIT LOG: Track message addition
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: is_internal ? "add_internal_note" : "add_dispute_message",
+      resourceType: "Dispute",
+      resourceId: ticket_id,
+      description: `Added ${is_internal ? 'internal note' : 'message'} to dispute ${ticket_id}`,
+      metadata: {
+        ticketId: ticket_id,
+        ticketSubject: ticket.subject,
+        userEmail: ticket.user_email,
+        messageId: data.id,
+        messageLength: message.length,
+        isInternal: is_internal,
+        attachmentsCount: attachments?.length || 0
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    });
+
+    return NextResponse.json({ 
+      message: "Message added successfully", 
+      data,
+      auditLogged: true
+    });
+  } catch (err: any) {
+    console.error("Server error (disputes POST):", err);
     return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
   }
 }

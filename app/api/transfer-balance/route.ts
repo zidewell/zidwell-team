@@ -1,4 +1,3 @@
-// app/api/withdraw/route.ts
 import { NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
@@ -14,15 +13,20 @@ export async function POST(req: Request) {
     const {
       userId,
       senderName,
+      senderAccountNumber,
+      senderBankName,
       amount,
       accountNumber,
       accountName,
+      bankName,
       bankCode,
       narration,
       pin,
+      fee,
+      totalDebit,
     } = await req.json();
 
-    // Basic validation
+    // ✅ Validate inputs
     if (
       !userId ||
       !pin ||
@@ -30,39 +34,16 @@ export async function POST(req: Request) {
       amount < 100 ||
       !accountNumber ||
       !accountName ||
-      !bankCode
+      !bankCode ||
+      !bankName
     ) {
       return NextResponse.json(
-        {
-          message: "Missing required fields",
-          requiredFields: [
-            "userId",
-            "amount",
-            "accountNumber",
-            "accountName",
-            "bankCode",
-            "pin",
-          ],
-        },
+        { message: "Missing or invalid required fields" },
         { status: 400 }
       );
     }
 
-    if (typeof amount !== "number" || amount <= 0) {
-      return NextResponse.json(
-        { message: "Amount must be a valid number greater than 0" },
-        { status: 400 }
-      );
-    }
-
-    if (typeof accountNumber !== "string" || accountNumber.length < 6) {
-      return NextResponse.json(
-        { message: "Account number must be a valid string" },
-        { status: 400 }
-      );
-    }
-
-    // Fetch user with PIN + wallet balance
+    // ✅ Verify user + PIN
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("id, transaction_pin, wallet_balance")
@@ -73,26 +54,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "User not found" }, { status: 404 });
     }
 
-    // ✅ Verify transaction PIN
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
     const isValid = await bcrypt.compare(plainPin, user.transaction_pin);
     if (!isValid) {
-      return NextResponse.json(
-        { message: "Invalid transaction PIN" },
-        { status: 401 }
-      );
+      return NextResponse.json({ message: "Invalid transaction PIN" }, { status: 401 });
     }
 
-
-
-    if (user.wallet_balance < amount) {
+    const totalDeduction = totalDebit || amount + fee;
+    if (user.wallet_balance < totalDeduction) {
       return NextResponse.json(
         { message: "Insufficient wallet balance (including fees)" },
         { status: 400 }
       );
     }
 
-    // Get Nomba token
+    // ✅ Get Nomba token
     const token = await getNombaToken();
     if (!token) {
       return NextResponse.json(
@@ -103,16 +79,26 @@ export async function POST(req: Request) {
 
     const merchantTxRef = `WD_${Date.now()}`;
 
-    // Insert pending withdrawal transaction
+    // ✅ Insert pending transaction
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
         user_id: userId,
         type: "withdrawal",
+        sender: {
+          name: senderName,
+          accountNumber: senderAccountNumber,
+          bankName: senderBankName,
+        },
+        receiver: {
+          name: accountName,
+          accountNumber,
+          bankName,
+        },
         amount,
-        total_deduction: amount,
+        fee,
+        total_deduction: totalDeduction,
         status: "pending",
-        description: `Withdrawal to ${accountName} (${accountNumber})`,
         narration: narration || "Withdrawal",
         merchant_tx_ref: merchantTxRef,
       })
@@ -120,14 +106,23 @@ export async function POST(req: Request) {
       .single();
 
     if (txError || !pendingTx) {
-      console.error("Could not create transaction record:", txError);
-      return NextResponse.json(
-        { error: "Could not create transaction record" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Could not create transaction record" }, { status: 500 });
     }
 
-    // Send transfer to Nomba
+    // ✅ Deduct wallet balance first
+    const { error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
+      user_id: pendingTx.user_id,
+      amt: totalDeduction,
+      transaction_type: "withdrawal",
+      reference: merchantTxRef,
+      description: `Withdrawal of ₦${amount} (fee ₦${fee})`,
+    });
+
+    if (rpcError) {
+      return NextResponse.json({ error: "Failed to deduct wallet balance" }, { status: 500 });
+    }
+
+    // ✅ Call Nomba transfer API
     const res = await fetch(`${process.env.NOMBA_URL}/v1/transfers/bank`, {
       method: "POST",
       headers: {
@@ -142,42 +137,76 @@ export async function POST(req: Request) {
         bankCode,
         senderName,
         merchantTxRef,
-        narration: "Withdrawal",
+        narration,
       }),
     });
 
     const data = await res.json();
- console.log("transfer data", data)
-    if(data?.code === "400") {
-      return NextResponse.json({
-      message: data.description,
-      
-    });
+    // console.log("transfer data", data);
+
+    // ✅ Handle failure immediately
+    if (data.code === "400") {
+      console.log("❌ Nomba transfer failed:", data.description);
+
+      // Update transaction to failed
+      await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          external_response: data,
+        })
+        .eq("id", pendingTx.id);
+
+      // Refund wallet balance (reverse previous deduction)
+      const refundReference = `refund_${merchantTxRef}`;
+      const { error: refundErr } = await supabase.rpc("deduct_wallet_balance", {
+        user_id: user.id,
+        amt: -totalDeduction, 
+        transaction_type: "credit",
+        reference: refundReference,
+        description: `Refund for failed withdrawal of ₦${amount} (fee ₦${fee})`,
+      });
+
+      if (refundErr) {
+        console.error("❌ Refund failed:", refundErr);
+        return NextResponse.json(
+          { message: "Transfer failed, refund pending", nombaResponse: data },
+          { status: 400 }
+        );
+      }
+
+
+
+      return NextResponse.json(
+        {
+          message: "Withdrawal failed, funds refunded successfully.",
+          reason: data.description || "Transfer not successful",
+          refunded: true,
+        },
+        { status: 400 }
+      );
     }
 
-   
-
-    // Save Nomba response and set status to processing
+    // ✅ If success, update transaction to processing
     await supabase
       .from("transactions")
       .update({
-        external_response: JSON.stringify(data || {}),
-        status: "success",
+        status: "processing",
         reference: data?.data?.reference || null,
+        external_response: data,
       })
       .eq("id", pendingTx.id);
 
-
     return NextResponse.json({
-      message: "Withdrawal initiated (processing). Waiting for webhook confirmation.",
-      merchantTxRef,
+      message: "Withdrawal initiated successfully.",
       transactionId: pendingTx.id,
+      merchantTxRef,
       nombaResponse: data,
     });
   } catch (error: any) {
     console.error("Withdraw API error:", error);
     return NextResponse.json(
-      { error: "Server error: " + error.message || error.description },
+      { error: "Server error: " + (error.message || error.description) },
       { status: 500 }
     );
   }

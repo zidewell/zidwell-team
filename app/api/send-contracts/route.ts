@@ -2,6 +2,9 @@ import { v4 as uuidv4 } from "uuid";
 
 import { transporter } from "@/lib/node-mailer";
 import { createClient } from "@supabase/supabase-js";
+// import { clearTransactionsCache } from "../bill-transactions/route";
+// import { clearWalletBalanceCache } from "../wallet-balance/route";
+// import { clearContractsCache } from "../get-contracts-db/route";
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -9,7 +12,7 @@ const supabase = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { signeeEmail, contractText, contractTitle, initiatorEmail, status } =
+    const { userId, initiatorName, signeeEmail, contractText, contractTitle, initiatorEmail, status } =
       body;
 
     if (
@@ -17,7 +20,8 @@ export async function POST(req: Request) {
       !contractText ||
       !contractTitle ||
       !initiatorEmail ||
-      !status
+      !status || 
+      !initiatorName
     ) {
       return new Response(JSON.stringify({ message: "Missing fields" }), {
         status: 400,
@@ -40,6 +44,7 @@ export async function POST(req: Request) {
       token,
       signee_email: signeeEmail,
       initiator_email: initiatorEmail,
+      initiator_name: initiatorName,
       contract_text: contractText,
       contract_title: contractTitle,
       signing_link: signingLink,
@@ -83,6 +88,7 @@ export async function POST(req: Request) {
         </div>
       `,
     });
+
 
     return new Response(JSON.stringify({ message: "Email sent" }), {
       status: 200,

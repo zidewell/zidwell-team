@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     title: "Zidwell | Smarter Finance & Contracts Platform",
     description:
       "Manage your finances, contracts, and payments easily with Zidwell — your all-in-one personal and business finance companion.",
-    url: "https://zidwell.app",
+    url: "https://zidwell.com",
     siteName: "Zidwell",
     locale: "en_US",
     type: "website",

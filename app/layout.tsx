@@ -12,8 +12,47 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Zidwell",
-  description: "Zidwell - Your Personal Finance app",
+  title: {
+    default: "Zidwell | Smarter Finance & Contracts Platform",
+    template: "%s | Zidwell",
+  },
+  description:
+    "Zidwell is an intelligent finance and business management platform that lets you handle contracts, invoices, receipts, bill payments, and wallet transactions securely — all in one place.",
+  keywords: [
+    "Zidwell",
+    "finance app",
+    "contract management",
+    "invoice generator",
+    "wallet app",
+    "bill payment",
+    "tax filing",
+    "personal finance",
+    "business automation",
+    "Nigeria fintech",
+  ],
+  authors: [{ name: "Zidwell Team" }],
+  creator: "Zidwell Technologies",
+  publisher: "Zidwell",
+  applicationName: "Zidwell",
+  openGraph: {
+    title: "Zidwell | Smarter Finance & Contracts Platform",
+    description:
+      "Manage your finances, contracts, and payments easily with Zidwell — your all-in-one personal and business finance companion.",
+    url: "https://zidwell.app",
+    siteName: "Zidwell",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Zidwell | Smarter Finance & Contracts Platform",
+    description:
+      "Simplify contracts, receipts, invoices, and financial management with Zidwell — built for professionals and businesses.",
+    creator: "@zidwellapp",
+  },
+  category: "Finance & Business Management",
+  themeColor: "#0F172A",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -27,8 +66,8 @@ export default function RootLayout({
         <UserProvider>
           <SessionWatcher>
             {children}
-             <FloatingHelpButton />
-             <NotificationToast />
+            <FloatingHelpButton />
+            <NotificationToast />
           </SessionWatcher>
         </UserProvider>
       </body>

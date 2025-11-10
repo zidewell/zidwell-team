@@ -55,12 +55,16 @@ async function getAdminUserInfo(cookieHeader: string) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  }
 ) {
   try {
     const adminUser = await requireAdmin(req);
     if (adminUser instanceof NextResponse) return adminUser;
-
+    
     const allowedRoles = ["super_admin", "operations_admin", "support_admin"];
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
@@ -68,7 +72,7 @@ export async function GET(
         { status: 403 }
       );
     }
-    const { id } = params;
+    const id = (await params).id;
 
     console.log("🔍 Fetching user details for ID:", id);
 
@@ -95,12 +99,16 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  }
 ) {
   try {
     const adminUser = await requireAdmin(req);
     if (adminUser instanceof NextResponse) return adminUser;
-
+    
     const allowedRoles = ["super_admin", "operations_admin"];
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
@@ -108,9 +116,9 @@ export async function PATCH(
         { status: 403 }
       );
     }
- 
+    
     const clientInfo = getClientInfo(req.headers);
-
+    
     // Check if admin is authenticated
     if (!adminUser) {
       return NextResponse.json(
@@ -118,8 +126,8 @@ export async function PATCH(
         { status: 401 }
       );
     }
+    const id = (await params).id;
 
-    const { id } = params;
     const body = await req.json();
 
     console.log("🛠️ PATCH Request User ID:", id);
@@ -356,7 +364,11 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  }
 ) {
   try {
     const adminUser = await requireAdmin(req);
@@ -379,7 +391,7 @@ export async function DELETE(
       );
     }
 
-    const { id } = params;
+        const id = (await params).id;
 
     console.log("🗑️ DELETE Request User ID:", id);
     console.log("🗑️ Admin performing deletion:", adminUser.email);
@@ -533,7 +545,11 @@ export async function DELETE(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  }
 ) {
   try {
     const adminUser = await requireAdmin(req);
@@ -556,7 +572,7 @@ export async function POST(
       );
     }
 
-    const { id } = params;
+    const id = (await params).id;
     const body = await req.json();
     const { action, reason } = body;
 

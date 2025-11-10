@@ -8,7 +8,7 @@ const supabase = createClient(
 );
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   {
     params,
   }: {
@@ -17,11 +17,11 @@ export async function GET(
 ) {
   const id = (await params).id;
   try {
-    const adminUser = await requireAdmin(request);
+   // Only super admins can edit admin roles
+    const adminUser = await requireAdmin(request, 'edit_admin_roles');
     if (adminUser instanceof NextResponse) {
       return adminUser;
     }
-
     // Admins can only view their own login history unless they're checking themselves
     if (id !== adminUser?.id) {
       return NextResponse.json(

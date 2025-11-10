@@ -10,7 +10,11 @@ const supabase = createClient(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  {
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  }
 ) {
   try {
     // Only super admins can edit admin roles
@@ -18,8 +22,8 @@ export async function PATCH(
     if (adminUser instanceof NextResponse) {
       return adminUser;
     }
-
-    const { id } = params;
+    
+    const id = (await params).id;
     const body = await request.json();
     const { first_name, last_name, email, role, status } = body;
 

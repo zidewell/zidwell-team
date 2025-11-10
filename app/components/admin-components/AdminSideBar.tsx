@@ -33,24 +33,36 @@ const navSections = [
     title: "Overview",
     links: [
       { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-      { name: "Admin Management", href: "/admin/admin-management", icon: LayoutDashboard },
-    ]
+      {
+        name: "Admin Management",
+        href: "/admin/admin-management",
+        icon: LayoutDashboard,
+      },
+    ],
   },
   {
     title: "User Management",
     links: [
       { name: "Users", href: "/admin/users", icon: Users },
       { name: "KYC Users", href: "/admin/kyc", icon: Key },
-    ]
+    ],
   },
   {
     title: "Wallet Management",
     links: [
       { name: "Wallets", href: "/admin/wallets", icon: Wallet },
-      { name: "Transactions", href: "/admin/transactions", icon: FileChartColumnIncreasing },
+      {
+        name: "Transactions",
+        href: "/admin/transactions",
+        icon: FileChartColumnIncreasing,
+      },
       { name: "Funding Logs", href: "/admin/funding-logs", icon: CreditCard },
-      { name: "Reconciliation", href: "/admin/reconciliation", icon: RefreshCw },
-    ]
+      {
+        name: "Reconciliation",
+        href: "/admin/reconciliation",
+        icon: RefreshCw,
+      },
+    ],
   },
   {
     title: "Documents",
@@ -59,15 +71,19 @@ const navSections = [
       { name: "Invoices", href: "/admin/invoices", icon: FileSpreadsheet },
       { name: "Contracts", href: "/admin/contracts", icon: FileText },
       { name: "Tax Filings", href: "/admin/tax-filings", icon: ClipboardList },
-    ]
+    ],
   },
   {
     title: "Support & System",
     links: [
-      { name: "Support & Disputes", href: "/admin/disputes-supports", icon: Headphones },
+      {
+        name: "Support & Disputes",
+        href: "/admin/disputes-supports",
+        icon: Headphones,
+      },
       { name: "Notifications", href: "/admin/notifications", icon: Bell },
       { name: "Audit logs", href: "/admin/audit-logs", icon: History },
-    ]
+    ],
   },
 ];
 
@@ -77,48 +93,48 @@ export default function AdminSidebar() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["Overview", "Wallet Management"]) // Default expanded sections
   );
-const router = useRouter();
-  const {userData, setUserData} = useUserContextData();
+  const router = useRouter();
+  const { userData, setUserData } = useUserContextData();
 
-    const handleLogout = async () => {
-      try {
-        await fetch("/api/logout", { method: "POST" });
-  
-           if (userData) {
-          await fetch("/api/activity/last-logout", {
-            method: "POST",
-            body: JSON.stringify({
-              user_id: userData.id,
-              email: userData.email,
-              login_history_id: userData.currentLoginSession 
-            }),
-          });
-        }
-  
-        if (typeof window !== "undefined") {
-          localStorage.removeItem("userData");
-          localStorage.clear();
-        }
-  
-        setUserData(null);
-  
-        Swal.fire({
-          icon: "success",
-          title: "Logged Out",
-          text: "You have been signed out successfully.",
-          timer: 1500,
-          showConfirmButton: false,
-        });
-  
-        router.push("/auth/login");
-      } catch (error: any) {
-        Swal.fire({
-          icon: "error",
-          title: "Logout Failed",
-          text: error?.message || "An error occurred during logout.",
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+
+      if (userData) {
+        await fetch("/api/activity/last-logout", {
+          method: "POST",
+          body: JSON.stringify({
+            user_id: userData.id,
+            email: userData.email,
+            login_history_id: userData.currentLoginSession,
+          }),
         });
       }
-    };
+
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("userData");
+        localStorage.clear();
+      }
+
+      setUserData(null);
+
+      Swal.fire({
+        icon: "success",
+        title: "Logged Out",
+        text: "You have been signed out successfully.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      router.push("/auth/login");
+    } catch (error: any) {
+      Swal.fire({
+        icon: "error",
+        title: "Logout Failed",
+        text: error?.message || "An error occurred during logout.",
+      });
+    }
+  };
 
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", isMobileMenuOpen);
@@ -126,7 +142,7 @@ const router = useRouter();
   }, [isMobileMenuOpen]);
 
   const toggleSection = (title: string) => {
-    setExpandedSections(prev => {
+    setExpandedSections((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(title)) {
         newSet.delete(title);
@@ -160,7 +176,13 @@ const router = useRouter();
     </Link>
   );
 
-  const SectionHeader = ({ title, icon: Icon }: { title: string; icon: any }) => (
+  const SectionHeader = ({
+    title,
+    icon: Icon,
+  }: {
+    title: string;
+    icon: any;
+  }) => (
     <button
       onClick={() => toggleSection(title)}
       className="flex items-center justify-between w-full px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:bg-gray-50 rounded-lg transition-colors"
@@ -177,7 +199,12 @@ const router = useRouter();
         stroke="currentColor"
         viewBox="0 0 24 24"
       >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M19 9l-7 7-7-7"
+        />
       </svg>
     </button>
   );
@@ -189,7 +216,11 @@ const router = useRouter();
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-black text-white rounded-lg"
       >
-        {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        {isMobileMenuOpen ? (
+          <X className="w-6 h-6" />
+        ) : (
+          <Menu className="w-6 h-6" />
+        )}
       </button>
 
       {/* 🧭 Sidebar */}
@@ -200,22 +231,37 @@ const router = useRouter();
       >
         {/* 🔝 Logo */}
         <div className="p-5 border-b flex items-center gap-3 shrink-0">
-          <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded" />
-          <Link href="/dashboard" className="text-lg font-bold">Admin Panel</Link>
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={32}
+            height={32}
+            className="rounded"
+          />
+          <Link href="/dashboard" className="text-lg font-bold">
+            Admin Panel
+          </Link>
         </div>
 
         {/* 📂 Navigation (scrollable) */}
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
           {navSections.map((section) => (
             <div key={section.title} className="space-y-1">
-              <SectionHeader 
-                title={section.title} 
-                icon={section.title === "Wallet Management" ? Wallet : 
-                      section.title === "User Management" ? Users :
-                      section.title === "Documents" ? FileText :
-                      section.title === "Support & System" ? Headphones : LayoutDashboard}
+              <SectionHeader
+                title={section.title}
+                icon={
+                  section.title === "Wallet Management"
+                    ? Wallet
+                    : section.title === "User Management"
+                    ? Users
+                    : section.title === "Documents"
+                    ? FileText
+                    : section.title === "Support & System"
+                    ? Headphones
+                    : LayoutDashboard
+                }
               />
-              
+
               {expandedSections.has(section.title) && (
                 <div className="ml-2 space-y-1 border-l-2 border-gray-100 pl-2">
                   {section.links.map((link) => (
@@ -227,17 +273,15 @@ const router = useRouter();
           ))}
         </nav>
 
-       
         <div className="p-4 border-t shrink-0">
-         <Button
-                    onClick={handleLogout}
-                    variant="outline"
-                    className="cursor-pointer flex items-center space-x-2 bg-transparent"
-                  >
-                    <LogOut className="w-4 h-4 hidden md:block" />
-                    <span>Logout</span>
-                  </Button>
-        
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className="cursor-pointer flex items-center space-x-2 bg-transparent"
+          >
+            <LogOut className="w-4 h-4 hidden md:block" />
+            <span>Logout</span>
+          </Button>
         </div>
       </div>
 

@@ -99,28 +99,7 @@ const Header = () => {
               )
             )}
 
-            {/* 🛡️ Support Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative">
-                  🛡️ Support
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href="/support/create-ticket">
-                    📝 Create Support Ticket
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/support/tickets">📋 View My Tickets</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/help">❓ Help Center</Link>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+         
           </nav>
 
           {/* Auth Buttons */}
@@ -189,37 +168,7 @@ const Header = () => {
                 )
               )}
 
-              {/* 🛡️ Support Dropdown (Mobile) */}
-              <div className="border-t border-gray-200 pt-3">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-gray-700"
-                    >
-                      🛡️ Support
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-full">
-                    <DropdownMenuItem asChild>
-                      <Link href="/support/create-ticket" className="w-full">
-                        📝 Create Support Ticket
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/support/tickets" className="w-full">
-                        📋 View My Tickets
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/help" className="w-full">
-                        ❓ Help Center
-                      </Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+            
 
               {/* Auth Section */}
               <div className="pt-4 pb-3 border-t border-gray-200">

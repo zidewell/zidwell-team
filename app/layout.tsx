@@ -51,8 +51,8 @@ export const metadata: Metadata = {
     creator: "@zidwellapp",
   },
   category: "Finance & Business Management",
-  themeColor: "#0F172A",
-  manifest: "/manifest.json",
+  // themeColor: "#0F172A",
+  // manifest: "/manifest.json",
 };
 
 export default function RootLayout({

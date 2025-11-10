@@ -1,7 +1,8 @@
 // app/api/admin-apis/receipts/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { createAuditLog, getClientInfo } from '@/lib/audit-log';
+import { createAuditLog, getClientInfo } from "@/lib/audit-log";
+import { requireAdmin } from "@/lib/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -75,13 +76,19 @@ interface AdminReceiptsQuery {
 // Cache management functions - NOT EXPORTED
 function clearAdminReceiptsCache(filters?: Partial<AdminReceiptsQuery>) {
   if (filters) {
-    const cacheKey = `admin_receipts_${filters.page || 1}_${filters.limit || 10}_${filters.range || 'total'}_${filters.search || ''}_${filters.status || ''}_${filters.startDate || ''}_${filters.endDate || ''}_${filters.includeStats || false}`;
+    const cacheKey = `admin_receipts_${filters.page || 1}_${
+      filters.limit || 10
+    }_${filters.range || "total"}_${filters.search || ""}_${
+      filters.status || ""
+    }_${filters.startDate || ""}_${filters.endDate || ""}_${
+      filters.includeStats || false
+    }`;
     const existed = adminReceiptsCache.delete(cacheKey);
-    
+
     if (existed) {
       console.log(`🧹 Cleared specific admin receipts cache: ${cacheKey}`);
     }
-    
+
     return existed;
   } else {
     const count = adminReceiptsCache.size;
@@ -95,11 +102,11 @@ function clearReceiptsStatsCache(range?: string) {
   if (range) {
     const cacheKey = `receipts_stats_${range}`;
     const existed = receiptsStatsCache.delete(cacheKey);
-    
+
     if (existed) {
       console.log(`🧹 Cleared receipts stats cache for range: ${range}`);
     }
-    
+
     return existed;
   } else {
     const count = receiptsStatsCache.size;
@@ -112,24 +119,26 @@ function clearReceiptsStatsCache(range?: string) {
 function clearAllAdminReceiptsCache() {
   const receiptsCount = clearAdminReceiptsCache();
   const statsCount = clearReceiptsStatsCache();
-  
-  console.log(`🧹 Cleared all admin receipts cache (${receiptsCount} receipts, ${statsCount} stats)`);
+
+  console.log(
+    `🧹 Cleared all admin receipts cache (${receiptsCount} receipts, ${statsCount} stats)`
+  );
   return { receiptsCount, statsCount };
 }
 
 async function getCachedReceiptsStats(range: string = "total") {
   const cacheKey = `receipts_stats_${range}`;
   const cached = receiptsStatsCache.get(cacheKey);
-  
-  if (cached && (Date.now() - cached.timestamp) < STATS_CACHE_TTL) {
+
+  if (cached && Date.now() - cached.timestamp < STATS_CACHE_TTL) {
     console.log("✅ Using cached receipts statistics");
     return cached.data;
   }
-  
+
   console.log("🔄 Fetching fresh receipts statistics");
-  
+
   const rangeDates = getRangeDates(range);
-  
+
   let statsQuery = supabaseAdmin
     .from("receipts")
     .select("status, total_amount, created_at");
@@ -149,24 +158,34 @@ async function getCachedReceiptsStats(range: string = "total") {
 
   const stats = {
     total: receipts?.length || 0,
-    draft: receipts?.filter(f => f.status === "draft").length || 0,
-    sent: receipts?.filter(f => f.status === "sent").length || 0,
-    paid: receipts?.filter(f => f.status === "paid").length || 0,
-    overdue: receipts?.filter(f => f.status === "overdue").length || 0,
-    cancelled: receipts?.filter(f => f.status === "cancelled").length || 0,
-    totalRevenue: receipts?.filter(f => f.status === "paid").reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0,
-    pendingRevenue: receipts?.filter(f => f.status === "sent").reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0,
-    byMonth: receipts?.reduce((acc, f) => {
-      const date = new Date(f.created_at);
-      const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
-      acc[monthKey] = (acc[monthKey] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>) || {}
+    draft: receipts?.filter((f) => f.status === "draft").length || 0,
+    sent: receipts?.filter((f) => f.status === "sent").length || 0,
+    paid: receipts?.filter((f) => f.status === "paid").length || 0,
+    overdue: receipts?.filter((f) => f.status === "overdue").length || 0,
+    cancelled: receipts?.filter((f) => f.status === "cancelled").length || 0,
+    totalRevenue:
+      receipts
+        ?.filter((f) => f.status === "paid")
+        .reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0,
+    pendingRevenue:
+      receipts
+        ?.filter((f) => f.status === "sent")
+        .reduce((sum, inv) => sum + (inv.total_amount || 0), 0) || 0,
+    byMonth:
+      receipts?.reduce((acc, f) => {
+        const date = new Date(f.created_at);
+        const monthKey = date.toLocaleString("default", {
+          month: "short",
+          year: "numeric",
+        });
+        acc[monthKey] = (acc[monthKey] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {},
   };
 
   receiptsStatsCache.set(cacheKey, {
     data: stats,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   return stats;
@@ -180,21 +199,21 @@ async function getCachedAdminReceipts({
   status,
   startDate,
   endDate,
-  includeStats = false
+  includeStats = false,
 }: AdminReceiptsQuery) {
   const cacheKey = `admin_receipts_${page}_${limit}_${range}_${search}_${status}_${startDate}_${endDate}_${includeStats}`;
   const cached = adminReceiptsCache.get(cacheKey);
-  
-  if (cached && (Date.now() - cached.timestamp) < ADMIN_RECEIPTS_CACHE_TTL) {
+
+  if (cached && Date.now() - cached.timestamp < ADMIN_RECEIPTS_CACHE_TTL) {
     console.log("✅ Using cached admin receipts data");
     return {
       ...cached.data,
-      _fromCache: true
+      _fromCache: true,
     };
   }
-  
+
   console.log("🔄 Fetching fresh admin receipts data from database");
-  
+
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
@@ -206,7 +225,9 @@ async function getCachedAdminReceipts({
 
   // Apply search filter
   if (search) {
-    query = query.or(`receipt_id.ilike.%${search}%,initiator_email.ilike.%${search}%,signee_email.ilike.%${search}%`);
+    query = query.or(
+      `receipt_id.ilike.%${search}%,initiator_email.ilike.%${search}%,signee_email.ilike.%${search}%`
+    );
   }
 
   // Apply status filter
@@ -220,13 +241,17 @@ async function getCachedAdminReceipts({
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
-    
-    query = query.gte("created_at", start.toISOString()).lte("created_at", end.toISOString());
+
+    query = query
+      .gte("created_at", start.toISOString())
+      .lte("created_at", end.toISOString());
   } else {
     // Predefined range
     const rangeDates = getRangeDates(range);
     if (rangeDates) {
-      query = query.gte("created_at", rangeDates.start).lte("created_at", rangeDates.end);
+      query = query
+        .gte("created_at", rangeDates.start)
+        .lte("created_at", rangeDates.end);
     }
   }
 
@@ -263,20 +288,22 @@ async function getCachedAdminReceipts({
       search,
       status,
       startDate,
-      endDate
+      endDate,
     },
     stats,
-    _fromCache: false
+    _fromCache: false,
   };
 
   // Cache the successful response
   adminReceiptsCache.set(cacheKey, {
     data: responseData,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
-  console.log(`✅ Cached ${receipts?.length || 0} admin receipts for page ${page}`);
-  
+  console.log(
+    `✅ Cached ${receipts?.length || 0} admin receipts for page ${page}`
+  );
+
   return responseData;
 }
 
@@ -288,32 +315,47 @@ async function getAdminUserInfo(cookieHeader: string) {
     if (!accessTokenMatch) return null;
 
     const accessToken = accessTokenMatch[1];
-    
+
     // Verify the token and get user info
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(accessToken);
-    
+    const {
+      data: { user },
+      error,
+    } = await supabaseAdmin.auth.getUser(accessToken);
+
     if (error || !user) {
-      console.error('Error getting admin user:', error);
+      console.error("Error getting admin user:", error);
       return null;
     }
 
     return {
       id: user.id,
-      email: user.email
+      email: user.email,
     };
   } catch (error) {
-    console.error('Error extracting admin user info:', error);
+    console.error("Error extracting admin user info:", error);
     return null;
   }
 }
 
-// Only export HTTP methods
 // 📄 GET: List receipts with filters and pagination
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    // Get admin user info for audit logging
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+
+    const allowedRoles = [
+      "super_admin",
+      "finance_admin",
+      "operations_admin",
+      "support_admin",
+    ];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
     const clientInfo = getClientInfo(req.headers);
 
     const url = new URL(req.url);
@@ -330,7 +372,14 @@ export async function GET(req: Request) {
     // Clear cache if force refresh requested
     if (nocache) {
       clearAdminReceiptsCache({
-        page, limit, range, search, status, startDate, endDate, includeStats
+        page,
+        limit,
+        range,
+        search,
+        status,
+        startDate,
+        endDate,
+        includeStats,
       });
       if (includeStats) {
         clearReceiptsStatsCache(range);
@@ -346,7 +395,7 @@ export async function GET(req: Request) {
       status,
       startDate,
       endDate,
-      includeStats
+      includeStats,
     });
 
     const { _fromCache, ...cleanResponse } = result;
@@ -370,10 +419,10 @@ export async function GET(req: Request) {
         resultsCount: result.receipts.length,
         totalCount: result.total,
         fromCache: _fromCache,
-        revenueStats: includeStats ? result.stats : undefined
+        revenueStats: includeStats ? result.stats : undefined,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
     return NextResponse.json({
@@ -388,19 +437,19 @@ export async function GET(req: Request) {
           search,
           status,
           startDate,
-          endDate
+          endDate,
         },
-        includeStats
-      }
+        includeStats,
+      },
     });
   } catch (err: any) {
     console.error("Server error (receipts route):", err);
-    
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const cookieHeader = req.headers.get("cookie") || "";
     const adminUser = await getAdminUserInfo(cookieHeader);
     const clientInfo = getClientInfo(req.headers);
-    
+
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -409,28 +458,44 @@ export async function GET(req: Request) {
       description: `Unexpected error accessing receipts list: ${err.message}`,
       metadata: {
         error: err.message,
-        stack: err.stack
+        stack: err.stack,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
-    
-    return NextResponse.json({ 
-      error: err?.message?.includes('Fetch error') 
-        ? 'Failed to fetch receipts' 
-        : err?.message?.includes('Count error')
-        ? 'Failed to count receipts'
-        : 'Server error'
-    }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        error: err?.message?.includes("Fetch error")
+          ? "Failed to fetch receipts"
+          : err?.message?.includes("Count error")
+          ? "Failed to count receipts"
+          : "Server error",
+      },
+      { status: 500 }
+    );
   }
 }
 
 // 🔄 PATCH: Update receipt status
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
-    // Get admin user info for audit logging
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+
+    const allowedRoles = [
+      "super_admin",
+      "finance_admin",
+      "operations_admin",
+      "support_admin",
+    ];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
     const clientInfo = getClientInfo(req.headers);
 
     const { id, status, notes } = await req.json();
@@ -461,27 +526,27 @@ export async function PATCH(req: Request) {
         metadata: {
           receiptId: id,
           attemptedStatus: status,
-          error: fetchError.message
+          error: fetchError.message,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
     }
 
-    const updateData: any = { 
-      status, 
-      updated_at: new Date().toISOString() 
+    const updateData: any = {
+      status,
+      updated_at: new Date().toISOString(),
     };
 
     // Add payment timestamp if marking as paid
-    if (status === 'paid' && currentReceipt.status !== 'paid') {
+    if (status === "paid" && currentReceipt.status !== "paid") {
       updateData.paid_at = new Date().toISOString();
     }
 
     // Add cancellation timestamp if marking as cancelled
-    if (status === 'cancelled' && currentReceipt.status !== 'cancelled') {
+    if (status === "cancelled" && currentReceipt.status !== "cancelled") {
       updateData.cancelled_at = new Date().toISOString();
     }
 
@@ -510,10 +575,10 @@ export async function PATCH(req: Request) {
           receiptNumber: currentReceipt.receipt_id,
           attemptedStatus: status,
           previousStatus: currentReceipt.status,
-          error: error.message
+          error: error.message,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -537,14 +602,14 @@ export async function PATCH(req: Request) {
         newStatus: status,
         amount: currentReceipt.total_amount,
         adminNotes: notes,
-        updatedBy: adminUser?.email
+        updatedBy: adminUser?.email,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
     // Special audit for payment
-    if (status === 'paid' && currentReceipt.status !== 'paid') {
+    if (status === "paid" && currentReceipt.status !== "paid") {
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -558,15 +623,15 @@ export async function PATCH(req: Request) {
           customerEmail: currentReceipt.signee_email,
           amount: currentReceipt.total_amount,
           paidBy: adminUser?.email,
-          paymentTime: new Date().toISOString()
+          paymentTime: new Date().toISOString(),
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
 
     // Special audit for cancellation
-    if (status === 'cancelled' && currentReceipt.status !== 'cancelled') {
+    if (status === "cancelled" && currentReceipt.status !== "cancelled") {
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -581,15 +646,15 @@ export async function PATCH(req: Request) {
           amount: currentReceipt.total_amount,
           cancellationNotes: notes,
           cancelledBy: adminUser?.email,
-          cancellationTime: new Date().toISOString()
+          cancellationTime: new Date().toISOString(),
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
 
     // Special audit for overdue marking
-    if (status === 'overdue' && currentReceipt.status !== 'overdue') {
+    if (status === "overdue" && currentReceipt.status !== "overdue") {
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -603,10 +668,10 @@ export async function PATCH(req: Request) {
           customerEmail: currentReceipt.signee_email,
           amount: currentReceipt.total_amount,
           markedBy: adminUser?.email,
-          overdueTime: new Date().toISOString()
+          overdueTime: new Date().toISOString(),
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
 
@@ -614,20 +679,20 @@ export async function PATCH(req: Request) {
     console.log("🧹 Clearing cache after receipt status update...");
     clearAllAdminReceiptsCache();
 
-    return NextResponse.json({ 
-      message: "Receipt updated", 
+    return NextResponse.json({
+      message: "Receipt updated",
       data: updatedReceipt,
       cacheCleared: true,
-      auditLogged: true
+      auditLogged: true,
     });
   } catch (err: any) {
     console.error("Server error (receipts PATCH):", err);
-    
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const cookieHeader = req.headers.get("cookie") || "";
     const adminUser = await getAdminUserInfo(cookieHeader);
     const clientInfo = getClientInfo(req.headers);
-    
+
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -636,22 +701,30 @@ export async function PATCH(req: Request) {
       description: `Unexpected error during receipt update: ${err.message}`,
       metadata: {
         error: err.message,
-        stack: err.stack
+        stack: err.stack,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
-    
-    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
+
+    return NextResponse.json(
+      { error: err?.message ?? "Server error" },
+      { status: 500 }
+    );
   }
 }
 
 // 🗑️ DELETE: Remove a receipt
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
-    // Get admin user info for audit logging
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
+   const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin', 'operations_admin', 'support_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
+
     const clientInfo = getClientInfo(req.headers);
 
     const { id } = await req.json();
@@ -682,10 +755,10 @@ export async function DELETE(req: Request) {
         metadata: {
           receiptId: id,
           error: fetchError.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
@@ -711,10 +784,10 @@ export async function DELETE(req: Request) {
           receiptStatus: receipt.status,
           amount: receipt.total_amount,
           error: error.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -736,29 +809,29 @@ export async function DELETE(req: Request) {
         amount: receipt.total_amount,
         deletedBy: adminUser?.email,
         deletionTime: new Date().toISOString(),
-        createdAt: receipt.created_at
+        createdAt: receipt.created_at,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
     // 🧹 CLEAR CACHE AFTER DELETION
     console.log("🧹 Clearing cache after receipt deletion...");
     clearAllAdminReceiptsCache();
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: "Receipt deleted successfully",
       cacheCleared: true,
-      auditLogged: true
+      auditLogged: true,
     });
   } catch (err: any) {
     console.error("Server error (receipts DELETE):", err);
-    
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const cookieHeader = req.headers.get("cookie") || "";
     const adminUser = await getAdminUserInfo(cookieHeader);
     const clientInfo = getClientInfo(req.headers);
-    
+
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -767,22 +840,30 @@ export async function DELETE(req: Request) {
       description: `Unexpected error during receipt deletion: ${err.message}`,
       metadata: {
         error: err.message,
-        stack: err.stack
+        stack: err.stack,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
-    
-    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
+
+    return NextResponse.json(
+      { error: err?.message ?? "Server error" },
+      { status: 500 }
+    );
   }
 }
 
 // 📝 POST: Create a new receipt (if you have this functionality)
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    // Get admin user info for audit logging
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
+     const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin', 'operations_admin', 'support_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
+
     const clientInfo = getClientInfo(req.headers);
 
     const receiptData = await req.json();
@@ -800,7 +881,7 @@ export async function POST(req: Request) {
         ...receiptData,
         created_by: adminUser?.id,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -816,10 +897,10 @@ export async function POST(req: Request) {
         metadata: {
           receiptData,
           error: error.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -840,30 +921,30 @@ export async function POST(req: Request) {
         amount: data.total_amount,
         status: data.status,
         createdBy: adminUser?.email,
-        creationTime: new Date().toISOString()
+        creationTime: new Date().toISOString(),
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
     // 🧹 CLEAR CACHE AFTER CREATION
     console.log("🧹 Clearing cache after receipt creation...");
     clearAllAdminReceiptsCache();
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: "Receipt created successfully",
       data,
       cacheCleared: true,
-      auditLogged: true
+      auditLogged: true,
     });
   } catch (err: any) {
     console.error("Server error (receipts POST):", err);
-    
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const cookieHeader = req.headers.get("cookie") || "";
     const adminUser = await getAdminUserInfo(cookieHeader);
     const clientInfo = getClientInfo(req.headers);
-    
+
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -872,12 +953,15 @@ export async function POST(req: Request) {
       description: `Unexpected error during receipt creation: ${err.message}`,
       metadata: {
         error: err.message,
-        stack: err.stack
+        stack: err.stack,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
-    
-    return NextResponse.json({ error: err?.message ?? "Server error" }, { status: 500 });
+
+    return NextResponse.json(
+      { error: err?.message ?? "Server error" },
+      { status: 500 }
+    );
   }
 }

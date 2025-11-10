@@ -264,7 +264,14 @@ export default function DashboardSidebar() {
 
             <NavItem
               item={{
-                name: <div>Create Invoice <span className="text-[10px] text-red-400">(Coming soon)</span></div>,
+                name: (
+                  <div>
+                    Create Invoice{" "}
+                    <span className="text-[10px] text-red-400">
+                      (Coming soon)
+                    </span>
+                  </div>
+                ),
                 href: "/dashboard/services/create-invoice",
                 icon: FileSpreadsheet,
               }}
@@ -286,20 +293,27 @@ export default function DashboardSidebar() {
                 />
               ))}
 
-              {userData && userData.role?.toLowerCase() === "admin" && (
-                <Link
-                  href="/admin"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    pathname === "/admin"
-                      ? "bg-yellow-500/20 text-yellow-400 border-r-2 border-yellow-400"
-                      : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
-                  }`}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span className="font-medium">Admin</span>
-                </Link>
-              )}
+              {userData &&
+                [
+                  "super_admin",
+                  "finance_admin",
+                  "operations_admin",
+                  "support_admin",
+                  "legal_admin",
+                ].includes(userData?.role) && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      pathname === "/admin"
+                        ? "bg-yellow-500/20 text-yellow-400 border-r-2 border-yellow-400"
+                        : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
+                    }`}
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span className="font-medium">Admin</span>
+                  </Link>
+                )}
             </div>
           </div>
         </div>

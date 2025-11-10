@@ -1,7 +1,8 @@
 // app/api/admin/contracts/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAuditLog, getClientInfo } from '@/lib/audit-log';
+import { requireAdmin } from "@/lib/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -304,17 +305,26 @@ async function getAdminUserInfo(cookieHeader: string) {
   }
 }
 
-// Only export HTTP methods (GET, POST, PUT, PATCH, DELETE)
-export async function GET(req: Request) {
+
+export async function GET(req: NextRequest) {
   try {
+
+ const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'legal_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
+
+
     // Auth check
     const cookieHeader = req.headers.get("cookie") || "";
     if (!cookieHeader.includes("sb-access-token")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get admin user info for audit logging
-    const adminUser = await getAdminUserInfo(cookieHeader);
+
     const clientInfo = getClientInfo(req.headers);
 
     const url = new URL(req.url);
@@ -383,15 +393,20 @@ export async function GET(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
     const cookieHeader = req.headers.get("cookie") || "";
     if (!cookieHeader.includes("sb-access-token")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+ const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'legal_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
-    // Get admin user info for audit logging
-    const adminUser = await getAdminUserInfo(cookieHeader);
     const clientInfo = getClientInfo(req.headers);
 
     const { id, status, fraud_flag, fraud_reason } = await req.json();

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from "@/lib/admin-auth";
 
 // Create admin client for reading audit logs
 const supabaseAdmin = createClient(
@@ -9,6 +10,15 @@ const supabaseAdmin = createClient(
 
 export async function GET(request: NextRequest) {
   try {
+
+      const adminUser = await requireAdmin(request);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'legal_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "10");

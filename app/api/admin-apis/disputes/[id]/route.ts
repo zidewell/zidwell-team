@@ -1,9 +1,9 @@
 // app/api/admin-apis/disputes/[id]/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { requireAdmin } from '@/lib/admin-auth';
-import { dispatchBulkNotifications } from '@/lib/notification-service';
-import { createAuditLog, getClientInfo } from '@/lib/audit-log';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { requireAdmin } from "@/lib/admin-auth";
+import { dispatchBulkNotifications } from "@/lib/notification-service";
+import { createAuditLog, getClientInfo } from "@/lib/audit-log";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -19,14 +19,22 @@ export async function GET(
     const adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
 
+    const allowedRoles = ["super_admin", "support_admin", "operations_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
     const clientInfo = getClientInfo(request.headers);
     const params = await context.params;
     const disputeId = params.id;
 
     // Fetch dispute with related data
     const { data: dispute, error } = await supabase
-      .from('disputes')
-      .select(`
+      .from("disputes")
+      .select(
+        `
         *,
         users:user_id (
           id,
@@ -38,8 +46,9 @@ export async function GET(
           email,
           full_name
         )
-      `)
-      .eq('id', disputeId)
+      `
+      )
+      .eq("id", disputeId)
       .single();
 
     if (error) {
@@ -54,13 +63,13 @@ export async function GET(
         metadata: {
           disputeId,
           error: error.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
-      return NextResponse.json({ error: 'Dispute not found' }, { status: 404 });
+      return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
 
     // 🕵️ AUDIT LOG: Track dispute access
@@ -70,7 +79,9 @@ export async function GET(
       action: "view_dispute_details",
       resourceType: "Dispute",
       resourceId: disputeId,
-      description: `Viewed details of dispute ${disputeId}: ${dispute.title || 'Untitled'}`,
+      description: `Viewed details of dispute ${disputeId}: ${
+        dispute.title || "Untitled"
+      }`,
       metadata: {
         disputeId,
         disputeTitle: dispute.title,
@@ -80,27 +91,27 @@ export async function GET(
         userEmail: dispute.users?.email,
         adminAssigned: dispute.admin_id,
         createdAt: dispute.created_at,
-        accessedBy: adminUser?.email
+        accessedBy: adminUser?.email,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       dispute,
       _admin: {
         performedBy: adminUser?.email,
-        performedAt: new Date().toISOString()
-      }
+        performedAt: new Date().toISOString(),
+      },
     });
   } catch (error: any) {
-    console.error('GET dispute error:', error);
-    
+    console.error("GET dispute error:", error);
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const adminUser = await requireAdmin(request);
     if (!(adminUser instanceof NextResponse)) {
       const clientInfo = getClientInfo(request.headers);
-      
+
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -109,13 +120,13 @@ export async function GET(
         description: `Unexpected error accessing dispute details: ${error.message}`,
         metadata: {
           error: error.message,
-          stack: error.stack
+          stack: error.stack,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
-    
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -129,6 +140,14 @@ export async function PUT(
     const adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
 
+    const allowedRoles = ["super_admin", "support_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
     const clientInfo = getClientInfo(request.headers);
     const params = await context.params;
     const disputeId = params.id;
@@ -136,9 +155,9 @@ export async function PUT(
 
     // Get current dispute state for audit log
     const { data: currentDispute, error: fetchError } = await supabase
-      .from('disputes')
-      .select('*')
-      .eq('id', disputeId)
+      .from("disputes")
+      .select("*")
+      .eq("id", disputeId)
       .single();
 
     if (fetchError) {
@@ -153,32 +172,34 @@ export async function PUT(
         metadata: {
           disputeId,
           attemptedUpdates: body,
-          error: fetchError.message
+          error: fetchError.message,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
-      return NextResponse.json({ error: 'Dispute not found' }, { status: 404 });
+      return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
 
     // Update dispute
     const { data: dispute, error } = await supabase
-      .from('disputes')
+      .from("disputes")
       .update({
         ...body,
         updated_at: new Date().toISOString(),
-        updated_by: adminUser?.id
+        updated_by: adminUser?.id,
       })
-      .eq('id', disputeId)
-      .select(`
+      .eq("id", disputeId)
+      .select(
+        `
         *,
         users:user_id (
           id,
           email,
           full_name
         )
-      `)
+      `
+      )
       .single();
 
     if (error) {
@@ -195,27 +216,27 @@ export async function PUT(
           disputeTitle: currentDispute.title,
           attemptedUpdates: body,
           previousStatus: currentDispute.status,
-          error: error.message
+          error: error.message,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     // 🕵️ AUDIT LOG: Track successful dispute update
-    const changedFields = Object.keys(body).filter(key => 
-      key !== 'updated_at' && key !== 'updated_by'
+    const changedFields = Object.keys(body).filter(
+      (key) => key !== "updated_at" && key !== "updated_by"
     );
-    
+
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
       action: "update_dispute",
       resourceType: "Dispute",
       resourceId: disputeId,
-      description: `Updated dispute ${disputeId}: ${changedFields.join(', ')}`,
+      description: `Updated dispute ${disputeId}: ${changedFields.join(", ")}`,
       metadata: {
         disputeId,
         disputeTitle: currentDispute.title,
@@ -223,10 +244,10 @@ export async function PUT(
         previousValues: currentDispute,
         newValues: dispute,
         updatedBy: adminUser?.email,
-        userAffected: dispute.users?.email
+        userAffected: dispute.users?.email,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
     // Special audit for status changes
@@ -244,15 +265,18 @@ export async function PUT(
           previousStatus: currentDispute.status,
           newStatus: body.status,
           userEmail: dispute.users?.email,
-          changedBy: adminUser?.email
+          changedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
 
     // Special audit for assignment changes
-    if (body.admin_id !== undefined && body.admin_id !== currentDispute.admin_id) {
+    if (
+      body.admin_id !== undefined &&
+      body.admin_id !== currentDispute.admin_id
+    ) {
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -266,10 +290,10 @@ export async function PUT(
           previousAdmin: currentDispute.admin_id,
           newAdmin: body.admin_id,
           reassignedBy: adminUser?.email,
-          userEmail: dispute.users?.email
+          userEmail: dispute.users?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
 
@@ -287,10 +311,10 @@ export async function PUT(
           disputeTitle: currentDispute.title,
           previousPriority: currentDispute.priority,
           newPriority: body.priority,
-          changedBy: adminUser?.email
+          changedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
 
@@ -298,28 +322,28 @@ export async function PUT(
     if (body.status && dispute.user_id) {
       await dispatchBulkNotifications({
         userIds: [dispute.user_id],
-        title: 'Dispute Updated',
+        title: "Dispute Updated",
         message: `Your dispute #${disputeId} status has been updated to ${body.status}`,
-        type: 'info'
+        type: "info",
       });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       dispute,
       _admin: {
         performedBy: adminUser?.email,
         performedAt: new Date().toISOString(),
-        auditLogged: true
-      }
+        auditLogged: true,
+      },
     });
   } catch (error: any) {
-    console.error('PUT dispute error:', error);
-    
+    console.error("PUT dispute error:", error);
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const adminUser = await requireAdmin(request);
     if (!(adminUser instanceof NextResponse)) {
       const clientInfo = getClientInfo(request.headers);
-      
+
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -328,13 +352,13 @@ export async function PUT(
         description: `Unexpected error during dispute update: ${error.message}`,
         metadata: {
           error: error.message,
-          stack: error.stack
+          stack: error.stack,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
-    
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -348,15 +372,23 @@ export async function DELETE(
     const adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
 
+    const allowedRoles = ["super_admin", "support_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
     const clientInfo = getClientInfo(request.headers);
     const params = await context.params;
     const disputeId = params.id;
 
     // Get dispute before deletion for audit log and notification
     const { data: dispute, error: fetchError } = await supabase
-      .from('disputes')
-      .select('*')
-      .eq('id', disputeId)
+      .from("disputes")
+      .select("*")
+      .eq("id", disputeId)
       .single();
 
     if (fetchError) {
@@ -371,20 +403,20 @@ export async function DELETE(
         metadata: {
           disputeId,
           error: fetchError.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
-      return NextResponse.json({ error: 'Dispute not found' }, { status: 404 });
+      return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
 
     // Delete dispute
     const { error } = await supabase
-      .from('disputes')
+      .from("disputes")
       .delete()
-      .eq('id', disputeId);
+      .eq("id", disputeId);
 
     if (error) {
       // 🕵️ AUDIT LOG: Track deletion failure
@@ -400,10 +432,10 @@ export async function DELETE(
           disputeTitle: dispute.title,
           disputeStatus: dispute.status,
           error: error.message,
-          attemptedBy: adminUser?.email
+          attemptedBy: adminUser?.email,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -416,7 +448,9 @@ export async function DELETE(
       action: "delete_dispute",
       resourceType: "Dispute",
       resourceId: disputeId,
-      description: `Deleted dispute ${disputeId}: ${dispute.title || 'Untitled'}`,
+      description: `Deleted dispute ${disputeId}: ${
+        dispute.title || "Untitled"
+      }`,
       metadata: {
         disputeId,
         disputeTitle: dispute.title,
@@ -425,38 +459,38 @@ export async function DELETE(
         userId: dispute.user_id,
         createdAt: dispute.created_at,
         deletedBy: adminUser?.email,
-        deletionTime: new Date().toISOString()
+        deletionTime: new Date().toISOString(),
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
     // Send notification if user exists
     if (dispute?.user_id) {
       await dispatchBulkNotifications({
         userIds: [dispute.user_id],
-        title: 'Dispute Resolved',
+        title: "Dispute Resolved",
         message: `Your dispute #${disputeId} has been resolved and closed`,
-        type: 'success'
+        type: "success",
       });
     }
 
-    return NextResponse.json({ 
-      message: 'Dispute deleted successfully',
+    return NextResponse.json({
+      message: "Dispute deleted successfully",
       _admin: {
         performedBy: adminUser?.email,
         performedAt: new Date().toISOString(),
-        auditLogged: true
-      }
+        auditLogged: true,
+      },
     });
   } catch (error: any) {
-    console.error('DELETE dispute error:', error);
-    
+    console.error("DELETE dispute error:", error);
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const adminUser = await requireAdmin(request);
     if (!(adminUser instanceof NextResponse)) {
       const clientInfo = getClientInfo(request.headers);
-      
+
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -465,13 +499,13 @@ export async function DELETE(
         description: `Unexpected error during dispute deletion: ${error.message}`,
         metadata: {
           error: error.message,
-          stack: error.stack
+          stack: error.stack,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
-    
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -485,6 +519,14 @@ export async function PATCH(
     const adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
 
+    const allowedRoles = ["super_admin", "support_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
     const clientInfo = getClientInfo(request.headers);
     const params = await context.params;
     const disputeId = params.id;
@@ -492,9 +534,9 @@ export async function PATCH(
 
     // Get current dispute state for audit log
     const { data: currentDispute, error: fetchError } = await supabase
-      .from('disputes')
-      .select('*')
-      .eq('id', disputeId)
+      .from("disputes")
+      .select("*")
+      .eq("id", disputeId)
       .single();
 
     if (fetchError) {
@@ -509,34 +551,36 @@ export async function PATCH(
         metadata: {
           disputeId,
           resolutionNotes: body.resolution_notes,
-          error: fetchError.message
+          error: fetchError.message,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
-      return NextResponse.json({ error: 'Dispute not found' }, { status: 404 });
+      return NextResponse.json({ error: "Dispute not found" }, { status: 404 });
     }
 
     // Resolve dispute
     const { data: dispute, error } = await supabase
-      .from('disputes')
+      .from("disputes")
       .update({
-        status: 'resolved',
+        status: "resolved",
         resolved_at: new Date().toISOString(),
         resolved_by: adminUser?.id,
         resolution_notes: body.resolution_notes,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', disputeId)
-      .select(`
+      .eq("id", disputeId)
+      .select(
+        `
         *,
         users:user_id (
           id,
           email,
           full_name
         )
-      `)
+      `
+      )
       .single();
 
     if (error) {
@@ -553,10 +597,10 @@ export async function PATCH(
           disputeTitle: currentDispute.title,
           resolutionNotes: body.resolution_notes,
           previousStatus: currentDispute.status,
-          error: error.message
+          error: error.message,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
 
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -569,7 +613,9 @@ export async function PATCH(
       action: "resolve_dispute",
       resourceType: "Dispute",
       resourceId: disputeId,
-      description: `Resolved dispute ${disputeId}: ${currentDispute.title || 'Untitled'}`,
+      description: `Resolved dispute ${disputeId}: ${
+        currentDispute.title || "Untitled"
+      }`,
       metadata: {
         disputeId,
         disputeTitle: currentDispute.title,
@@ -578,39 +624,41 @@ export async function PATCH(
         resolvedBy: adminUser?.email,
         userEmail: dispute.users?.email,
         resolutionTime: new Date().toISOString(),
-        priority: currentDispute.priority
+        priority: currentDispute.priority,
       },
       ipAddress: clientInfo.ipAddress,
-      userAgent: clientInfo.userAgent
+      userAgent: clientInfo.userAgent,
     });
 
     // Send notification to user
     if (dispute.user_id) {
       await dispatchBulkNotifications({
         userIds: [dispute.user_id],
-        title: 'Dispute Resolved',
-        message: `Your dispute #${disputeId} has been resolved. ${body.resolution_notes || ''}`,
-        type: 'success'
+        title: "Dispute Resolved",
+        message: `Your dispute #${disputeId} has been resolved. ${
+          body.resolution_notes || ""
+        }`,
+        type: "success",
       });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       dispute,
-      message: 'Dispute resolved successfully',
+      message: "Dispute resolved successfully",
       _admin: {
         performedBy: adminUser?.email,
         performedAt: new Date().toISOString(),
-        auditLogged: true
-      }
+        auditLogged: true,
+      },
     });
   } catch (error: any) {
-    console.error('PATCH dispute error:', error);
-    
+    console.error("PATCH dispute error:", error);
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const adminUser = await requireAdmin(request);
     if (!(adminUser instanceof NextResponse)) {
       const clientInfo = getClientInfo(request.headers);
-      
+
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -619,13 +667,13 @@ export async function PATCH(
         description: `Unexpected error during dispute resolution: ${error.message}`,
         metadata: {
           error: error.message,
-          stack: error.stack
+          stack: error.stack,
         },
         ipAddress: clientInfo.ipAddress,
-        userAgent: clientInfo.userAgent
+        userAgent: clientInfo.userAgent,
       });
     }
-    
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

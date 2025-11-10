@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Receipt,
@@ -20,8 +20,12 @@ import {
   CreditCard,
   RefreshCw,
   History,
+  LogOut,
 } from "lucide-react";
 import Image from "next/image";
+import { useUserContextData } from "@/app/context/userData";
+import Swal from "sweetalert2";
+import { Button } from "../ui/button";
 
 // Organized navigation links by categories
 const navSections = [
@@ -29,6 +33,7 @@ const navSections = [
     title: "Overview",
     links: [
       { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+      { name: "Admin Management", href: "/admin/admin-management", icon: LayoutDashboard },
     ]
   },
   {
@@ -72,6 +77,48 @@ export default function AdminSidebar() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["Overview", "Wallet Management"]) // Default expanded sections
   );
+const router = useRouter();
+  const {userData, setUserData} = useUserContextData();
+
+    const handleLogout = async () => {
+      try {
+        await fetch("/api/logout", { method: "POST" });
+  
+           if (userData) {
+          await fetch("/api/activity/last-logout", {
+            method: "POST",
+            body: JSON.stringify({
+              user_id: userData.id,
+              email: userData.email,
+              login_history_id: userData.currentLoginSession 
+            }),
+          });
+        }
+  
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("userData");
+          localStorage.clear();
+        }
+  
+        setUserData(null);
+  
+        Swal.fire({
+          icon: "success",
+          title: "Logged Out",
+          text: "You have been signed out successfully.",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+  
+        router.push("/auth/login");
+      } catch (error: any) {
+        Swal.fire({
+          icon: "error",
+          title: "Logout Failed",
+          text: error?.message || "An error occurred during logout.",
+        });
+      }
+    };
 
   useEffect(() => {
     document.body.classList.toggle("overflow-hidden", isMobileMenuOpen);
@@ -180,11 +227,17 @@ export default function AdminSidebar() {
           ))}
         </nav>
 
-        {/* 🚪 Footer */}
+       
         <div className="p-4 border-t shrink-0">
-          <button className="w-full text-sm text-red-600 hover:underline text-left">
-            Logout
-          </button>
+         <Button
+                    onClick={handleLogout}
+                    variant="outline"
+                    className="cursor-pointer flex items-center space-x-2 bg-transparent"
+                  >
+                    <LogOut className="w-4 h-4 hidden md:block" />
+                    <span>Logout</span>
+                  </Button>
+        
         </div>
       </div>
 

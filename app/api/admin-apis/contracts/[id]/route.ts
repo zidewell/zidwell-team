@@ -1,6 +1,7 @@
 // app/api/admin/contracts/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { requireAdmin } from "@/lib/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -9,7 +10,7 @@ const supabaseAdmin = createClient(
 
 // ✅ Use async/await on params like your preferred logic
 export async function GET(
-  req: Request,
+  req: NextRequest,
   {
     params,
   }: {
@@ -19,6 +20,14 @@ export async function GET(
   const id = (await params).id;
 
   try {
+
+     const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'legal_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     // ✅ Verify Supabase session cookie
     const cookieHeader = req.headers.get("cookie") || "";
     if (!cookieHeader.includes("sb-access-token")) {

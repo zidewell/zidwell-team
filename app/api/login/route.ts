@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     const { data: userProfile } = await supabase
       .from("users")
       .select(
-        "id, first_name, last_name, email, phone, wallet_balance, zidcoin_balance, referral_code, bvn_verification, role, city, state, address, date_of_birth, profile_picture, current_login_session"
+        "id, first_name, last_name, email, phone, wallet_balance, zidcoin_balance, referral_code, bvn_verification, admin_role, city, state, address, date_of_birth, profile_picture, current_login_session"
       )
       .eq("id", userId)
       .maybeSingle();
@@ -73,7 +73,6 @@ export async function POST(req: Request) {
       }
 
       isPending = true;
-
       profile = {
         id: pendingProfile.id,
         firstName: pendingProfile.first_name,
@@ -106,7 +105,7 @@ export async function POST(req: Request) {
         // walletBalance: userProfile.wallet_balance,
         zidcoinBalance: userProfile.zidcoin_balance,
         bvnVerification: userProfile.bvn_verification,
-        role: userProfile.role,
+        role: userProfile.admin_role,
         referralCode: userProfile.referral_code,
         state: userProfile.state,
         city: userProfile.city,

@@ -1,6 +1,6 @@
 // app/api/admin-apis/transactions/route.ts
 import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from '@/lib/admin-auth';
 
 const supabaseAdmin = createClient(
@@ -305,11 +305,18 @@ async function getCachedAdminTransactions({
 }
 
 // Only export HTTP methods
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    // Admin authentication using the utility file
     const adminUser = await requireAdmin(req);
-    if (adminUser instanceof NextResponse) return adminUser;
+  if (adminUser instanceof NextResponse) return adminUser;
+
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin', 'legal_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
+
+
+
 
     const url = new URL(req.url);
     const page = Number(url.searchParams.get("page") ?? 1);

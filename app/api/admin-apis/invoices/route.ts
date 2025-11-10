@@ -1,7 +1,8 @@
 // app/api/admin-apis/invoices/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAuditLog, getClientInfo } from '@/lib/audit-log';
+import { requireAdmin } from "@/lib/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -309,8 +310,16 @@ async function getAdminUserInfo(cookieHeader: string) {
 
 // Only export HTTP methods
 // 📄 GET: List invoices with filters and pagination
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+
+      const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
     const url = new URL(req.url);
     const page = Number(url.searchParams.get("page") ?? 1);
@@ -380,11 +389,15 @@ export async function GET(req: Request) {
 }
 
 // 🔄 PATCH: Update invoice status
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
-    // Get admin user info for audit logging
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
+    const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(req.headers);
 
     const { id, status, notes } = await req.json();
@@ -601,11 +614,15 @@ export async function PATCH(req: Request) {
 }
 
 // 🗑️ DELETE: Remove an invoice
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   try {
-    // Get admin user info for audit logging
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
+    const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(req.headers);
 
     const { id } = await req.json();
@@ -732,11 +749,15 @@ export async function DELETE(req: Request) {
 }
 
 // 📝 POST: Create a new invoice (if you have this functionality)
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    // Get admin user info for audit logging
-    const cookieHeader = req.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
+    const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(req.headers);
 
     const invoiceData = await req.json();

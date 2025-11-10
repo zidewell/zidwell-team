@@ -11,7 +11,7 @@ import NotificationBell from "./NotificationBell";
 export default function DashboardHeader() {
   const router = useRouter();
   const { userData, setUserData } = useUserContextData();
-  // ✅ Logout handler
+
   const handleLogout = async () => {
     try {
       await fetch("/api/logout", { method: "POST" });

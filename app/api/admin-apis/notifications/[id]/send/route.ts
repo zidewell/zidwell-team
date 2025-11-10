@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAuditLog, getClientInfo } from '@/lib/audit-log';
+import { requireAdmin } from "@/lib/admin-auth";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -291,9 +292,13 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Get admin user info for audit logging
-    const cookieHeader = request.headers.get("cookie") || "";
-    const adminUser = await getAdminUserInfo(cookieHeader);
+     const adminUser = await requireAdmin(request);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(request.headers);
 
     // Get the ID from params

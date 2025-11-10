@@ -61,12 +61,14 @@ export default function UsersPage() {
       created_at_raw: user.created_at,
       last_login_raw: user.last_login,
       last_logout_raw: user.last_logout,
+      // Check both status and is_blocked for blocked status
+      is_blocked: user.is_blocked || user.status === 'blocked',
     }));
   }, [data]);
 
   // Helper functions for user activity (use raw dates)
   const isUserRecentlyActive = (user: any) => {
-    const isActiveStatus = user.status === 'active';
+    const isActiveStatus = !user.is_blocked && user.status === 'active';
     const hasRecentLogin = user.last_login_raw;
     
     if (hasRecentLogin) {
@@ -79,21 +81,21 @@ export default function UsersPage() {
   };
 
   const isUserActiveToday = (user: any) => {
-    if (user.status !== 'active' || !user.last_login_raw) return false;
+    if (user.is_blocked || user.status !== 'active' || !user.last_login_raw) return false;
     const lastLogin = new Date(user.last_login_raw);
     const today = new Date();
     return lastLogin.toDateString() === today.toDateString();
   };
 
   const isUserActiveThisWeek = (user: any) => {
-    if (user.status !== 'active' || !user.last_login_raw) return false;
+    if (user.is_blocked || user.status !== 'active' || !user.last_login_raw) return false;
     const lastLogin = new Date(user.last_login_raw);
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     return lastLogin > weekAgo;
   };
 
   const isUserInactive = (user: any) => {
-    if (user.status !== 'active') return false;
+    if (user.is_blocked || user.status !== 'active') return false;
     if (!user.last_login_raw) return true;
     const lastLogin = new Date(user.last_login_raw);
     const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -105,6 +107,7 @@ export default function UsersPage() {
   const activeToday = users.filter(isUserActiveToday);
   const activeThisWeek = users.filter(isUserActiveThisWeek);
   const inactiveUsers = users.filter(isUserInactive);
+  const blockedUsers = users.filter((user: any) => user.is_blocked);
   const pendingUsersCount = data?.stats?.pending || 0;
 
   // Filter users based on search and filters
@@ -114,7 +117,10 @@ export default function UsersPage() {
       user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === "all" || user.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "active" && !user.is_blocked) ||
+      (statusFilter === "blocked" && user.is_blocked);
+    
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     const matchesActivity = 
       activityFilter === "all" ||
@@ -161,41 +167,74 @@ export default function UsersPage() {
     }
   };
 
-  // ---------- Block / Unblock (toggle status) ----------
+  // ---------- Block / Unblock (using new API endpoint) ----------
   const handleBlockToggle = async (user: any) => {
-    const willBlock = user.status !== "blocked";
-    const actionText = willBlock ? "Block" : "Unblock";
+    const isCurrentlyBlocked = user.is_blocked;
+    const action = isCurrentlyBlocked ? "unblock" : "block";
+    const actionText = isCurrentlyBlocked ? "Unblock" : "Block";
+
+    // Ask for reason when blocking
+    let reason = "";
+    if (action === "block") {
+      const { value: blockReason } = await Swal.fire({
+        title: "Block Reason",
+        input: "text",
+        inputLabel: "Please provide a reason for blocking this user:",
+        inputPlaceholder: "e.g., Violation of terms of service",
+        showCancelButton: true,
+        confirmButtonText: "Continue to Block",
+        cancelButtonText: "Cancel",
+        inputValidator: (value) => {
+          if (!value) {
+            return "Please provide a reason for blocking";
+          }
+        }
+      });
+
+      if (!blockReason) return; // User cancelled
+      reason = blockReason;
+    }
+
     const confirm = await Swal.fire({
       title: `${actionText} user?`,
-      text: willBlock
-        ? `Blocked users will not be able to log in. Block ${user.email}?`
-        : `Unblock ${user.email}?`,
+      text: isCurrentlyBlocked
+        ? `Unblock ${user.email}? They will be able to log in again.`
+        : `Block ${user.email}? They will not be able to log in.${reason ? ` Reason: ${reason}` : ''}`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: actionText,
-      confirmButtonColor: willBlock ? "#d33" : "#3085d6",
+      confirmButtonColor: isCurrentlyBlocked ? "#3085d6" : "#d33",
     });
 
     if (!confirm.isConfirmed) return;
 
     try {
-      const body = { status: willBlock ? "blocked" : "active" };
+      // Use the new block/unblock endpoint
       const r = await fetch(`/api/admin-apis/users/${user.id}`, {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ 
+          action, 
+          reason: action === "block" ? reason : "Admin unblocked" 
+        }),
       });
 
-      if (!r.ok) throw new Error("Failed to update status");
+      if (!r.ok) {
+        const errorData = await r.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to ${action} user`);
+      }
+
+      const result = await r.json();
+      
       Swal.fire(
         `${actionText}ed`,
-        `${user.email} is now ${body.status}`,
+        `${user.email} has been ${actionText.toLowerCase()}ed.`,
         "success"
       );
       mutate();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      Swal.fire("Error", `Failed to ${actionText.toLowerCase()} user`, "error");
+      Swal.fire("Error", err.message || `Failed to ${action} user`, "error");
     }
   };
 
@@ -204,8 +243,11 @@ export default function UsersPage() {
     const { value: formValues } = await Swal.fire({
       title: `Edit ${user.email}`,
       html:
-        `<input id="swal-full_name" class="swal2-input" placeholder="Full name" value="${escapeHtml(
-          user.full_name ?? ""
+        `<input id="swal-first_name" class="swal2-input" placeholder="First name" value="${escapeHtml(
+          user.first_name ?? ""
+        )}">` +
+        `<input id="swal-last_name" class="swal2-input" placeholder="Last name" value="${escapeHtml(
+          user.last_name ?? ""
         )}">` +
         `<input id="swal-email" class="swal2-input" placeholder="Email" value="${escapeHtml(
           user.email ?? ""
@@ -220,21 +262,16 @@ export default function UsersPage() {
            <option value="admin" ${
              user.role === "admin" ? "selected" : ""
            }>admin</option>
-         </select>` +
-        `<select id="swal-status" class="swal2-select">
-           <option value="active" ${
-             user.status === "active" ? "selected" : ""
-           }>active</option>
-           <option value="blocked" ${
-             user.status === "blocked" ? "selected" : ""
-           }>blocked</option>
          </select>`,
       focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: "Save",
       preConfirm: () => {
-        const full_name = (
-          document.getElementById("swal-full_name") as HTMLInputElement
+        const first_name = (
+          document.getElementById("swal-first_name") as HTMLInputElement
+        )?.value?.trim();
+        const last_name = (
+          document.getElementById("swal-last_name") as HTMLInputElement
         )?.value?.trim();
         const email = (
           document.getElementById("swal-email") as HTMLInputElement
@@ -244,12 +281,9 @@ export default function UsersPage() {
         )?.value?.trim();
         const role = (document.getElementById("swal-role") as HTMLSelectElement)
           ?.value;
-        const status = (
-          document.getElementById("swal-status") as HTMLSelectElement
-        )?.value;
 
-        if (!full_name) {
-          Swal.showValidationMessage("Full name is required");
+        if (!first_name || !last_name) {
+          Swal.showValidationMessage("First name and last name are required");
           return null;
         }
         if (!email) {
@@ -257,7 +291,7 @@ export default function UsersPage() {
           return null;
         }
 
-        return { full_name, email, phone, role, status };
+        return { first_name, last_name, email, phone, role };
       },
     });
 
@@ -363,17 +397,17 @@ export default function UsersPage() {
   };
 
   // Custom cell renderers
-  const renderStatusCell = (value: string) => {
-    if (value === "active") {
+  const renderStatusCell = (value: string, row: any) => {
+    if (row.is_blocked) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          ⛔ Blocked
+        </span>
+      );
+    } else if (value === "active") {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
           ● Active
-        </span>
-      );
-    } else if (value === "blocked") {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          ● Blocked
         </span>
       );
     }
@@ -543,7 +577,7 @@ export default function UsersPage() {
     { key: "full_name", label: "Name" },
     { key: "balance", label: "Balance", render: renderBalanceCell },
     { key: "role", label: "Role", render: renderRoleCell },
-    // { key: "status", label: "Status", render: renderStatusCell },
+    { key: "status", label: "Status", render: renderStatusCell },
     { key: "last_login", label: "Last Login", render: renderLastLoginCell },
     { key: "last_logout", label: "Last Logout", render: renderLastLogoutCell },
     { key: "created_at", label: "Created", render: renderCreatedAtCell },
@@ -595,8 +629,8 @@ export default function UsersPage() {
           </Button>
         </div>
 
-        {/* Enhanced Stats Cards - Added Pending Users Card */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        {/* Enhanced Stats Cards - Added Blocked Users Card */}
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
             <p className="text-2xl font-semibold">{users.length}</p>
@@ -606,6 +640,13 @@ export default function UsersPage() {
             <p className="text-2xl font-semibold text-green-600">
               {activeUsers.length}
             </p>
+          </div>
+          <div className="bg-white p-4 rounded-lg border shadow-sm">
+            <h3 className="text-sm font-medium text-gray-500">Blocked Users</h3>
+            <p className="text-2xl font-semibold text-red-600">
+              {blockedUsers.length}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">Cannot login</p>
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Pending Users</h3>

@@ -1,7 +1,8 @@
 // app/api/summary/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
+import { requireAdmin } from "@/lib/admin-auth";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -453,9 +454,20 @@ async function getCachedSummaryData(rangeParam: string) {
 }
 
 // Only export HTTP methods
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    console.log("[/api/summary] incoming request");
+
+      const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin', 'support_admin', 'legal_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
+
+
+
+    
 
     const cookieHeader = req.headers.get("cookie") || "";
     if (!cookieHeader.includes("sb-access-token")) {

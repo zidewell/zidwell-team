@@ -22,9 +22,13 @@ function isCacheValid(timestamp: number): boolean {
 
 export async function GET(request: NextRequest) {
   try {
-    // Admin authentication using the utility file
-    const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
+   const adminUser = await requireAdmin(request);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
     const { searchParams } = new URL(request.url);
     const cacheKey = generateCacheKey(searchParams);
@@ -176,9 +180,13 @@ export async function GET(request: NextRequest) {
 // Clear cache on POST requests (like when transactions occur)
 export async function POST(request: NextRequest) {
   try {
-    // Admin authentication for POST requests too
-    const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
+     const adminUser = await requireAdmin(request);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
     // Clear the cache
     cache.clear();
@@ -195,9 +203,16 @@ export async function POST(request: NextRequest) {
 // PATCH: Update wallet balance or bank details
 export async function PATCH(request: NextRequest) {
   try {
-    // Admin authentication
-    const adminUser = await requireAdmin(request);
+   const adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
+
+    const allowedRoles = ["super_admin", 'finance_admin', "operations_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
 
     const clientInfo = getClientInfo(request.headers);
 

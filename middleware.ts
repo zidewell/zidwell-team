@@ -69,11 +69,11 @@ export async function middleware(req: NextRequest) {
 
       const { data: profile } = await supabaseAdmin
         .from("users")
-        .select("role")
+        .select("admin_role")
         .eq("id", user.id)
         .single();
 
-      if (profile?.role !== "admin") {
+      if (!["super_admin", "finance_admin", "operations_admin", "support_admin", "legal_admin"].includes(profile?.admin_role)) {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
     }

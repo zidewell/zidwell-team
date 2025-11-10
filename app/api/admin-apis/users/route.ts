@@ -1,6 +1,6 @@
 // app/api/admin-apis/users/route.ts
 import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAuditLog, getClientInfo } from "@/lib/audit-log";
 
@@ -11,7 +11,7 @@ const supabaseAdmin = createClient(
 
 // ENHANCED ADMIN USERS CACHE
 const adminUsersCache = new Map();
-const ADMIN_USERS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const ADMIN_USERS_CACHE_TTL = 2 * 60 * 1000; 
 
 interface AdminUsersQuery {
   q: string | null;
@@ -182,11 +182,15 @@ async function getCachedAdminUsers({
 }
 
 // ✅ GET: Fetch paginated users with optional search
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    // Admin authentication using the utility file
-    const adminUser = await requireAdmin(req);
-    if (adminUser instanceof NextResponse) return adminUser;
+     const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'support_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
     const url = new URL(req.url);
     const q = url.searchParams.get("q");
@@ -248,12 +252,15 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    // Admin authentication using the utility file
     const adminUser = await requireAdmin(req);
-    if (adminUser instanceof NextResponse) return adminUser;
-
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(req.headers);
 
     const userData = await req.json();
@@ -356,12 +363,15 @@ export async function POST(req: Request) {
   }
 }
 
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   try {
-    // Admin authentication using the utility file
-    const adminUser = await requireAdmin(req);
-    if (adminUser instanceof NextResponse) return adminUser;
-
+   const adminUser = await requireAdmin(req);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(req.headers);
 
     const { userIds, updates } = await req.json();

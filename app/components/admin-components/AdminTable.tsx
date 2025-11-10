@@ -24,7 +24,7 @@ function formatValue(key: string, value: any) {
   if (!value) return "-";
 
   // If key looks like a date field and value is valid date
-  if (/(date|created_at|updated_at|timestamp)/i.test(key)) {
+  if (/(date|created_at|updated_at|timestamp|blocked_at|last_login|last_logout)/i.test(key)) {
     try {
       const date = new Date(value);
       if (!isNaN(date.getTime())) {
@@ -53,6 +53,15 @@ type Column = {
   render?: (value: any, row: any) => React.ReactNode;
 };
 
+// Custom action type
+type CustomAction = {
+  label: string;
+  onClick: (row: any) => void;
+  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
+  className?: string;
+  icon?: string;
+};
+
 type AdminTableProps = {
   columns: Column[];
   rows: any[];
@@ -64,6 +73,7 @@ type AdminTableProps = {
   onViewLoginHistory?: (row: any) => void;
   onViewDetails?: (row: any) => void;
   onRetryTransaction?: (row: any) => void;
+  customActions?: CustomAction[];
   emptyMessage?: string;
   searchPlaceholder?: string;
 };
@@ -79,6 +89,7 @@ export default function AdminTable({
   onViewLoginHistory,
   onViewDetails,
   onRetryTransaction,
+  customActions = [],
   emptyMessage = "No records found",
 }: AdminTableProps) {
   const [isClient, setIsClient] = useState(false);
@@ -105,6 +116,11 @@ export default function AdminTable({
     return value || "-";
   };
 
+  // Check if there are any actions to show
+  const hasActions = onEdit || onDelete || onDownload || onBlockToggle || 
+                    onForceLogout || onViewLoginHistory || onViewDetails || 
+                    onRetryTransaction || customActions.length > 0;
+
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table>
@@ -114,7 +130,7 @@ export default function AdminTable({
             {columns.map((col) => (
               <TableHead key={col.key}>{col.label}</TableHead>
             ))}
-            {(onEdit || onDelete || onDownload || onBlockToggle || onForceLogout || onViewLoginHistory || onViewDetails || onRetryTransaction) && (
+            {hasActions && (
               <TableHead className="text-right">Actions</TableHead>
             )}
           </TableRow>
@@ -132,7 +148,7 @@ export default function AdminTable({
                   </TableCell>
                 ))}
 
-                {(onEdit || onDelete || onDownload || onBlockToggle || onForceLogout || onViewLoginHistory || onViewDetails || onRetryTransaction) && (
+                {hasActions && (
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -141,6 +157,18 @@ export default function AdminTable({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {/* Custom Actions */}
+                        {customActions.map((action, actionIndex) => (
+                          <DropdownMenuItem
+                            key={actionIndex}
+                            onClick={() => action.onClick(row)}
+                            className={action.className}
+                          >
+                            {action.icon && <span className="mr-2">{action.icon}</span>}
+                            {action.label}
+                          </DropdownMenuItem>
+                        ))}
+
                         {/* Transaction Actions */}
                         {onViewDetails && (
                           <DropdownMenuItem onClick={() => onViewDetails(row)}>
@@ -172,14 +200,14 @@ export default function AdminTable({
                           <DropdownMenuItem
                             onClick={() => onBlockToggle(row)}
                             className={
-                              row.status === "blocked"
-                                ? "text-green-600"
-                                : "text-yellow-600"
+                              row.is_blocked || row.status === 'inactive'
+                                ? "text-green-600 font-medium"
+                                : "text-red-600 font-medium"
                             }
                           >
-                            {row.status === "blocked"
-                              ? "Unblock User"
-                              : "Block User"}
+                            {row.is_blocked || row.status === 'inactive'
+                              ? "🔄 Activate"
+                              : "⛔ Deactivate"}
                           </DropdownMenuItem>
                         )}
                         {onForceLogout && (
@@ -187,7 +215,7 @@ export default function AdminTable({
                             onClick={() => onForceLogout(row)}
                             className="text-orange-600"
                           >
-                            Force Logout
+                            🚪 Force Logout
                           </DropdownMenuItem>
                         )}
                         {onViewLoginHistory && (
@@ -195,7 +223,7 @@ export default function AdminTable({
                             onClick={() => onViewLoginHistory(row)}
                             className="text-blue-600"
                           >
-                            View Login History
+                            📊 View Login History
                           </DropdownMenuItem>
                         )}
                         {onDelete && (
@@ -203,7 +231,7 @@ export default function AdminTable({
                             onClick={() => onDelete(row)}
                             className="text-red-600"
                           >
-                            Delete
+                            🗑️ Delete
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -214,7 +242,10 @@ export default function AdminTable({
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={columns.length + 2} className="text-center">
+              <TableCell 
+                colSpan={columns.length + (hasActions ? 2 : 1)} 
+                className="text-center"
+              >
                 {emptyMessage}
               </TableCell>
             </TableRow>

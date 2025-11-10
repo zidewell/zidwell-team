@@ -114,10 +114,13 @@ function isCacheValid(timestamp: number): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    // Admin authentication using the utility file
     const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
-
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(request.headers);
 
     const cacheKey = 'reconciliation:latest';
@@ -430,9 +433,13 @@ export async function POST(request: NextRequest) {
 // Clear reconciliation cache
 export async function DELETE(request: NextRequest) {
   try {
-    // Admin authentication for DELETE requests too
     const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
     const clientInfo = getClientInfo(request.headers);
 
@@ -506,9 +513,13 @@ export async function DELETE(request: NextRequest) {
 // Optional: Add a GET endpoint to check gateway status
 export async function GET(request: NextRequest) {
   try {
-    const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
-
+     const adminUser = await requireAdmin(request);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'finance_admin', 'operations_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(request.headers);
 
     const gatewayService = new NombaPaymentGatewayService();

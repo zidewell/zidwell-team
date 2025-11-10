@@ -51,9 +51,13 @@ function clearUserCacheWithAudit(userId: string, adminUser: any, clientInfo: any
 
 export async function POST(request: NextRequest) {
   try {
-    // Admin authentication using the utility file
-    const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
+   const adminUser = await requireAdmin(request);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
     const clientInfo = getClientInfo(request.headers);
 
@@ -549,9 +553,13 @@ export async function POST(request: NextRequest) {
 // Additional endpoint to clear entire user cache (admin utility)
 export async function DELETE(request: NextRequest) {
   try {
-    // Admin authentication
-    const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
+   const adminUser = await requireAdmin(request);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
     const clientInfo = getClientInfo(request.headers);
 

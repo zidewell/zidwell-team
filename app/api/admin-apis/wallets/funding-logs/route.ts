@@ -22,10 +22,13 @@ function isCacheValid(timestamp: number): boolean {
 
 export async function GET(request: NextRequest) {
   try {
-    // Admin authentication using the utility file
-    const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
-
+  const adminUser = await requireAdmin(request);
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(request.headers);
     const { searchParams } = new URL(request.url);
     const cacheKey = generateCacheKey(searchParams);
@@ -335,9 +338,13 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Admin authentication for POST requests too
     const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
 
     const clientInfo = getClientInfo(request.headers);
 
@@ -409,8 +416,12 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const adminUser = await requireAdmin(request);
-    if (adminUser instanceof NextResponse) return adminUser;
-
+  if (adminUser instanceof NextResponse) return adminUser;
+  
+  const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin'];
+  if (!allowedRoles.includes(adminUser?.admin_role)) {
+    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+  }
     const clientInfo = getClientInfo(request.headers);
 
     const cacheSizeBefore = cache.size;

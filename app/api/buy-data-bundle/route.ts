@@ -49,7 +49,7 @@ async function getCachedUser(userId: string) {
 // Email notification function using Nodemailer
 async function sendEmailNotification(
   userId: string,
-  status: "success" | "failed",
+  status: "success" | "failed" | "pending",
   amount: number,
   phoneNumber: string,
   network: string,
@@ -72,6 +72,8 @@ async function sendEmailNotification(
     const subject =
       status === "success"
         ? `Data Purchase Successful - ₦${amount} ${network}`
+        : status === "pending"
+        ? `Data Purchase Processing - ₦${amount} ${network}`
         : `Data Purchase Failed - ₦${amount} ${network}`;
 
     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
@@ -87,6 +89,27 @@ Your data purchase was successful!
 • Phone Number: ${phoneNumber}
 • Transaction ID: ${transactionId || "N/A"}
 • Date: ${new Date().toLocaleString()}
+
+Thank you for using Zidwell!
+
+Best regards,
+Zidwell Team
+    `;
+
+    const pendingBody = `
+${greeting}
+
+Your data purchase is being processed. This usually takes a few moments.
+
+📱 Transaction Details:
+• Amount: ₦${amount}
+• Network: ${network}
+• Phone Number: ${phoneNumber}
+• Transaction ID: ${transactionId || "N/A"}
+• Date: ${new Date().toLocaleString()}
+• Status: Processing
+
+You will receive another notification once the transaction is completed.
 
 Thank you for using Zidwell!
 
@@ -117,7 +140,21 @@ Best regards,
 Zidwell Team
     `;
 
-    const emailBody = status === "success" ? successBody : failedBody;
+    const emailBody = 
+      status === "success" ? successBody :
+      status === "pending" ? pendingBody : failedBody;
+
+    const statusColor = 
+      status === "success" ? "#22c55e" :
+      status === "pending" ? "#f59e0b" : "#ef4444";
+
+    const statusIcon = 
+      status === "success" ? "✅" :
+      status === "pending" ? "🟡" : "❌";
+
+    const statusText = 
+      status === "success" ? "Data Purchase Successful" :
+      status === "pending" ? "Data Purchase Processing" : "Data Purchase Failed";
 
     await transporter.sendMail({
       from: process.env.EMAIL_FROM || '"Zidwell" <notifications@zidwell.com>',
@@ -128,12 +165,8 @@ Zidwell Team
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <p>${greeting}</p>
           
-          <h3 style="color: ${status === "success" ? "#22c55e" : "#ef4444"};">
-            ${
-              status === "success"
-                ? "✅ Data Purchase Successful"
-                : "❌ Data Purchase Failed"
-            }
+          <h3 style="color: ${statusColor};">
+            ${statusIcon} ${statusText}
           </h3>
           
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
@@ -143,14 +176,24 @@ Zidwell Team
             <p><strong>Phone Number:</strong> ${phoneNumber}</p>
             <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+            <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
+              ${status === "success" ? "Success" : status === "pending" ? "Processing" : "Failed"}
+            </span></p>
             ${
               status === "failed"
-                ? `<p><strong>Status:</strong> ${
-                    errorDetail || "Transaction failed"
-                  }</p>`
+                ? `<p><strong>Reason:</strong> ${errorDetail || "Transaction failed"}</p>`
                 : ""
             }
           </div>
+          
+          ${
+            status === "pending" 
+              ? `<p style="color: #64748b;">
+                  You will receive another notification once the transaction is completed.
+                  This usually takes just a few moments.
+                </p>`
+              : ""
+          }
           
           ${
             status === "failed" && errorDetail?.includes("refunded")
@@ -174,12 +217,16 @@ Zidwell Team
     );
   } catch (emailError) {
     console.error("Failed to send email notification:", emailError);
-    // Don't throw error to avoid affecting the main transaction flow
   }
 }
 
 export async function POST(req: NextRequest) {
   let transactionId: string | null = null;
+  let userId: string | undefined;
+  let amount: number | undefined;
+  let phoneNumber: string | undefined;
+  let network: string | undefined;
+  let merchantTxRef: string | undefined;
 
   try {
     const token = await getNombaToken();
@@ -191,24 +238,19 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const {
-      userId,
-      pin,
-      amount,
-      phoneNumber,
-      network,
-      merchantTxRef,
-      senderName,
-    } = body;
+    userId = body.userId;
+    amount = body.amount;
+    phoneNumber = body.phoneNumber;
+    network = body.network;
+    merchantTxRef = body.merchantTxRef;
+    const { senderName, pin } = body;
 
     if (
       !userId ||
       !pin ||
       !amount ||
       !phoneNumber ||
-      !network ||
-      !merchantTxRef ||
-      !senderName
+      !network
     ) {
       return NextResponse.json(
         { error: "All required fields must be provided" },
@@ -216,12 +258,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Generate merchantTxRef if not provided
+    const finalMerchantTxRef = merchantTxRef || `DATA-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const parsedAmount = Number(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    // REPLACED: Fetch user with cached version
+    // console.log("📱 Starting data purchase:", {
+    //   userId,
+    //   amount: parsedAmount,
+    //   phoneNumber,
+    //   network,
+    //   merchantTxRef: finalMerchantTxRef
+    // });
+
+    // Fetch user with cached version
     const user = await getCachedUser(userId);
     if (!user)
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -234,14 +287,22 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
 
-    // 2️⃣ Deduct wallet and create transaction via RPC
+    // Check wallet balance
+    if (user.wallet_balance < parsedAmount) {
+      return NextResponse.json(
+        { message: "Insufficient wallet balance" },
+        { status: 400 }
+      );
+    }
+
+    // Deduct wallet and create transaction via RPC
     const { data: rpcResult, error: rpcError } = await supabase.rpc(
       "deduct_wallet_balance",
       {
         user_id: userId,
         amt: parsedAmount,
         transaction_type: "data",
-        reference: merchantTxRef,
+        reference: finalMerchantTxRef,
         description: `Data purchase on ${network} for ${phoneNumber}`,
       }
     );
@@ -262,137 +323,281 @@ export async function POST(req: NextRequest) {
     }
 
     transactionId = rpcResult[0].tx_id;
+    // console.log("💰 Wallet deducted, transaction created:", transactionId);
 
-    // 3️⃣ Call Nomba API
-    try {
-      const response = await axios.post(
-        `${process.env.NOMBA_URL}/v1/bill/data`,
-        {
-          amount: parsedAmount,
-          phoneNumber,
-          network,
-          merchantTxRef,
-          senderName: senderName || "Zidwell User",
+    // // Call Nomba API
+    // console.log("📡 Calling Nomba API...");
+    const response = await axios.post(
+      `${process.env.NOMBA_URL}/v1/bill/data`,
+      {
+        amount: parsedAmount,
+        phoneNumber,
+        network,
+        merchantTxRef: finalMerchantTxRef,
+        senderName: senderName || "Zidwell User",
+      },
+      {
+        headers: {
+          accountId: process.env.NOMBA_ACCOUNT_ID!,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
-        {
-          headers: {
-            accountId: process.env.NOMBA_ACCOUNT_ID!,
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+        timeout: 30000,
+      }
+    );
 
-      // 4️⃣ Mark transaction as success
-      await supabase
-        .from("transactions")
-        .update({
-          status: "success",
-          description: `Data purchase successful for ${phoneNumber}`,
-        })
-        .eq("id", transactionId);
+    // console.log("📱 Nomba API Response received:", {
+    //   code: response.data?.code,
+    //   status: response.data?.status,
+    //   description: response.data?.description
+    // });
 
-      // Send success email notification - all parameters are guaranteed to be strings here
-      await sendEmailNotification(
-        userId, // string
-        "success",
-        parsedAmount, // number
-        phoneNumber, // string
-        network, // string
-        transactionId // string | null
-      );
+    // 🔥 FIXED: Determine transaction status based on Nomba response
+    const responseCode = response.data?.code?.toString();
+    const nombaStatus = response.data?.status;
+    const responseDescription = response.data?.description || "";
 
-      // clearDataPlansCache(userId);
-      // clearWalletBalanceCache(userId);
-      // clearTransactionsCache(userId);
+    // console.log("📊 Nomba Response Analysis:", {
+    //   responseCode,
+    //   nombaStatus, 
+    //   responseDescription,
+    //   hasSuccess: responseDescription === "SUCCESS"
+    // });
 
-      return NextResponse.json({
-        success: true,
-        message: "Data purchase successful",
-        transactionId,
-        nombaResponse: response.data,
-      });
-    } catch (nombaError: any) {
-      console.error(
-        "Data Purchase API error:",
-        nombaError.response?.data || nombaError.message
-      );
+    let transactionStatus = "success";
+    let emailStatus: "success" | "pending" | "failed" = "success";
 
-      const errorDetail =
-        nombaError.response?.data?.message || nombaError.message;
+    // 🔥 FIXED LOGIC: If code is "00" AND description is "SUCCESS", mark as success immediately
+    if (responseCode === "00" && responseDescription === "SUCCESS") {
+      transactionStatus = "success";
+      emailStatus = "success";
+      console.log("🟢 Data transaction marked as SUCCESS - immediate confirmation from Nomba");
+    } 
+    // If code is "00" but no explicit success, wait for webhook
+    else if (responseCode === "00") {
+      transactionStatus = "pending";
+      emailStatus = "pending";
+      console.log("🟡 Data transaction set to PENDING - code 00 but no explicit success");
+    }
+    // Other success indicators
+    else if (nombaStatus === "SUCCESS" || nombaStatus === "Success" || nombaStatus === "Completed") {
+      transactionStatus = "success";
+      emailStatus = "success";
+      console.log("🟢 Data transaction marked as SUCCESS");
+    } 
+    // Processing indicators
+    else if (nombaStatus === "Processing" || nombaStatus === "PENDING") {
+      transactionStatus = "pending";
+      emailStatus = "pending";
+      console.log("🟡 Data transaction set to PENDING");
+    }
+    // Failure indicators
+    else if (nombaStatus === "Failed" || nombaStatus === "FAILED") {
+      transactionStatus = "failed";
+      emailStatus = "failed";
+      console.log("🔴 Data transaction marked as FAILED");
+    }
+    // Default case
+    else {
+      transactionStatus = "pending";
+      emailStatus = "pending";
+      console.log("🟡 Data transaction set to PENDING - default for unknown status");
+    }
 
-      // Refund wallet via RPC
+    // Store additional data for webhook processing
+    const externalData = {
+      ...response.data,
+      phoneNumber,
+      network,
+      userId,
+      originalMerchantTxRef: finalMerchantTxRef
+    };
+
+    // Update transaction status based on response
+    const { error: updateError } = await supabase
+      .from("transactions")
+      .update({ 
+        status: transactionStatus,
+        external_response: externalData,
+        merchant_tx_ref: finalMerchantTxRef,
+        description: `Data purchase on ${network} for ${phoneNumber}`,
+        narration: `Data ${network} ${phoneNumber}`
+      })
+      .eq("id", transactionId);
+
+    if (updateError) {
+      console.error("❌ Failed to update transaction status:", updateError);
+      // Continue anyway - don't fail the whole request
+    }
+
+    // Send appropriate email notification
+    await sendEmailNotification(
+      userId,
+      emailStatus,
+      parsedAmount,
+      phoneNumber,
+      network,
+      transactionId
+    );
+
+    // console.log("✅ Data purchase processed successfully:", {
+    //   transactionId,
+    //   status: transactionStatus,
+    //   nombaStatus,
+    //   merchantTxRef: finalMerchantTxRef
+    // });
+
+    return NextResponse.json({
+      success: true,
+      message: `Data purchase ${transactionStatus}`,
+      status: transactionStatus,
+      nomba_status: nombaStatus,
+      transactionId,
+      merchantTxRef: finalMerchantTxRef,
+      data: response.data,
+    });
+
+  } catch (error: any) {
+    console.error(
+      "Data Purchase Error:",
+      error.response?.data || error.message
+    );
+
+    const errorDetail = error.response?.data?.message || error.message;
+    let refundStatus = "failed";
+    let emailStatus: "failed" = "failed";
+
+    // Refund if userId and amount exist and transaction was created
+    if (userId && amount && transactionId) {
       try {
-        await supabase.rpc("refund_wallet_balance", {
+        console.log("🔄 Attempting refund...");
+        const { error: refundError } = await supabase.rpc("refund_wallet_balance", {
           user_id: userId,
-          amt: parsedAmount,
+          amt: Number(amount),
         });
 
+        if (refundError) {
+          console.error("Refund RPC failed:", refundError);
+          // Try alternative refund method
+          const { data: userBefore } = await supabase
+            .from("users")
+            .select("wallet_balance")
+            .eq("id", userId)
+            .single();
+          
+          if (userBefore) {
+            const newBalance = Number(userBefore.wallet_balance) + Number(amount);
+            await supabase
+              .from("users")
+              .update({ wallet_balance: newBalance })
+              .eq("id", userId);
+            refundStatus = "refunded_manual";
+          }
+        } else {
+          refundStatus = "refunded";
+        }
+
+        // Update transaction status
         await supabase
           .from("transactions")
-          .update({
+          .update({ 
             status: "failed_refunded",
-            description: `Data purchase failed for ${phoneNumber}`,
+            external_response: {
+              error: errorDetail,
+              refundStatus,
+              stack: error.stack
+            }
           })
           .eq("id", transactionId);
 
-        // Send failure email notification with refund info - all parameters are guaranteed to be strings here
-        await sendEmailNotification(
-          userId, // string
-          "failed",
-          parsedAmount, // number
-          phoneNumber, // string
-          network, // string
-          transactionId, // string | null
-          `Transaction failed - Refunded. ${errorDetail}`
-        );
       } catch (refundError) {
-        console.error("Refund failed:", refundError);
-
-        await supabase
-          .from("transactions")
-          .update({
-            status: "refund_pending",
-            description: `Data purchase failed - refund pending for ${phoneNumber}`,
-          })
-          .eq("id", transactionId);
-
-        // Send failure email notification with pending refund info - all parameters are guaranteed to be strings here
-        await sendEmailNotification(
-          userId, // string
-          "failed",
-          parsedAmount, // number
-          phoneNumber, // string
-          network, // string
-          transactionId, // string | null
-          `Transaction failed - Refund pending. ${errorDetail}`
-        );
+        console.error("Refund process failed:", refundError);
+        if (transactionId) {
+          await supabase
+            .from("transactions")
+            .update({ status: "refund_pending" })
+            .eq("id", transactionId);
+          refundStatus = "refund_pending";
+        }
       }
+    } else if (userId && amount && !transactionId) {
+      // No transaction was created, so no deduction happened
+      refundStatus = "no_deduction";
+    }
 
-      return NextResponse.json(
-        {
-          error: "Data purchase failed",
-          detail: errorDetail,
-        },
-        { status: 500 }
+    // Send failure email notification
+    if (userId && amount && phoneNumber && network) {
+      await sendEmailNotification(
+        userId,
+        emailStatus,
+        Number(amount),
+        phoneNumber,
+        network,
+        transactionId,
+        `Transaction failed - Status: ${refundStatus}. ${errorDetail}`
       );
     }
-  } catch (err: any) {
-    console.error("Unexpected Data purchase error:", err.message);
-
-    if (transactionId) {
-      await supabase
-        .from("transactions")
-        .update({ status: "failed" })
-        .eq("id", transactionId);
-    }
-
-    // Note: We cannot send email notifications in the outer catch block
-    // because we don't have guaranteed access to userId, phoneNumber, network
-    // since the error could have occurred before they were validated
 
     return NextResponse.json(
-      { error: "Unexpected server error" },
+      {
+        error: "Data purchase failed",
+        detail: errorDetail,
+        refundStatus,
+        transactionId: transactionId || null,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// Optional: GET endpoint to check transaction status
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const transactionId = searchParams.get('transactionId');
+    const merchantTxRef = searchParams.get('merchantTxRef');
+
+    if (!transactionId && !merchantTxRef) {
+      return NextResponse.json(
+        { message: "transactionId or merchantTxRef is required" },
+        { status: 400 }
+      );
+    }
+
+    let query = supabase
+      .from("transactions")
+      .select("*")
+      .eq("type", "data");
+
+    if (transactionId) {
+      query = query.eq("id", transactionId);
+    } else if (merchantTxRef) {
+      query = query.eq("merchant_tx_ref", merchantTxRef);
+    }
+
+    const { data: transaction, error } = await query.single();
+
+    if (error) {
+      return NextResponse.json(
+        { message: "Transaction not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      transactionId: transaction.id,
+      status: transaction.status,
+      amount: transaction.amount,
+      createdAt: transaction.created_at,
+      updatedAt: transaction.updated_at,
+      merchantTxRef: transaction.merchant_tx_ref,
+      externalResponse: transaction.external_response
+    });
+
+  } catch (error: any) {
+    console.error("Check transaction status error:", error);
+    return NextResponse.json(
+      { message: "Failed to check transaction status" },
       { status: 500 }
     );
   }

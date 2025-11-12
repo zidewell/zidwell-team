@@ -175,7 +175,7 @@ export default function AirtimePurchase() {
       });
 
       const data = await response.json();
-      console.log("Airtime Purchase Response Data:", data);
+      // console.log("Airtime Purchase Response Data:", data);
 
       if (!response.ok) throw data;
 

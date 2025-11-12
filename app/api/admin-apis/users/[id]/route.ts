@@ -79,7 +79,7 @@ export async function GET(
     const { data, error } = await supabaseAdmin
       .from("users")
       .select(
-        "id, email, first_name, last_name, wallet_balance, phone, role, created_at, is_blocked, blocked_at, block_reason, last_login, last_logout"
+        "id, email, first_name, last_name, wallet_balance, phone, admin_role, created_at, is_blocked, blocked_at, block_reason, last_login, last_logout"
       )
       .eq("id", id)
       .single();
@@ -134,11 +134,11 @@ export async function PATCH(
     console.log("🛠️ PATCH Request Body:", body);
     console.log("🛠️ Admin performing update:", adminUser.email);
 
-    // Get current user state for audit log
+    // Get current user state for audit log - FIXED: removed role field
     const { data: currentUser, error: fetchError } = await supabaseAdmin
       .from("users")
       .select(
-        "id, email, first_name, last_name, phone, role, wallet_balance, created_at, is_blocked, blocked_at, block_reason"
+        "id, email, first_name, last_name, phone, admin_role, wallet_balance, created_at, is_blocked, blocked_at, block_reason"
       )
       .eq("id", id)
       .single();
@@ -258,20 +258,20 @@ export async function PATCH(
       userAgent: clientInfo.userAgent,
     });
 
-    // Special audit for role changes
-    if (updateData.role && updateData.role !== currentUser.role) {
+    // Special audit for admin_role changes - FIXED: using admin_role instead of role
+    if (updateData.admin_role && updateData.admin_role !== currentUser.admin_role) {
       await createAuditLog({
         userId: adminUser.id,
         userEmail: adminUser.email,
-        action: "change_user_role",
+        action: "change_user_admin_role",
         resourceType: "User",
         resourceId: id,
-        description: `Changed user ${currentUser.email} role from ${currentUser.role} to ${updateData.role}`,
+        description: `Changed user ${currentUser.email} admin role from ${currentUser.admin_role} to ${updateData.admin_role}`,
         metadata: {
           userId: id,
           userEmail: currentUser.email,
-          previousRole: currentUser.role,
-          newRole: updateData.role,
+          previousAdminRole: currentUser.admin_role,
+          newAdminRole: updateData.admin_role,
           changedBy: adminUser.email,
           timestamp: new Date().toISOString(),
         },
@@ -391,16 +391,16 @@ export async function DELETE(
       );
     }
 
-        const id = (await params).id;
+    const id = (await params).id;
 
     console.log("🗑️ DELETE Request User ID:", id);
     console.log("🗑️ Admin performing deletion:", adminUser.email);
 
-    // Get user before deletion for audit log
+    // Get user before deletion for audit log - FIXED: removed role field
     const { data: user, error: fetchError } = await supabaseAdmin
       .from("users")
       .select(
-        "id, email, first_name, last_name, phone, role, wallet_balance, created_at, is_blocked, blocked_at, block_reason"
+        "id, email, first_name, last_name, phone, admin_role, wallet_balance, created_at, is_blocked, blocked_at, block_reason"
       )
       .eq("id", id)
       .single();
@@ -471,7 +471,7 @@ export async function DELETE(
         metadata: {
           userId: id,
           userEmail: user.email,
-          userRole: user.role,
+          userAdminRole: user.admin_role, // FIXED: changed from userRole
           walletBalance: user.wallet_balance,
           error: error.message,
           attemptedBy: adminUser.email,
@@ -495,7 +495,7 @@ export async function DELETE(
         userId: id,
         userEmail: user.email,
         userName: `${user.first_name} ${user.last_name}`,
-        userRole: user.role,
+        userAdminRole: user.admin_role, // FIXED: changed from userRole
         phone: user.phone,
         walletBalance: user.wallet_balance,
         accountCreated: user.created_at,
@@ -587,11 +587,11 @@ export async function POST(
       );
     }
 
-    // Get user details for audit log
+    // Get user details for audit log - FIXED: removed role field
     const { data: user, error: fetchError } = await supabaseAdmin
       .from("users")
       .select(
-        "id, email, first_name, last_name, phone, role, created_at, is_blocked, blocked_at, block_reason"
+        "id, email, first_name, last_name, phone, admin_role, created_at, is_blocked, blocked_at, block_reason"
       )
       .eq("id", id)
       .single();

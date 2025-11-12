@@ -1,4 +1,3 @@
-
 // app/api/webhook/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -693,20 +692,27 @@ export async function POST(req: NextRequest) {
       let totalDeduction = txAmount;
 
       if (isRegularWithdrawal) {
-        // Regular withdrawal fee logic: 1% (₦20 min, ₦1000 cap)
+        const existingDeduction = Number(pendingTx.total_deduction) || 0;
+
         appFee = txAmount * 0.01;
         appFee = Math.max(appFee, 20);
         appFee = Math.min(appFee, 1000);
         appFee = Number(appFee.toFixed(2));
         totalFees = Number((nombaFee + appFee).toFixed(2));
-        totalDeduction = txAmount + totalFees;
 
-        console.log("💰 Regular Withdrawal calculations:");
+        totalDeduction = existingDeduction;
+
+        console.log(
+          "💰 Regular Withdrawal calculations (WEBHOOK - NO DEDUCTION):"
+        );
         console.log("   - Withdrawal amount:", txAmount);
         console.log("   - Nomba fee:", nombaFee);
         console.log("   - Our app fee:", appFee);
         console.log("   - Total fees:", totalFees);
-        console.log("   - Total deduction:", totalDeduction);
+        console.log("   - Total deduction (from initiation):", totalDeduction);
+        console.log(
+          "   - ✅ User was already charged this amount during initiation"
+        );
       } else if (isP2PTransfer) {
         // 🔥 P2P transfers have NO FEES
         appFee = 0;
@@ -950,4 +956,3 @@ export async function POST(req: NextRequest) {
 
 //   return new Response(JSON.stringify({ received: true }), { status: 200 });
 // }
-

@@ -21,7 +21,7 @@ async function getCachedUser(userId: string) {
 
   // Check if cache exists and is less than 2 minutes old
   if (cached && Date.now() - cached.timestamp < 2 * 60 * 1000) {
-    console.log("✅ Using cached user data");
+   
     return cached.data;
   }
 

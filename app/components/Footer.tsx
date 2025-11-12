@@ -68,14 +68,14 @@ const Footer = () => {
                   Power Payment{" "}
                 </a>
               </li>
-              <li>
+              {/* <li>
                 <a
                   href="/dashboard/services/ai-accountant"
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   AI Accountant
                 </a>
-              </li>
+              </li> */}
             </ul>
           </div>
 
@@ -100,7 +100,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link
-                  href="/help"
+                  href="https://wa.me/7069175399"
                   className="hover:text-white text-gray-400 transition-colors"
                 >
                   Help Center

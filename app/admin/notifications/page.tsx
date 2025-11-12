@@ -255,8 +255,8 @@ export default function NotificationsCenterPage() {
     const channelIcons: any = {
       in_app: "📱",
       email: "📧",
-      sms: "💬",
-      push: "🔔"
+      // sms: "💬",
+      // push: "🔔"
     };
 
     return (
@@ -301,7 +301,7 @@ export default function NotificationsCenterPage() {
             <Button variant="outline" onClick={() => mutate()}>
               🔄 Refresh
             </Button>
-            <Button onClick={() => setShowCreateModal(true)}>
+            <Button className="bg-[#C29307] text-white hover:bg-[#a87e06]" onClick={() => setShowCreateModal(true)}>
               📢 Create Notification
             </Button>
           </div>
@@ -385,8 +385,8 @@ export default function NotificationsCenterPage() {
                     <SelectItem value="all">All Channels</SelectItem>
                     <SelectItem value="in_app">In-App</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
-                    <SelectItem value="sms">SMS</SelectItem>
-                    <SelectItem value="push">Push</SelectItem>
+                    {/* <SelectItem value="sms">SMS</SelectItem>
+                    <SelectItem value="push">Push</SelectItem> */}
                   </SelectContent>
                 </Select>
               </div>
@@ -471,8 +471,8 @@ export default function NotificationsCenterPage() {
                         <div className="flex items-center space-x-4 mt-2 text-xs">
                           <span>📱 In-App: {notification.stats.in_app_sent || 0}</span>
                           <span>📧 Email: {notification.stats.email_sent || 0}</span>
-                          <span>💬 SMS: {notification.stats.sms_sent || 0}</span>
-                          <span>🔔 Push: {notification.stats.push_sent || 0}</span>
+                          {/* <span>💬 SMS: {notification.stats.sms_sent || 0}</span>
+                          <span>🔔 Push: {notification.stats.push_sent || 0}</span> */}
                           <span>✅ Successful: {notification.stats.successful || 0}</span>
                           <span>❌ Failed: {notification.stats.failed || 0}</span>
                         </div>
@@ -651,7 +651,8 @@ export default function NotificationsCenterPage() {
                 <div>
                   <label className="block text-sm font-medium mb-2">Channels</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {["in_app", "email", "sms", "push"].map((channel) => (
+                    {/* {["in_app", "email", "sms", "push"].map((channel) => ( */}
+                    {["in_app", "email"].map((channel) => (
                       <div key={channel} className="flex items-center space-x-2">
                         <input
                           type="checkbox"
@@ -666,7 +667,8 @@ export default function NotificationsCenterPage() {
                         <span className="text-sm capitalize">
                           {channel === 'in_app' ? '📱 In-App' :
                            channel === 'email' ? '📧 Email' :
-                           channel === 'sms' ? '💬 SMS' : '🔔 Push'}
+                           channel === 'sms' ? '💬 SMS' : '🔔 Push'
+                           }
                         </span>
                       </div>
                     ))}

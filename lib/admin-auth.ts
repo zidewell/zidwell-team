@@ -123,17 +123,24 @@ export async function verifyAdmin(authToken: string, requiredPermission?: string
 
     const { data: profile } = await supabaseAdmin
       .from("users")
-      .select("role, admin_role")
+      .select("admin_role")
       .eq("id", user.id)
       .single();
 
-    if (!profile || profile.role !== "admin") {
-      return { 
-        isAdmin: false, 
-        error: "Insufficient permissions - Admin access required" 
-      };
-    }
+    const allowedAdminRoles = [
+  "super_admin",
+  "finance_admin",
+  "operations_admin",
+  "support_admin",
+  "legal_admin",
+];
 
+if (!profile || !allowedAdminRoles.includes(profile.admin_role)) {
+  return {
+    isAdmin: false,
+    error: "Insufficient permissions - Admin access required",
+  };
+}
     // Check specific permission if required
     if (requiredPermission) {
       const rolePermissions = ROLE_PERMISSIONS[profile.admin_role as keyof typeof ROLE_PERMISSIONS];

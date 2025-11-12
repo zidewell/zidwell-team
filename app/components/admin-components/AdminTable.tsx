@@ -1,4 +1,3 @@
-// app/components/admin-components/AdminTable.tsx
 "use client";
 
 import {
@@ -73,6 +72,7 @@ type AdminTableProps = {
   onViewLoginHistory?: (row: any) => void;
   onViewDetails?: (row: any) => void;
   onRetryTransaction?: (row: any) => void;
+  onRowClick?: (row: any) => void; // NEW: Add row click handler
   customActions?: CustomAction[];
   emptyMessage?: string;
   searchPlaceholder?: string;
@@ -89,6 +89,7 @@ export default function AdminTable({
   onViewLoginHistory,
   onViewDetails,
   onRetryTransaction,
+  onRowClick, // NEW: Add row click handler
   customActions = [],
   emptyMessage = "No records found",
 }: AdminTableProps) {
@@ -139,7 +140,11 @@ export default function AdminTable({
         <TableBody>
           {rows.length > 0 ? (
             rows.map((row, index) => (
-              <TableRow key={row.id || index}>
+              <TableRow 
+                key={row.id || index}
+                className={onRowClick ? "cursor-pointer hover:bg-gray-50 transition-colors" : ""}
+                onClick={() => onRowClick?.(row)}
+              >
                 <TableCell className="text-center">{index + 1}</TableCell>
 
                 {columns.map((col) => (
@@ -149,7 +154,7 @@ export default function AdminTable({
                 ))}
 
                 {hasActions && (
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">

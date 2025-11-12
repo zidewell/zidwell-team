@@ -117,8 +117,7 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
         .header { background: #C29307; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
         .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
         .alert { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 15px 0; }
-        .alert spam a {margin-left: 15px; }
-        .alert spam {font-weight: bold; }
+        .alert spam a {margin-left: 15px; font-weight: bold;}
         .info-box { background: white; padding: 15px; border-radius: 4px; margin: 10px 0; }
       </style>
     </head>
@@ -144,7 +143,7 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
           <div class="alert">
             <p><strong>If this wasn't you:</strong></p>
             <p>• Change your password immediately <a href="${baseUrl}/auth/password-reset">Click here</a></p>
-            <p>• Contact our support team <spam>07069175399</spam></p>
+            <p>• Contact our support team <a href="https://wa.me/7069175399">07069175399</a></p>
           </div>
 
           <p>Thank you for keeping your account secure.</p>

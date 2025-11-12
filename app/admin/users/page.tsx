@@ -4,7 +4,8 @@ import useSWR from "swr";
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
-import AdminTable from "@/app/components/admin-components/AdminTable";
+import AdminTable from "@/app/components/admin-components/AdminTable"; 
+import UserProfilePage from "@/app/components/admin-components/UserProfile"; 
 import AdminLayout from "@/app/components/admin-components/layout";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
@@ -34,6 +35,7 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
   const [isClient, setIsClient] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const itemsPerPage = 10;
 
   const { data, error, isLoading, mutate } = useSWR(
@@ -53,7 +55,7 @@ export default function UsersPage() {
   // Process users data
   const users = React.useMemo(() => {
     if (!data) return [];
-    return (data.users ?? data).map((user: any) => ({
+    return (data?.users ?? data).map((user: any) => ({
       ...user,
       full_name: `${user.first_name} ${user.last_name}`,
       balance: user.wallet_balance,
@@ -138,6 +140,15 @@ export default function UsersPage() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+
+  // ---------- User Profile Navigation ----------
+  const handleUserClick = (user: any) => {
+    setSelectedUserId(user.id);
+  };
+
+  const handleBackToUsers = () => {
+    setSelectedUserId(null);
+  };
 
   // ---------- Delete (uses SweetAlert) ----------
   const handleDelete = async (user: any) => {
@@ -585,6 +596,11 @@ export default function UsersPage() {
     { key: "kyc_status", label: "KYC", render: renderKycCell },
   ];
 
+  // Show user profile if a user is selected
+  if (selectedUserId) {
+    return <UserProfilePage userId={selectedUserId} onBack={handleBackToUsers} />;
+  }
+
   // Show loading state
   if (isLoading) {
     return (
@@ -743,6 +759,7 @@ export default function UsersPage() {
           onBlockToggle={handleBlockToggle}
           onForceLogout={handleForceLogout}
           onViewLoginHistory={handleViewLoginHistory}
+          onRowClick={handleUserClick} // Add this for click functionality
         />
 
         {/* Pagination */}

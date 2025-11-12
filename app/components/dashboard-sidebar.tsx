@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "../context/userData";
-import { Button } from "./ui/button";
+
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -62,7 +62,7 @@ export default function DashboardSidebar() {
       onClick={() => setIsMobileMenuOpen(false)}
       className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
         isActive
-          ? "bg-yellow-500/20 text-yellow-400 border-r-2 border-yellow-400"
+          ? "bg-yellow-500/20 text-[#C29307] border-r-2 border-[#C29307]"
           : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
       }`}
     >
@@ -306,7 +306,7 @@ export default function DashboardSidebar() {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                       pathname === "/admin"
-                        ? "bg-yellow-500/20 text-yellow-400 border-r-2 border-yellow-400"
+                        ? "bg-yellow-500/20 text-[#C29307] border-r-2 border-[#C29307]"
                         : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
                     }`}
                   >

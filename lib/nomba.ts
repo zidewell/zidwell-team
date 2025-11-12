@@ -10,7 +10,7 @@ export async function getNombaToken() {
     return cachedToken;
   }
 
-  console.log("🔄 Fetching new Nomba token");
+  // console.log("🔄 Fetching new Nomba token");
   
   const url = `${process.env.NOMBA_URL}/v1/auth/token/issue`;
   const options = {
@@ -31,7 +31,7 @@ export async function getNombaToken() {
     const data = await response.json();
 
     // Debug: log the full response to see what fields are available
-    console.log("🔍 Full Nomba token response:", JSON.stringify(data, null, 2));
+    // console.log("🔍 Full Nomba token response:", JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       throw new Error(data.error_description || "Failed to get Nomba token");
@@ -56,12 +56,12 @@ export async function getNombaToken() {
     // Set expiry with 5-minute safety margin
     tokenExpiry = now + expiresIn - 300;
     
-    console.log(`✅ New token cached. Expires in: ${expiresIn} seconds`);
-    console.log(`⏰ Token valid until: ${new Date(tokenExpiry * 1000).toLocaleString()}`);
+    // console.log(`✅ New token cached. Expires in: ${expiresIn} seconds`);
+    // console.log(`⏰ Token valid until: ${new Date(tokenExpiry * 1000).toLocaleString()}`);
     
     return cachedToken;
   } catch (error) {
-    console.error("❌ Failed to get Nomba token:", error);
+    // console.error("❌ Failed to get Nomba token:", error);
     
     // Clear cache on error
     cachedToken = null;

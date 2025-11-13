@@ -6,7 +6,7 @@ type Props = {
   type: "transfer" | "deposit" | "card";
   amount?: number;
   paymentMethod?: "checkout" | "virtual_account" | "bank_transfer";
-  onFeeCalculated?: (fee: number, total: number) => void; // ✅ new prop
+  onFeeCalculated?: (fee: number, total: number) => void; 
 };
 
 export default function FeeDisplay({

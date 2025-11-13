@@ -41,10 +41,10 @@ export function calculateFees(
     appFee = nombaFee; // Pass through to customer
   }
 
-  // For transfers, add additional 1% app fee (₦20 min, ₦1000 max)
+  // For transfers, add additional 0.25% app fee (₦20 min, ₦150 max)
   if (type === "transfer") {
-    const transferAppFee = am * 0.01; // 1% additional app fee for transfers
-    const transferFee = Math.min(Math.max(transferAppFee, 20), 1000); // Min ₦20, Max ₦1000
+    const transferAppFee = am * 0.0025; // 0.25% additional app fee for transfers
+    const transferFee = Math.min(Math.max(transferAppFee, 20), 150); // Min ₦20, Max ₦150
     appFee += transferFee;
   }
 
@@ -103,12 +103,12 @@ export function calculateWebhookFees(
     ourFee = 0;
   }
 
-  // For transfers, add additional 1% app fee (₦20 min, ₦1000 max)
+  // For transfers, add additional 0.25% app fee (₦20 min, ₦150 max)
   if (txType.includes("transfer") || txType.includes("withdrawal")) {
-    const transferAppFee = amount * 0.01; // 1% additional app fee for transfers
-    const transferFee = Math.min(Math.max(transferAppFee, 20), 1000); // Min ₦20, Max ₦1000
+    const transferAppFee = amount * 0.0025; // 0.25% additional app fee for transfers
+    const transferFee = Math.min(Math.max(transferAppFee, 20), 150); // Min ₦20, Max ₦150
     ourFee += transferFee;
-    console.log(`   - Added transfer fee (1%: ₦20 min, ₦1000 cap): ₦${transferFee}`);
+    console.log(`   - Added transfer fee (0.25%: ₦20 min, ₦150 cap): ₦${transferFee}`);
   }
 
   // Calculate our margin (profit)

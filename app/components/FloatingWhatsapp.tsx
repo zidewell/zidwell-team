@@ -1,137 +1,30 @@
 // components/FloatingWhatsApp.tsx
-'use client';
+"use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { usePathname } from "next/navigation";
 
 const FloatingWhatsApp = () => {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isInitialized, setIsInitialized] = useState(false);
-  const iconRef = useRef<HTMLDivElement>(null);
-
-  const phoneNumber = '7069175399';
+  const phoneNumber = "7069175399";
   const whatsappUrl = `https://wa.me/${phoneNumber}`;
 
-  // Initialize position above the help button in vertical stack
-  useEffect(() => {
-    if (!isInitialized) {
-      const iconSize = 64; // WhatsApp icon size
-      const helpButtonSize = 56; // Help button size
-      const margin = 24; // Margin from bottom and right edges
-      const gap = 16; // Gap between buttons
-      
-      setPosition({
-        x: window.innerWidth - iconSize - margin,
-        y: window.innerHeight - (iconSize + helpButtonSize + gap + margin)
-      });
-      setIsInitialized(true);
-    }
-  }, [isInitialized]);
+  const pathname = usePathname();
 
-  // Handle window resize to maintain position relative to bottom-right
-  useEffect(() => {
-    const handleResize = () => {
-      if (isInitialized) {
-        const iconSize = 64;
-        const helpButtonSize = 56;
-        const margin = 24;
-        const gap = 16;
-        
-        setPosition({
-          x: window.innerWidth - iconSize - margin,
-          y: window.innerHeight - (iconSize + helpButtonSize + gap + margin)
-        });
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isInitialized]);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-
-      const newX = e.clientX - dragOffset.x;
-      const newY = e.clientY - dragOffset.y;
-
-      // Get viewport dimensions
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-
-      // Get icon dimensions
-      const iconSize = 64;
-
-      // Constrain position within viewport bounds
-      const constrainedX = Math.max(0, Math.min(newX, viewportWidth - iconSize));
-      const constrainedY = Math.max(0, Math.min(newY, viewportHeight - iconSize));
-
-      setPosition({
-        x: constrainedX,
-        y: constrainedY,
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
-
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, dragOffset]);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (iconRef.current) {
-      const rect = iconRef.current.getBoundingClientRect();
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
-    }
-    setIsDragging(true);
-    e.preventDefault();
+  const handleClick = () => {
+    window.open(whatsappUrl, "_blank");
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (isDragging) {
-      e.preventDefault();
-      return;
-    }
-    window.open(whatsappUrl, '_blank');
-  };
+  const hideOnPages = [
+    "/auth/login",
+    "/auth/register",
+    "/auth/forgot-password",
+  ];
 
-  // Reset to position above help button
-  const resetPosition = () => {
-    const iconSize = 64;
-    const helpButtonSize = 56;
-    const margin = 24;
-    const gap = 16;
-    
-    setPosition({
-      x: window.innerWidth - iconSize - margin,
-      y: window.innerHeight - (iconSize + helpButtonSize + gap + margin)
-    });
-  };
+  // ❌ Do not show on auth-related pages
+  if (hideOnPages.includes(pathname)) return null;
 
   return (
     <div
-      ref={iconRef}
-      className={`fixed z-40 cursor-grab active:cursor-grabbing transition-all duration-200 ${
-        isDragging ? 'scale-110 rotate-12' : 'scale-100 rotate-0'
-      } hover:scale-105`}
-      style={{
-        left: `${position.x}px`,
-        top: `${position.y}px`,
-      }}
-      onMouseDown={handleMouseDown}
+      className="fixed bottom-24 right-5 z-40 cursor-pointer transition-all duration-200 hover:scale-105"
       onClick={handleClick}
     >
       <div className="relative">
@@ -148,29 +41,9 @@ const FloatingWhatsApp = () => {
           </svg>
         </div>
 
-        {/* Pulse animation */}
+        {/* Ping Animation */}
         <div className="absolute inset-0 rounded-full bg-green-500 animate-ping opacity-20 -z-10"></div>
-
-        {/* Drag handle indicator */}
-        {isDragging && (
-          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded-full whitespace-nowrap">
-            Drag me around!
-          </div>
-        )}
       </div>
-
-      {/* Reset button - appears when dragged away from default position */}
-      {isInitialized && (position.x < window.innerWidth - 200 || position.y < window.innerHeight - 200) && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            resetPosition();
-          }}
-          className="absolute -top-12 left-1/2 transform -translate-x-1/2 bg-gray-800 hover:bg-gray-700 text-white text-xs px-2 py-1 rounded-full transition-colors duration-200"
-        >
-          Reset Position
-        </button>
-      )}
     </div>
   );
 };

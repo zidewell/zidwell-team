@@ -14,7 +14,6 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-// 🔥 ENHANCED: Structured data for the entire platform
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",

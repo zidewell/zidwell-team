@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
       txStatus
     );
 
-    // 🚫 CRITICAL: IGNORE ALL SERVICE PURCHASES COMPLETELY - FIXED VERSION
+
     const serviceTypes = [
       "data",
       "airtime",
@@ -687,7 +687,7 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // 🔥 NEW: Different fee logic for P2P vs Regular Withdrawals
+    
       const txAmount = Number(pendingTx.amount ?? transactionAmount ?? 0);
 
       let appFee = 0;
@@ -696,9 +696,9 @@ export async function POST(req: NextRequest) {
 
       if (isRegularWithdrawal) {
         // Regular withdrawal fee logic: 1% (₦20 min, ₦1000 cap)
-        appFee = txAmount * 0.01;
+        appFee = txAmount * 0.0025;
         appFee = Math.max(appFee, 20);
-        appFee = Math.min(appFee, 1000);
+        appFee = Math.min(appFee, 150);
         appFee = Number(appFee.toFixed(2));
         totalFees = Number((nombaFee + appFee).toFixed(2));
         totalDeduction = txAmount;

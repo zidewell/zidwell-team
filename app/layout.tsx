@@ -7,6 +7,7 @@ import FloatingHelpButton from "./components/FloatingHelpButton";
 import NotificationToast from "./components/NotificationToast";
 import FloatingWhatsApp from "./components/FloatingWhatsapp";
 import Script from "next/script";
+import DashboardFooter from "./components/dashboardFooter";
 
 export const viewport: Viewport = {
   themeColor: "#C29307",
@@ -168,9 +169,11 @@ export default function RootLayout({
         <UserProvider>
           <SessionWatcher>
             {children}
+            
             <FloatingWhatsApp />
             <FloatingHelpButton />
             <NotificationToast />
+            <DashboardFooter/>
           </SessionWatcher>
         </UserProvider>
       </body>

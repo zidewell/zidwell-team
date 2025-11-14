@@ -8,8 +8,8 @@ import { Headset } from "lucide-react";
 
 export default function FloatingHelpButton() {
   const [isOpen, setIsOpen] = useState(false);
-
   return (
+
     <div className="fixed bottom-6 right-5 z-50">
       {isOpen && (
         <div className="absolute bottom-16 right-0 bg-white rounded-lg shadow-lg p-4 w-64 space-y-2">

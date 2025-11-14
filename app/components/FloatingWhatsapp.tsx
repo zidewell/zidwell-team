@@ -14,13 +14,48 @@ const FloatingWhatsApp = () => {
   };
 
   const hideOnPages = [
+    // Auth pages - users are focused on authentication
     "/auth/login",
-    "/auth/register",
+    "/auth/signup", 
     "/auth/forgot-password",
+    "/auth/reset-password",
+    "/auth/verify-email",
+    
+    // Onboarding/Setup flows - users are in focused setup process
+    "/onboarding",
+    
+    // Payment/Checkout flows - users need focused attention
+    "/payment",
+    "/checkout",
+    "/confirm-payment",
+    
+    // Transaction processing pages
+    "/dashboard/transactions",
+    "/dashboard/fund-account",
+    "/dashboard/fund-account/transfer-page",
+    
+    // Legal/Compliance pages
+    "/privacy-policy",
+    "/terms-of-service",
+    "/legal",
+  
+    "/admin",
+  
   ];
 
-  // ❌ Do not show on auth-related pages
+  // Also hide from any path that starts with these (sub-routes)
+  const hideOnPathStartsWith = [
+    "/auth/",
+    "/onboarding/",
+    "/admin/",
+    
+  ];
+
+
   if (hideOnPages.includes(pathname)) return null;
+  
+
+  if (hideOnPathStartsWith.some(path => pathname?.startsWith(path))) return null;
 
   return (
     <div

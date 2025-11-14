@@ -450,7 +450,7 @@ export async function POST(req: Request) {
       nombaResponse: data,
     });
   } catch (error: any) {
-    console.error("Withdraw API error:", error);
+    console.error("Withdraw API error:", error); 
     return NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
       { status: 500 }

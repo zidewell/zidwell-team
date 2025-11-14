@@ -67,7 +67,7 @@ export default function ReceiptManager() {
       }
 
       const data = await res.json();
-      console.log(data);
+      // console.log(data);
       if (!data.receipts || !Array.isArray(data.receipts)) {
         throw new Error("Invalid data structure received from server");
       }

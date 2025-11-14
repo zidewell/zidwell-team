@@ -104,7 +104,7 @@ const Services = () => {
             >
               <CardContent className="p-8 text-center">
                 <div
-                  className={`mb-6 w-16 h-16 mx-auto rounded-2xl bg-gradient-to-r ${service.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300`}
+                  className={`mb-6 w-16 h-16 mx-auto rounded-2xl bg-linear-to-r ${service.color} flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300`}
                 >
                   {service.icon}
                 </div>

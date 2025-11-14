@@ -79,7 +79,9 @@ const services:any = [
     icon: CreditCard,
     color: "bg-red-50 text-red-600  ",
     buttonColor: "bg-[#C29307] hover:bg-[#C29307]",
-    link: "/dashboard/services/create-invoice"
+    
+    // link: "/dashboard/services/create-invoice"
+    link: "#"
   },
 
   

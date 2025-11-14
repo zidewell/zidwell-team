@@ -15,8 +15,8 @@ export default function FundAccountMethods() {
   const [details, setDetails] = useState<any>(null);
   const [showModal, setShowModal] = useState(false);
   const [amount, setAmount] = useState<number | string>("");
-  const [showLifetime, setShowLifetime] = useState(true);
-  const [showCurrent, setShowCurrent] = useState(true);
+  const [showLifetime, setShowLifetime] = useState(false);
+  const [showCurrent, setShowCurrent] = useState(false);
   const { userData, balance, lifetimeBalance } = useUserContextData();
 
 
@@ -135,7 +135,7 @@ export default function FundAccountMethods() {
       {/* 💳 Account Balance */}
       <div className="flex flex-col md:flex-row gap-4">
         {/* Lifetime Balance */}
-        <Card className="bg-gradient-to-r from-[#C29307] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4">
+        <Card className="bg-linear-to-r from-[#C29307] to-[#E3A521] text-white flex items-center justify-between shadow-lg rounded-xl p-4">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
               Lifetime Balance

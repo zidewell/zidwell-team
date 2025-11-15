@@ -30,14 +30,14 @@ const Services = () => {
       title: "Simple Agreement",
       description: "Create business agreements to secure deals.",
       color: "from-gray-500 to-gray-600",
-      link: "/agreements",
+      link: "#",
     },
       {
       icon: <Receipt className="h-10 w-10" />,
       title: "Issue Receipts",
       description: "Create receipts to back up your transactions.",
       color: "from-blue-500 to-blue-600",
-      link: "/receipts",
+      link: "#",
     },
     {
       icon: <Tv className="h-10 w-10" />,
@@ -77,7 +77,7 @@ const Services = () => {
       title: "Create Invoice",
       description: "Generate invoices for your clients with a few clicks.",
       color: "from-orange-500 to-orange-600",
-      link: "/invoices",
+      link: "#",
     },
   ];
 

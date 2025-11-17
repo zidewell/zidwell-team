@@ -3,10 +3,13 @@
 import { Button } from "./ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Use the same InvoiceItem type as main component
 interface InvoiceItem {
-  item: string;
-  quantity: string | number;
-  price: string | number;
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
 }
 
 interface InvoiceSummaryProps {
@@ -24,6 +27,9 @@ interface InvoiceSummaryProps {
     payment_type: "single" | "multiple";
     fee_option: "absorbed" | "customer";
     unit: number;
+    status: "unpaid" | "paid" | "draft";
+    business_name: string;
+    allowMultiplePayments: boolean;
   };
   totals: {
     subtotal: number;
@@ -125,7 +131,7 @@ export default function InvoiceSummary({
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                     <div>
                       <span className="text-gray-500 block text-xs">Name</span>
-                      <span className="text-gray-900 font-medium">{invoiceData.from}</span>
+                      <span className="text-gray-900 font-medium">{invoiceData.business_name || invoiceData.from}</span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
@@ -164,12 +170,12 @@ export default function InvoiceSummary({
                 <div className="bg-gray-50 rounded-lg p-4">
                   <div className="space-y-2 mb-3">
                     {invoiceData.invoice_items.map((item, index) => (
-                      <div key={index} className="flex justify-between text-sm">
+                      <div key={item.id} className="flex justify-between text-sm">
                         <span className="text-gray-700">
-                          {item.item} (Qty: {item.quantity})
+                          {item.description} (Qty: {item.quantity})
                         </span>
                         <span className="text-gray-900">
-                          ₦{(Number(item.quantity) * Number(item.price)).toLocaleString()}
+                          ₦{item.total.toLocaleString()}
                         </span>
                       </div>
                     ))}
@@ -224,7 +230,7 @@ export default function InvoiceSummary({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700 flex items-start gap-3">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mt-0.5 text-blue-500 flex-shrink-0"
+                  className="h-5 w-5 mt-0.5 text-blue-500 shrink-0"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"

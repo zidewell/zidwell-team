@@ -1,13 +1,23 @@
 import { notFound } from "next/navigation";
-import Image from "next/image";
+import { createClient } from "@supabase/supabase-js";
+import { Download } from "lucide-react";
+import { Button } from "@/app/components/ui/button";
+import { Card } from "@/app/components/ui/card";
+import { Separator } from "@/app/components/ui/separator";
+import DownloadInvoiceButton from "../downloadButton"; 
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+interface InvoiceItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
 
 export default async function SignPage({
   params,
@@ -16,190 +26,194 @@ export default async function SignPage({
 }) {
   const publicToken = (await params).publicToken;
 
-  // console.log(publicToken);
-
-  // Fetch invoice using the invoiceId
+  // Fetch invoice using the publicToken
   const { data: invoice, error } = await supabase
     .from("invoices")
-    .select("*")
+    .select(`
+      *,
+      invoice_items (*)
+    `)
     .eq("public_token", publicToken)
     .single();
 
-  // console.log(error);
-
   if (error || !invoice) return notFound();
 
-  let items: any[] = [];
+  // Map the database columns to your expected interface
+  const items: InvoiceItem[] = (invoice.invoice_items || []).map((dbItem: any) => ({
+    id: dbItem.id,
+    description: dbItem.item_description,  
+    quantity: dbItem.quantity,
+    unitPrice: dbItem.unit_price,
+    total: dbItem.total_amount,  
+  }));
 
-  try {
-    if (Array.isArray(invoice?.invoice_items)) {
-      items = invoice.invoice_items;
-    } else if (typeof invoice?.invoice_items === "string") {
-      items = JSON.parse(invoice.invoice_items);
-    }
-  } catch (err) {
-    console.error(
-      "Failed to parse invoice_items:",
-      invoice?.invoice_items,
-      err
-    );
-    items = [];
-  }
-
-  const formattedTotal = items
-    .reduce((sum, item) => sum + (item.quantity || 0) * (item.price || 0), 0)
-    .toLocaleString();
+  // Prepare invoice data for PDF download
+  const invoiceData = {
+    business_name: invoice.business_name,
+    business_logo: invoice.business_logo,
+    invoice_id: invoice.invoice_id,
+    issue_date: invoice.issue_date,
+    due_date: invoice.due_date,
+    from_name: invoice.from_name,
+    from_email: invoice.from_email,
+    client_name: invoice.client_name,
+    client_email: invoice.client_email,
+    client_phone: invoice.client_phone,
+    bill_to: invoice.bill_to,
+    message: invoice.message,
+    customer_note: invoice.customer_note,
+    invoice_items: items,
+    subtotal: invoice.subtotal,
+    fee_amount: invoice.fee_amount,
+    total_amount: invoice.total_amount,
+    fee_option: invoice.fee_option,
+    status: invoice.status,
+    allow_multiple_payments: invoice.allow_multiple_payments,
+    unit: invoice.unit,
+  };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <div className="bg-white shadow-2xl rounded-xl overflow-hidden">
-        <div className="bg-gray-200 px-8 py-6 flex justify-between items-center">
-          {/* {invoice.logo && (
-            <Image src={invoice.logo} alt="Logo" width={40} height={40} />
-          )} */}
-          <div>
-            <h1 className="text-2xl font-bold">INVOICE</h1>
-            <p className="text-sm mt-1">Professional Invoice Document</p>
-          </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto py-12 px-4 max-w-3xl">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">Payment Request</h1>
+          <p className="text-muted-foreground">Review invoice details and proceed with payment</p>
         </div>
 
-        <div className="p-8 space-y-8">
-          {/* Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div className="bg-gray-50 p-6 rounded-lg border">
-                <h2 className="text-lg font-semibold">Invoice Details</h2>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <strong>Invoice #:</strong> {invoice.invoice_id}
-                  </p>
-                  <p>
-                    <strong>Issue Date:</strong> {invoice.issue_date}
-                  </p>
-                  <p>
-                    <strong>Due Date:</strong> {invoice.due_date}
-                  </p>
-                  <p>
-                    <strong>Delivery:</strong> {invoice.delivery_issue}
-                  </p>
-                </div>
+        {/* Invoice Card */}
+        <Card className="p-8 mb-6">
+          {/* Business Header */}
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              {invoice.business_logo && (
+                <img 
+                  src={invoice.business_logo} 
+                  alt="Business Logo" 
+                  className="h-12 w-auto mb-2 rounded-lg" 
+                />
+              )}
+              <h2 className="text-xl font-bold text-foreground">{invoice.business_name}</h2>
+              <p className="text-sm text-muted-foreground mt-1">{invoice.from_name}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-muted-foreground">Invoice</div>
+              <div className="text-lg font-bold text-foreground">#{invoice.invoice_id}</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Due: {new Date(invoice.due_date).toLocaleDateString()}
               </div>
             </div>
+          </div>
 
-            <div className="space-y-6">
-              <div className="bg-gray-50 p-6 rounded-lg border">
-                <h2 className="text-lg font-semibold">From</h2>
-                <p className="whitespace-pre-line">{invoice.signee_name}</p>
+          <Separator className="my-6" />
+
+          {/* Client Information */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="space-y-2">
+              <h3 className="font-semibold text-foreground">Bill To</h3>
+              <div className="text-sm text-muted-foreground">
+                {invoice.client_name ? (
+                  <>
+                    <p className="font-medium text-foreground">{invoice.client_name}</p>
+                    {invoice.client_email && <p>{invoice.client_email}</p>}
+                    {invoice.client_phone && <p>{invoice.client_phone}</p>}
+                  </>
+                ) : (
+                  <p>Payment information will be collected during checkout</p>
+                )}
               </div>
-              <div className="bg-gray-50 p-6 rounded-lg border">
-                <h2 className="text-lg font-semibold">Bill To</h2>
-                <p className="whitespace-pre-line">{invoice.bill_to}</p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold text-foreground">From</h3>
+              <div className="text-sm text-muted-foreground">
+                <p className="font-medium text-foreground">{invoice.from_name}</p>
+                <p>{invoice.from_email}</p>
+                {invoice.bill_to && <p className="mt-1">{invoice.bill_to}</p>}
               </div>
             </div>
           </div>
 
           {/* Message */}
-          <div className="bg-gray-100 border-l-4 border-gray-300 p-6 rounded-r-lg">
-            <h3 className="font-semibold text-gray-800 mb-2">Message</h3>
-            <p className="text-gray-700">
-              {invoice.customer_note || "Thank you for your business."}
-            </p>
-          </div>
+          {invoice.message && (
+            <div className="mb-6 p-4 bg-muted/50 rounded-lg border">
+              <h3 className="font-semibold text-foreground mb-2">Message from {invoice.from_name}</h3>
+              <p className="text-sm text-muted-foreground">{invoice.message}</p>
+            </div>
+          )}
 
           {/* Items */}
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Invoice Items</h2>
-            <div className="overflow-x-auto border rounded-lg">
-              <table className="w-full">
-                <thead className="bg-gray-100">
-                  <tr>
-                    <th className="p-4 text-left">Description</th>
-                    <th className="p-4 text-center">Qty</th>
-                    <th className="p-4 text-right">Rate</th>
-                    <th className="p-4 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    let items: any[] = [];
-
-                    try {
-                      if (Array.isArray(invoice.invoice_items)) {
-                        items = invoice.invoice_items;
-                      } else if (typeof invoice.invoice_items === "string") {
-                        items = JSON.parse(invoice.invoice_items);
-                      }
-                    } catch (err) {
-                      console.error(
-                        "Failed to parse invoice_items:",
-                        invoice.invoice_items,
-                        err
-                      );
-                      items = [];
-                    }
-
-                    return items.map((item, idx) => (
-                      <tr key={idx} className="border-b hover:bg-gray-50">
-                        <td className="p-4">{item.item}</td>
-                        <td className="p-4 text-center">{item.quantity}</td>
-                        <td className="p-4 text-right">{item.price}</td>
-                        <td className="p-4 text-right">
-                          {(item.quantity * item.price).toLocaleString()}
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
+          <div className="mb-6">
+            <h3 className="font-semibold mb-4 text-foreground">Invoice Items</h3>
+            <div className="space-y-3">
+              {items.map((item) => (
+                <div key={item.id} className="flex justify-between text-sm">
+                  <div className="flex-1">
+                    <div className="font-medium text-foreground">{item.description}</div>
+                    <div className="text-muted-foreground">
+                      {item.quantity} × ₦{item.unitPrice.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="font-semibold text-foreground">
+                    ₦{item.total.toLocaleString()}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Total */}
-          <div className="flex justify-end">
-            <div className="bg-gray-200 p-6 rounded-lg min-w-80">
-              <div className="text-lg flex justify-between mb-2">
-                <span>Subtotal:</span>
-                <span>{formattedTotal}</span>
+          <Separator className="my-6" />
+
+          {/* Totals */}
+          <div className="space-y-2">
+            <div className="flex justify-between text-foreground">
+              <span>Subtotal</span>
+              <span>₦{invoice.subtotal.toLocaleString()}</span>
+            </div>
+            {invoice.fee_amount > 0 && (
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Processing Fee ({invoice.fee_option === 'customer' ? '3.5%' : 'Absorbed'})</span>
+                <span>₦{invoice.fee_amount.toLocaleString()}</span>
               </div>
-              <div className="text-xl font-bold border-t pt-2 flex justify-between">
-                <span>Total:</span>
-                <span>{formattedTotal}</span>
-              </div>
+            )}
+            <Separator className="my-3" />
+            <div className="flex justify-between text-xl font-bold">
+              <span className="text-foreground">Total Amount</span>
+              <span className="text-[#C29307]">₦{invoice.total_amount.toLocaleString()}</span>
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center mt-10 pt-6 border-t">
-            <p className="text-gray-500 text-sm">
-              Thank you for your business! Please remit payment by the due date.
-            </p>
-          </div>
-
-          {/* Signer info */}
-          <div className="mt-6 flex justify-between text-sm text-gray-700">
-            <p>Initiator: {invoice.initiator_name}</p>
-            <p>Date: {invoice.created_at}</p>
-          </div>
-
-          {/* Sign form */}
-          {invoice.signature_status !== "signed" && (
-            <div className="mt-10">
-              {invoice.payment_link && (
-                <Link
-                  href={invoice.payment_link}
-                  className="inline-block bg-[#C29307] text-white px-4 py-2 rounded font-bold hover:bg-[#b28a06]"
-                >
-                  Pay now
-                </Link>
-              )}
+          {/* Customer Note */}
+          {invoice.customer_note && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-700">{invoice.customer_note}</p>
             </div>
           )}
+        </Card>
 
-          {invoice.signature_status === "signed" && (
-            <div className="p-4 mt-8 bg-yellow-100 text-yellow-800 border border-yellow-400 rounded">
-              ⚠️ This invoice has already been signed.
-            </div>
+        {/* Payment CTA */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <DownloadInvoiceButton invoiceData={invoiceData} />
+          {invoice.payment_link && (
+            <Button 
+              size="lg" 
+              className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
+              asChild
+            >
+              <a href={invoice.payment_link} target="_blank" rel="noopener noreferrer">
+                Make Payment
+              </a>
+            </Button>
           )}
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-8">
+          <p className="text-sm text-muted-foreground">
+            Secured by <span className="text-[#C29307] font-semibold">Zidwell Finance</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Need help? Contact {invoice.from_email}
+          </p>
         </div>
       </div>
     </div>

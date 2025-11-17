@@ -34,10 +34,14 @@ async function getCachedInvoices({ userEmail, limit, status, page = 1, dateFrom,
   
   console.log("🔄 Fetching fresh invoices from database");
   
+  // UPDATED QUERY: Include invoice_items in the select
   let query = supabase
     .from('invoices')
-    .select('*')
-    .eq('initiator_email', userEmail)
+    .select(`
+      *,
+      invoice_items (*)
+    `) // This includes all related invoice items
+    .eq('from_email', userEmail) // Changed from initiator_email to from_email to match your schema
     .order('created_at', { ascending: false });
 
   // Apply filters if provided
@@ -68,6 +72,18 @@ async function getCachedInvoices({ userEmail, limit, status, page = 1, dateFrom,
     throw new Error('Failed to fetch invoices');
   }
 
+  // Log the structure to debug
+  console.log(`Fetched ${invoices?.length || 0} invoices`);
+  if (invoices && invoices.length > 0) {
+    console.log('First invoice structure:', {
+      id: invoices[0].id,
+      invoice_id: invoices[0].invoice_id,
+      has_items: Array.isArray(invoices[0].invoice_items),
+      items_count: invoices[0].invoice_items?.length || 0,
+      first_item: invoices[0].invoice_items?.[0]
+    });
+  }
+
   // Prepare response data
   const responseData = {
     invoices: invoices || [],
@@ -96,7 +112,7 @@ async function getCachedInvoices({ userEmail, limit, status, page = 1, dateFrom,
   return responseData;
 }
 
- function clearInvoicesCache(userEmail: string, filters?: Partial<InvoicesQuery>) {
+function clearInvoicesCache(userEmail: string, filters?: Partial<InvoicesQuery>) {
   if (filters && (filters.status || filters.limit || filters.page || filters.dateFrom || filters.dateTo)) {
     // Clear specific query cache
     const cacheKey = `invoices_${userEmail.toLowerCase()}_${filters.status || 'all'}_${filters.limit || 'all'}_${filters.page || 1}_${filters.dateFrom || ''}_${filters.dateTo || ''}`;
@@ -123,14 +139,14 @@ async function getCachedInvoices({ userEmail, limit, status, page = 1, dateFrom,
   }
 }
 
- function clearAllInvoicesCache() {
+function clearAllInvoicesCache() {
   const count = invoicesCache.size;
   invoicesCache.clear();
   console.log(`🧹 Cleared all invoices cache (${count} entries)`);
 }
 
 // Export for use in other files
- async function getInvoices(query: InvoicesQuery) {
+async function getInvoices(query: InvoicesQuery) {
   return await getCachedInvoices(query);
 }
 

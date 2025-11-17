@@ -1,40 +1,54 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { Input } from "@/app/components/ui/input";
 import { Button } from "@/app/components/ui/button";
+import { Textarea } from "@/app/components/ui/textarea";
+import { ArrowLeft } from "lucide-react";
 import Swal from "sweetalert2";
 import Loader from "@/app/components/Loader";
 import DashboardSidebar from "@/app/components/dashboard-sidebar";
 import DashboardHeader from "@/app/components/dashboard-hearder";
 
 interface InvoiceItem {
-  item: string;
+  id: string;
+  description: string;
   quantity: number;
-  price: number;
+  unitPrice: number;
+  total: number;
 }
 
 interface InvoiceForm {
-  signee_name: string;
-  signee_email: string;
+  client_name: string;
+  client_email: string;
   invoice_id: string;
+  from_name: string;
+  from_email: string;
   bill_to: string;
-  initiator_name: string;
   issue_date: string;
   due_date: string;
   invoice_items: InvoiceItem[];
-  customer_note: string;
   message: string;
+  business_name: string;
+  business_logo?: string;
+  client_phone?: string;
+  status: string;
+  total_amount: number;
+  subtotal: number;
+  fee_amount: number;
+  fee_option: "absorbed" | "customer";
+  payment_type: "single" | "multiple";
+  allow_multiple_payments: boolean;
+  unit: number;
+  redirect_url?: string;
 }
-
-type Errors = Partial<Record<keyof InvoiceForm, string>>;
 
 export default function Page() {
   const { id } = useParams();
+  const router = useRouter();
   const [form, setForm] = useState<InvoiceForm | null>(null);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Errors>({});
   const firstErrorRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -46,10 +60,40 @@ export default function Page() {
           return;
         }
         const data = await res.json();
-        setForm({
-          ...data,
-          invoice_items: data.invoice_items || [],
-        });
+        
+        // Transform the data to match our form structure
+        const transformedData: InvoiceForm = {
+          client_name: data.client_name || "",
+          client_email: data.client_email || "",
+          invoice_id: data.invoice_id || "",
+          from_name: data.from_name || "",
+          from_email: data.from_email || "",
+          bill_to: data.bill_to || "",
+          issue_date: data.issue_date || "",
+          due_date: data.due_date || "",
+          message: data.message || "",
+          business_name: data.business_name || "",
+          business_logo: data.business_logo || "",
+          client_phone: data.client_phone || "",
+          status: data.status || "unpaid",
+          total_amount: data.total_amount || 0,
+          subtotal: data.subtotal || 0,
+          fee_amount: data.fee_amount || 0,
+          fee_option: data.fee_option || "customer",
+          payment_type: data.payment_type || "single",
+          allow_multiple_payments: data.allow_multiple_payments || false,
+          unit: data.unit || 0,
+          redirect_url: data.redirect_url || "",
+          invoice_items: (data.invoice_items || []).map((item: any) => ({
+            id: item.id,
+            description: item.item_description || "",
+            quantity: Number(item.quantity) || 0,
+            unitPrice: Number(item.unit_price) || 0,
+            total: Number(item.total_amount) || 0,
+          }))
+        };
+
+        setForm(transformedData);
       } catch (error) {
         console.error("Fetch error:", error);
         Swal.fire("Error", "Failed to fetch invoice", "error");
@@ -63,66 +107,113 @@ export default function Page() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     if (!form) return;
-    setForm({ ...form, [e.target.name]: e.target.value });
-    setErrors((prev) => ({ ...prev, [e.target.name]: "" }));
+    const { name, value } = e.target;
+    
+    setForm(prev => prev ? { ...prev, [name]: value } : null);
   };
 
-  const updateItem = (index: number, key: keyof InvoiceItem, value: any) => {
+  const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
     if (!form) return;
+    
     const updatedItems = [...form.invoice_items];
-    updatedItems[index] = { ...updatedItems[index], [key]: value };
-    setForm({ ...form, invoice_items: updatedItems });
-  };
-  const validateForm = () => {
-    if (!form) return false;
-
-    const newErrors: Errors = {};
-
-    if (!(form.signee_name || "").trim())
-      newErrors.signee_name = "Client name is required.";
-    if (!(form.signee_email || "").trim())
-      newErrors.signee_email = "Client email is required.";
-    if (!(form.bill_to || "").trim())
-      newErrors.bill_to = "Bill to is required.";
-    if (!form.issue_date) newErrors.issue_date = "Issue date is required.";
-    if (!form.due_date) newErrors.due_date = "Due date is required.";
-    if (!(form.message || "").trim())
-      newErrors.message = "Message is required.";
-    if (!(form.customer_note || "").trim())
-      newErrors.customer_note = "Customer note is required.";
-
-    // Validate invoice items
-    const hasIncompleteItem = form.invoice_items.some(
-      (item) => !(item.item || "").trim() || !item.quantity || !item.price
-    );
-
-    if (hasIncompleteItem) {
-      newErrors.invoice_items = "All invoice items must be completed.";
+    const updatedItem:any = { ...updatedItems[index] };
+    
+    updatedItem[field] = value;
+    
+    // Recalculate total if quantity or unitPrice changes
+    if (field === "quantity" || field === "unitPrice") {
+      updatedItem.total = Number(updatedItem.quantity) * Number(updatedItem.unitPrice);
     }
+    
+    updatedItems[index] = updatedItem;
+    
+    // Recalculate totals
+    const subtotal = updatedItems.reduce((sum, item) => sum + Number(item.total), 0);
+    const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
+    const totalAmount = form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
+    
+    setForm({ 
+      ...form, 
+      invoice_items: updatedItems,
+      subtotal,
+      fee_amount: feeAmount,
+      total_amount: totalAmount
+    });
+  };
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const addItem = () => {
+    if (!form) return;
+    
+    const newItem: InvoiceItem = {
+      id: `temp-${Date.now()}`,
+      description: "",
+      quantity: 1,
+      unitPrice: 0,
+      total: 0,
+    };
+    
+    setForm({
+      ...form,
+      invoice_items: [...form.invoice_items, newItem]
+    });
+  };
+
+  const removeItem = (index: number) => {
+    if (!form) return;
+    
+    const updatedItems = form.invoice_items.filter((_, i) => i !== index);
+    
+    // Recalculate totals
+    const subtotal = updatedItems.reduce((sum, item) => sum + Number(item.total), 0);
+    const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
+    const totalAmount = form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
+    
+    setForm({
+      ...form,
+      invoice_items: updatedItems,
+      subtotal,
+      fee_amount: feeAmount,
+      total_amount: totalAmount
+    });
   };
 
   const handleUpdate = async () => {
     if (!form) return;
 
-    const isValid = validateForm();
-    if (!isValid) {
-      // Scroll to first error input
-      setTimeout(
-        () => firstErrorRef.current?.scrollIntoView({ behavior: "smooth" }),
-        0
-      );
-      return;
-    }
-
     setLoading(true);
     try {
+      // Transform data back to match database schema
+      const updateData = {
+        client_name: form.client_name,
+        client_email: form.client_email,
+        bill_to: form.bill_to,
+        issue_date: form.issue_date,
+        due_date: form.due_date,
+        message: form.message,
+        business_name: form.business_name,
+        client_phone: form.client_phone,
+        redirect_url: form.redirect_url,
+        subtotal: form.subtotal,
+        fee_amount: form.fee_amount,
+        total_amount: form.total_amount,
+        fee_option: form.fee_option,
+        payment_type: form.payment_type,
+        allow_multiple_payments: form.allow_multiple_payments,
+        unit: form.unit,
+        // Transform invoice items to match database schema
+        invoice_items: form.invoice_items.map(item => ({
+          id: item.id,
+          item_description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          total_amount: item.total,
+        }))
+      };
+
       const res = await fetch(`/api/invoice/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(updateData),
       });
 
       const result = await res.json();
@@ -143,6 +234,7 @@ export default function Page() {
       );
     } catch (error) {
       setLoading(false);
+      console.error("Update error:", error);
       Swal.fire("Error", "Failed to update invoice", "error");
     }
   };
@@ -154,8 +246,6 @@ export default function Page() {
       </div>
     );
 
-  const inputClass = "mb-1";
-
   return (
     <div className="min-h-screen bg-gray-50 fade-in">
       <DashboardSidebar />
@@ -163,200 +253,251 @@ export default function Page() {
         <DashboardHeader />
         <main className="p-6">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-3xl text-center font-bold mb-6">
-              Edit Invoice
-            </h1>
+            {/* Header with Back Button */}
+            <div className="flex items-center justify-between mb-6">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.back()}
+                className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                <span className="hidden md:block">Back</span>
+              </Button>
+              <h1 className="text-3xl font-bold text-center flex-1">
+                Edit Invoice
+              </h1>
+              <div className="w-20"></div> {/* Spacer for balance */}
+            </div>
 
-            <div className="p-4 space-y-4">
-              <div>
-                <label htmlFor="signee_name" className="block font-medium mb-1">
-                  Client Name
-                </label>
-                <Input
-                  id="signee_name"
-                  name="signee_name"
-                  value={form.signee_name}
-                  onChange={handleChange}
-                  ref={errors.signee_name ? firstErrorRef : undefined}
-                />
-                {errors.signee_name && (
-                  <p className="text-red-600 text-sm">{errors.signee_name}</p>
-                )}
+            <div className="bg-white rounded-lg shadow-sm border p-6 space-y-6">
+              {/* Business Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="business_name" className="block font-medium mb-2">
+                    Business Name
+                  </label>
+                  <Input
+                    id="business_name"
+                    name="business_name"
+                    value={form.business_name}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="invoice_id" className="block font-medium mb-2">
+                    Invoice ID
+                  </label>
+                  <Input
+                    id="invoice_id"
+                    name="invoice_id"
+                    value={form.invoice_id}
+                    disabled
+                  />
+                </div>
               </div>
 
-              <div>
-                <label
-                  htmlFor="signee_email"
-                  className="block font-medium mb-1"
-                >
-                  Client Email
-                </label>
-                <Input
-                  id="signee_email"
-                  name="signee_email"
-                  value={form.signee_email}
-                  onChange={handleChange}
-                  ref={errors.signee_email ? firstErrorRef : undefined}
-                />
-                {errors.signee_email && (
-                  <p className="text-red-600 text-sm">{errors.signee_email}</p>
-                )}
+              {/* Client Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="client_name" className="block font-medium mb-2">
+                    Client Name
+                  </label>
+                  <Input
+                    id="client_name"
+                    name="client_name"
+                    value={form.client_name}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="client_email" className="block font-medium mb-2">
+                    Client Email
+                  </label>
+                  <Input
+                    id="client_email"
+                    name="client_email"
+                    type="email"
+                    value={form.client_email}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="invoice_id" className="block font-medium mb-1">
-                  Invoice ID
-                </label>
-                <Input
-                  id="invoice_id"
-                  name="invoice_id"
-                  value={form.invoice_id}
-                  disabled
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="client_phone" className="block font-medium mb-2">
+                    Client Phone
+                  </label>
+                  <Input
+                    id="client_phone"
+                    name="client_phone"
+                    value={form.client_phone || ""}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="bill_to" className="block font-medium mb-2">
+                    Bill To
+                  </label>
+                  <Input
+                    id="bill_to"
+                    name="bill_to"
+                    value={form.bill_to}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label
-                  htmlFor="initiator_name"
-                  className="block font-medium mb-1"
-                >
-                  From
-                </label>
-                <Input
-                  id="initiator_name"
-                  name="initiator_name"
-                  value={form.initiator_name}
-                  disabled
-                />
+              {/* Dates */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="issue_date" className="block font-medium mb-2">
+                    Issue Date
+                  </label>
+                  <Input
+                    id="issue_date"
+                    name="issue_date"
+                    type="date"
+                    value={form.issue_date}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="due_date" className="block font-medium mb-2">
+                    Due Date
+                  </label>
+                  <Input
+                    id="due_date"
+                    name="due_date"
+                    type="date"
+                    value={form.due_date}
+                    onChange={handleChange}
+                  />
+                </div>
               </div>
 
+              {/* Invoice Items */}
               <div>
-                <label htmlFor="bill_to" className="block font-medium mb-1">
-                  Bill To
-                </label>
-                <Input
-                  id="bill_to"
-                  name="bill_to"
-                  value={form.bill_to}
-                  onChange={handleChange}
-                  ref={errors.bill_to ? firstErrorRef : undefined}
-                />
-                {errors.bill_to && (
-                  <p className="text-red-600 text-sm">{errors.bill_to}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="issue_date" className="block font-medium mb-1">
-                  Issue Date
-                </label>
-                <Input
-                  id="issue_date"
-                  name="issue_date"
-                  type="date"
-                  value={form.issue_date}
-                  onChange={handleChange}
-                  ref={errors.issue_date ? firstErrorRef : undefined}
-                />
-                {errors.issue_date && (
-                  <p className="text-red-600 text-sm">{errors.issue_date}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="due_date" className="block font-medium mb-1">
-                  Due Date
-                </label>
-                <Input
-                  id="due_date"
-                  name="due_date"
-                  type="date"
-                  value={form.due_date}
-                  onChange={handleChange}
-                  ref={errors.due_date ? firstErrorRef : undefined}
-                />
-                {errors.due_date && (
-                  <p className="text-red-600 text-sm">{errors.due_date}</p>
-                )}
-              </div>
-
-              <div>
-                <p className="font-medium mb-1">Invoice Items</p>
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block font-medium">Invoice Items</label>
+                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                    + Add Item
+                  </Button>
+                </div>
+                
                 {form.invoice_items.map((item, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-2 mb-2">
-                    <Input
-                      value={item.item}
-                      onChange={(e) =>
-                        updateItem(index, "item", e.target.value)
-                      }
-                      placeholder="Item"
-                    />
-                    <Input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        updateItem(index, "quantity", +e.target.value)
-                      }
-                      placeholder="Qty"
-                    />
-                    <Input
-                      type="number"
-                      value={item.price}
-                      onChange={(e) =>
-                        updateItem(index, "price", +e.target.value)
-                      }
-                      placeholder="Price"
-                    />
+                  <div key={item.id} className="grid grid-cols-12 gap-3 mb-3 items-center">
+                    <div className="col-span-5">
+                      <Input
+                        value={item.description}
+                        onChange={(e) => updateItem(index, "description", e.target.value)}
+                        placeholder="Item description"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                        placeholder="Qty"
+                        min="1"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        value={item.unitPrice}
+                        onChange={(e) => updateItem(index, "unitPrice", Number(e.target.value))}
+                        placeholder="Price"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        value={`₦${item.total.toLocaleString()}`}
+                        disabled
+                        placeholder="Total"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeItem(index)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        ×
+                      </Button>
+                    </div>
                   </div>
                 ))}
-                {errors.invoice_items && (
-                  <p className="text-red-600 text-sm">{errors.invoice_items}</p>
-                )}
+                
+                {/* Totals Summary */}
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between text-sm">
+                    <span>Subtotal:</span>
+                    <span>₦{form.subtotal.toLocaleString()}</span>
+                  </div>
+                  {form.fee_amount > 0 && (
+                    <div className="flex justify-between text-sm mt-1">
+                      <span>Processing Fee ({form.fee_option === 'customer' ? '3.5%' : 'Absorbed'}):</span>
+                      <span>₦{form.fee_amount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold mt-2 pt-2 border-t">
+                    <span>Total Amount:</span>
+                    <span className="text-[#C29307]">₦{form.total_amount.toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
 
+              {/* Message */}
               <div>
-                <label htmlFor="message" className="block font-medium mb-1">
+                <label htmlFor="message" className="block font-medium mb-2">
                   Message
                 </label>
-                <textarea
+                <Textarea
                   id="message"
                   name="message"
                   value={form.message}
                   onChange={handleChange}
-                  className="w-full border rounded-md p-2"
-                  placeholder="Message"
+                  placeholder="Message to client"
+                  rows={3}
                 />
-                {errors.message && (
-                  <p className="text-red-600 text-sm">{errors.message}</p>
-                )}
               </div>
 
+              {/* Redirect URL */}
               <div>
-                <label
-                  htmlFor="customer_note"
-                  className="block font-medium mb-1"
-                >
-                  Customer Note
+                <label htmlFor="redirect_url" className="block font-medium mb-2">
+                  Redirect URL (Optional)
                 </label>
-                <textarea
-                  id="customer_note"
-                  name="customer_note"
-                  value={form.customer_note}
+                <Input
+                  id="redirect_url"
+                  name="redirect_url"
+                  type="url"
+                  value={form.redirect_url || ""}
                   onChange={handleChange}
-                  className="w-full border rounded-md p-2"
-                  placeholder="Customer Note"
+                  placeholder="https://example.com/thankyou"
                 />
-                {errors.customer_note && (
-                  <p className="text-red-600 text-sm">{errors.customer_note}</p>
-                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  Redirect clients to this URL after successful payment
+                </p>
               </div>
 
               <Button
-                className="bg-[#C29307]"
+                className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
                 onClick={handleUpdate}
                 disabled={loading}
+                size="lg"
               >
-                {loading ? "Updating..." : "Update Invoice"}
+                {loading ? "Updating Invoice..." : "Update Invoice"}
               </Button>
             </div>
           </div>

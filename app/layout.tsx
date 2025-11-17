@@ -128,7 +128,7 @@ export const metadata: Metadata = {
   },
   category: "Finance & Business Management",
   other: {
-    "google-site-verification": "your-google-search-console-verification-code",
+    "google-site-verification": "google-site-verification=rBgRfj247s1PVKZyJC6VRnl_xJxFOo2exemDkjUxEm4",
   },
 };
 

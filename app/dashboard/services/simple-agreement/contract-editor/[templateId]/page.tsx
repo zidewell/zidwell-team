@@ -1,3 +1,4 @@
+// app/dashboard/contracts/[templateId]/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,10 +14,9 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
 
-import {
-  ContractTemplateType,
-  contractTemplates,
-} from "@/app/components/ContractGen";
+import { contractTemplates } from "../../data/contractTemplates"; 
+import { getTemplateContent } from "@/lib/templateContent"; 
+import { ToggleButton } from "@/app/components/ToggleButton";
 import { useParams, useRouter } from "next/navigation";
 import DashboardSidebar from "@/app/components/dashboard-sidebar";
 import DashboardHeader from "@/app/components/dashboard-hearder";
@@ -34,15 +34,14 @@ const Page = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showContractSummary, setShowContractSummary] = useState(false);
-  const [template, setTemplate] = useState<ContractTemplateType | null>(null);
+  const [template, setTemplate] = useState<any| null>(null);
   const [contractTitle, setContractTitle] = useState("");
   const [contractContent, setContractContent] = useState("");
   const [signeeEmail, setSigneeEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("draft");
-  const { userData, setUserData } = useUserContextData();
+  const { userData } = useUserContextData();
   
-  // New state for toggle buttons
   const [ageAgreement, setAgeAgreement] = useState(false);
   const [termsAgreement, setTermsAgreement] = useState(false);
   
@@ -56,115 +55,19 @@ const Page = () => {
     termsAgreement: "",
   });
 
-  const form = {
-    isOpen: showPreview,
-    contract: {
-      contract_title: contractTitle,
-      contract_text: contractContent,
-      description: "",
-    },
-    onClose: () => setShowPreview(false),
-  };
-
   const CurrentDate = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
 
-  const getTemplateContent = (
-    template: ContractTemplateType,
-    user: any,
-    currentDate: string = new Date().toLocaleDateString()
-  ): string => {
-    if (!user?.firstName || !user?.lastName) {
-      return "Error: Missing user name information.";
-    }
-
-    const templateContent: Record<string, string> = {
-      "service-agreement": `SERVICE AGREEMENT
-
-This Service Agreement ("Agreement") is entered into on ${currentDate} between:
-
-Client: [CLIENT_NAME]
-Address: [CLIENT_ADDRESS]
-
-Service Provider: [PROVIDER_NAME]
-Address: [PROVIDER_ADDRESS]
-
-1. SERVICES
-The Service Provider agrees to provide the following services:
-[DESCRIPTION_OF_SERVICES]
-
-2. COMPENSATION
-Total compensation: [AMOUNT]
-Payment terms: [PAYMENT_TERMS]
-
-3. TIMELINE
-Project start date: [START_DATE]
-Expected completion: [END_DATE]
-
-4. TERMS AND CONDITIONS
-[ADDITIONAL_TERMS]
-
-
-Client Signature: ${user.firstName} ${user.lastName}     Date: ${currentDate}
-`,
-
-      "employment-contract": `EMPLOYMENT CONTRACT
-
-This Employment Contract is between [COMPANY_NAME] and [EMPLOYEE_NAME].
-
-Position: [JOB_TITLE]
-Start Date: [START_DATE]
-Salary: [SALARY_AMOUNT]
-
-Job Responsibilities:
-[JOB_DESCRIPTION]
-
-Terms of Employment:
-[EMPLOYMENT_TERMS]
-
-
-Employee Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
-`,
-
-      "nda-template": `NON-DISCLOSURE AGREEMENT
-
-This Non-Disclosure Agreement ("NDA") is entered into between:
-
-Disclosing Party: [DISCLOSER_NAME]
-Receiving Party: [RECIPIENT_NAME]
-
-1. CONFIDENTIAL INFORMATION
-[DEFINITION_OF_CONFIDENTIAL_INFO]
-
-2. OBLIGATIONS
-The Receiving Party agrees to:
-- Keep all information confidential
-- Not disclose to third parties
-- Use information only for agreed purposes
-
-3. DURATION
-This agreement remains in effect for [DURATION].
-
-Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
-`,
-    };
-
-    return (
-      templateContent[template.id as keyof typeof templateContent] ||
-      `[Template content for ${template.title}]\n\nPlease customize this contract according to your needs.`
-    );
-  };
-
   useEffect(() => {
     if (templateId && typeof templateId === "string" && userData) {
-      const foundTemplate = contractTemplates.find((t) => t.id === templateId);
+      const foundTemplate = contractTemplates.find((t:any) => t.id === templateId);
       if (foundTemplate) {
         setTemplate(foundTemplate);
         setContractTitle(`New ${foundTemplate.title}`);
-        setContractContent(getTemplateContent(foundTemplate, userData));
+        setContractContent(getTemplateContent(foundTemplate.id, userData));
       }
     }
   }, [templateId, userData]);
@@ -197,8 +100,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
     if (!termsAgreement) newErrors.termsAgreement = "You must agree to the contract terms.";
 
     setErrors(newErrors);
-
-    // Return true if there are no errors, otherwise return false
     return !Object.values(newErrors).some((error) => error);
   };
 
@@ -305,16 +206,11 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
     }
   };
 
-  // Function to process payment and submit contract
   const processPaymentAndSubmit = async () => {
     setLoading(true);
-
     try {
-      // First process payment
       const paymentSuccess = await handleDeduct();
-
       if (paymentSuccess) {
-        // If payment successful, send contract
         await handleSubmit();
       }
     } catch (error) {
@@ -325,7 +221,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
     }
   };
 
-  // Function to show contract summary first
   const handleSendForSignature = () => {
     if (!validateInputs()) {
       Swal.fire({
@@ -335,55 +230,13 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
       });
       return;
     }
-
-    // Show contract summary first
     setShowContractSummary(true);
   };
 
-  // Function to proceed to PIN after summary confirmation
   const handleSummaryConfirm = () => {
     setShowContractSummary(false);
-    setIsOpen(true); // Show PIN popup next
+    setIsOpen(true);
   };
-
-  // Toggle button component - Improved for mobile
-  const ToggleButton = ({ 
-    isActive, 
-    onToggle, 
-    label, 
-    error 
-  }: { 
-    isActive: boolean; 
-    onToggle: (active: boolean) => void; 
-    label: string;
-    error: string;
-  }) => (
-    <div className="w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center md:items-end justify-between p-3 sm:p-4 border rounded-lg bg-gray-50 gap-3 sm:gap-4">
-        <span className="text-xs sm:text-sm font-medium text-gray-700 flex-1">
-          {label}
-        </span>
-        <div className="flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => onToggle(!isActive)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#C29307] focus:ring-offset-2 ${
-              isActive ? 'bg-[#C29307]' : 'bg-gray-200'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                isActive ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </div>
-      </div>
-      {error && (
-        <p className="text-red-500 text-xs sm:text-sm mt-2 px-1">{error}</p>
-      )}
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -392,7 +245,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
         <div className="lg:ml-64">
           <DashboardHeader />
 
-          {/* Header */}
           <PinPopOver
             setIsOpen={setIsOpen}
             isOpen={isOpen}
@@ -402,13 +254,10 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
             onConfirm={processPaymentAndSubmit}
           />
 
-          {/* Contract Summary Modal */}
           <ContractSummary
             contractTitle={contractTitle}
             contractContent={contractContent}
-            initiatorName={`${userData?.firstName || ""} ${
-              userData?.lastName || ""
-            }`}
+            initiatorName={`${userData?.firstName || ""} ${userData?.lastName || ""}`}
             initiatorEmail={userData?.email || ""}
             signeeName={signeeEmail.split("@")[0]}
             signeeEmail={signeeEmail}
@@ -421,7 +270,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
             dateCreated={CurrentDate}
           />
 
-          {/* Improved Header for Mobile */}
           <div className="border-b bg-card">
             <div className="container mx-auto px-4 sm:px-6 py-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -450,7 +298,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
                   </div>
                 </div>
 
-                {/* Action Buttons - Hidden on mobile, shown in main content */}
                 <div className="hidden md:flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Button
@@ -489,10 +336,8 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
             </div>
           </div>
 
-          {/* Main Content */}
           <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-              {/* Contract Details Card */}
               <div className="lg:col-span-1">
                 <Card>
                   <CardHeader className="pb-4">
@@ -549,7 +394,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
                       )}
                     </div>
 
-                    {/* Toggle Buttons Section */}
                     <div className="space-y-4 pt-4 border-t">
                       <div className="space-y-3">
                         <ToggleButton
@@ -573,7 +417,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
                 </Card>
               </div>
 
-              {/* Contract Content */}
               <div className="lg:col-span-2">
                 <Card className="h-full">
                   <CardHeader className="pb-4">
@@ -595,7 +438,6 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
                 </Card>
               </div>
 
-              {/* Mobile Action Buttons - Always visible on mobile */}
               <div className="flex flex-col gap-3 lg:hidden sticky bottom-4 bg-white p-4 rounded-lg shadow-lg border">
                 <Button
                   variant="outline"
@@ -633,10 +475,13 @@ Signature: ${user.firstName} ${user.lastName}      Date: ${currentDate}
         </div>
       </div>
 
-      {/* Preview Modal */}
       <ContractsPreview
         isOpen={showPreview}
-        contract={form.contract}
+        contract={{
+          contract_title: contractTitle,
+          contract_text: contractContent,
+          description: "",
+        }}
         onClose={() => setShowPreview(false)}
       />
     </div>

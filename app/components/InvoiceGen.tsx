@@ -6,34 +6,52 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import CreateInvoice from "./CreateInvoice";
 import InvoiceLIst from "./InvoiceLIst";
 import { useUserContextData } from "../context/userData";
 import Loader from "./Loader";
+import { useRouter } from "next/navigation";
 
 export interface InvoiceItem {
-  item: string;
+  id: string;
+  description: string;
   quantity: number;
-  price: number;
+  unitPrice: number;
+  total: number;
 }
 
 export interface Invoice {
   id: string;
   invoice_id: string;
-  created_by: string;
-  signee_email: string;
-  name: string;
-  customer_note: string;
-  delivery_due: string;
-  delivery_issue: string;
-  delivery_time: string;
-  invoice_number: string;
-  from: string;
-  bill_to: string;
+  user_id: string;
+  order_reference: string;
+  business_name: string;
+  business_logo?: string;
+  from_email: string;
+  from_name: string;
+  client_name?: string;
+  client_email: string;
+  client_phone?: string;
+  bill_to?: string;
   issue_date: string;
   due_date: string;
-  created_at: string | Date; 
-  status: string;
+  status: "draft" | "unpaid" | "paid" | "overdue" | "cancelled" | "partially_paid";
+  payment_type: "single" | "multiple";
+  fee_option: "absorbed" | "customer";
+  unit: number;
+  allow_multiple_payments: boolean;
+  subtotal: number;
+  fee_amount: number;
+  total_amount: number;
+  paid_amount: number;
+  message?: string;
+  customer_note?: string;
+  redirect_url?: string;
+  payment_link: string;
+  signing_link: string;
+  public_token: string;
+  created_at: string;
+  updated_at: string;
+  paid_at?: string;
   invoice_items: InvoiceItem[];
 }
 
@@ -46,8 +64,9 @@ export default function InvoiceGen() {
   const [activeTab, setActiveTab] = useState("invoices");
   const { userData } = useUserContextData();
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  // ✅ fetch invoices
+  // ✅ fetch invoices - UPDATED to use correct API endpoint
   const fetchInvoice = async (email: string) => {
     setLoading(true);
     setError(null);
@@ -86,41 +105,16 @@ export default function InvoiceGen() {
     }
   }, [userData?.email]);
 
-
   // ✅ totals
- const totalAmount = invoices?.reduce((sum, invoice) => {
-  let items: any[] = [];
+  const totalAmount = invoices?.reduce((sum, invoice) => {
+    return sum + (invoice.total_amount || 0);
+  }, 0);
 
-  try {
-    if (Array.isArray(invoice.invoice_items)) {
-      items = invoice.invoice_items;
-    } else if (typeof invoice.invoice_items === "string") {
-      items = JSON.parse(invoice.invoice_items);
-    }
-  } catch (err) {
-    console.error("Failed to parse invoice_items:", invoice.invoice_items, err);
-    items = [];
-  }
-
-  const invoiceTotal = items.reduce(
-    (itemSum, item) => itemSum + (item.quantity || 0) * (item.price || 0),
-    0
-  );
-
-  return sum + invoiceTotal;
-}, 0);
-
-
-  // const paidAmount = invoices
-  //   .filter((inv) => inv.signature_status?.toLowerCase() === "paid")
-  //   .reduce((sum, invoice) => {
-  //     const invoiceTotal =
-  //       invoice.invoice_items?.reduce(
-  //         (itemSum, item) => itemSum + item.quantity * item.price,
-  //         0
-  //       ) || 0;
-  //     return sum + invoiceTotal;
-  //   }, 0);
+  const paidAmount = invoices
+    .filter((inv) => inv.status?.toLowerCase() === "paid")
+    .reduce((sum, invoice) => {
+      return sum + (invoice.total_amount || 0);
+    }, 0);
 
   const paidInvoice = invoices.filter(
     (inv) => inv.status?.toLowerCase() === "paid"
@@ -130,86 +124,122 @@ export default function InvoiceGen() {
     (inv) => inv.status?.toLowerCase() === "unpaid"
   ).length;
 
+  const draftInvoice = invoices.filter(
+    (inv) => inv.status?.toLowerCase() === "draft"
+  ).length;
 
-const statusOptions = ["All", "Paid", "Unpaid", "Draft"];
+  const statusOptions = ["All", "Paid", "Unpaid", "Draft"];
 
+  const filteredInvoices = invoices.filter((item) => {
+    // normalize db value
+    const status = item.status?.toLowerCase().trim() || "";
 
-const filteredInvoices = invoices.filter((item) => {
-  // normalize db value
-  const status = item.status?.toLowerCase().trim() || "";
+    const statusMatch =
+      selectedStatus === "all" ? true : status === selectedStatus.toLowerCase();
 
+    const searchMatch =
+      searchTerm === "" ||
+      item.invoice_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.client_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.business_name?.toLowerCase().includes(searchTerm.toLowerCase());
 
-  const statusMatch =
-    selectedStatus === "all" ? true : status === selectedStatus.toLowerCase();
+    return statusMatch && searchMatch;
+  });
 
+  // Refresh invoices after creating a new one
+  const handleInvoiceCreated = () => {
+    if (userData?.email) {
+      fetchInvoice(userData.email);
+      setActiveTab("invoices");
+    }
+  };
 
-  const searchMatch =
-    searchTerm === "" ||
-    item.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.signee_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.bill_to?.toLowerCase().includes(searchTerm.toLowerCase()); 
-
-
-  return statusMatch && searchMatch;
-});
-   
-
+  if (loading && invoices.length === 0) {
+    return <Loader />;
+  }
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
       {activeTab === "invoices" && (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Total Invoiced</p>
-              <p className="text-2xl font-bold text-gray-900">
-                ₦{totalAmount.toLocaleString()}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Paid Invoices</p>
-              <p className="text-2xl font-bold text-green-600">
-                {paidInvoice}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Unpaid Invoices</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {unpaidInvoice}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Total Invoiced</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ₦{totalAmount.toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Total Received</p>
+                <p className="text-2xl font-bold text-green-600">
+                  ₦{paidAmount.toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Paid Invoices</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {paidInvoice}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Unpaid Invoices</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {unpaidInvoice}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="flex flex-wrap gap-2 mb-4">
           <TabsTrigger value="invoices">All Invoices</TabsTrigger>
-          <TabsTrigger value="create">Create Invoice</TabsTrigger>
         </TabsList>
 
         <TabsContent value="invoices" className="space-y-6">
+          {/* Error Message */}
+          {error && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-4">
+                <p className="text-red-700 text-sm">{error}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={() => userData?.email && fetchInvoice(userData.email)}
+                >
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Search + Filter */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="relative flex gap-3 md:justify-between">
-                  <div className="sm:flex-1">
+                <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                  {/* Search Input */}
+                  <div className="relative flex-1 max-w-md">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
-                      placeholder="Search invoices..."
+                      placeholder="Search by invoice ID, client, or business..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 w-full"
@@ -241,35 +271,35 @@ const filteredInvoices = invoices.filter((item) => {
                     </div>
 
                     {/* Mobile dropdown */}
-                    <div className="sm:hidden">
+                    <div className="sm:hidden relative">
                       <Button
                         onClick={() => setIsMenuOpen((prev) => !prev)}
-                        className="p-2 hover:bg-black "
+                        variant="outline"
+                        size="sm"
+                        className="p-2"
                       >
-                        <MoreHorizontal className="w-4 h-4 text-white" />
+                        <MoreHorizontal className="w-4 h-4" />
                       </Button>
 
                       {isMenuOpen && (
-                        <div className="absolute right-0 bg-white shadow-md rounded-lg mt-2 p-2 border border-gray-200 w-40">
+                        <div className="absolute right-0 top-full z-10 bg-white shadow-md rounded-lg mt-2 p-2 border border-gray-200 w-40">
                           {statusOptions.map((status) => {
                             const lowercase = status.toLowerCase();
                             return (
-                              <Button
+                              <button
                                 key={status}
-                                variant={
+                                className={`w-full text-left p-2 rounded mb-1 text-sm ${
                                   selectedStatus === lowercase
-                                    ? "default"
-                                    : "outline"
-                                }
-                                size="sm"
-                                className="w-full text-left p-2 hover:bg-[#C29307] hover:text-white mb-1"
+                                    ? "bg-[#C29307] text-white"
+                                    : "hover:bg-gray-100"
+                                }`}
                                 onClick={() => {
                                   setSelectedStatus(lowercase);
                                   setIsMenuOpen(false);
                                 }}
                               >
                                 {status}
-                              </Button>
+                              </button>
                             );
                           })}
                         </div>
@@ -282,7 +312,7 @@ const filteredInvoices = invoices.filter((item) => {
                 <div className="w-full sm:w-auto">
                   <Button
                     className="w-full sm:w-auto hover:bg-black bg-[#C29307] hover:shadow-xl transition-all duration-300"
-                    onClick={() => setActiveTab("create")}
+                    onClick={() => router.push("/dashboard/services/create-invoice/create")}
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     New Invoice
@@ -296,11 +326,8 @@ const filteredInvoices = invoices.filter((item) => {
           <InvoiceLIst
             invoices={filteredInvoices}
             loading={loading}
+            onRefresh={() => userData?.email && fetchInvoice(userData.email)}
           />
-        </TabsContent>
-
-        <TabsContent value="create">
-          <CreateInvoice />
         </TabsContent>
       </Tabs>
     </div>

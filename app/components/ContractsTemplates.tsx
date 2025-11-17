@@ -7,11 +7,11 @@ import {
   CardHeader,
   CardTitle,
 } from "./ui/card";
-import { ContractTemplateType } from "./ContractGen";
+
 import Loader from "./Loader";
 
 interface ContractTemplateCardProps {
-  template: ContractTemplateType;
+  template: any;
   onUseTemplate: (templateId: string) => void;
 
 }

@@ -1,74 +1,46 @@
+// app/dashboard/services/simple-agreement/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { FileText, Download, Eye, Search } from "lucide-react";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Input } from "./ui/input";
-import { Badge } from "./ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
-import { ContractTemplateCard } from "./ContractsTemplates";
+import { Button } from "@/app/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Input } from "@/app/components/ui/input";
+import { Badge } from "@/app/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import { ContractTemplateCard } from "@/app/components/ContractsTemplates";
 import { useRouter } from "next/navigation";
-import { CreateNewView } from "./CreateNewView";
-import { useUserContextData } from "../context/userData";
-import ContractsPreview from "./previews/ContractsPreview";
+import { CreateNewView } from "@/app/components/CreateNewView";
+import { useUserContextData } from "@/app/context/userData";
+import ContractsPreview from "@/app/components/previews/ContractsPreview";
 import Swal from "sweetalert2";
-import Loader from "./Loader";
-import ContractList from "./ContractLIst";
+import Loader from "@/app/components/Loader";
+import ContractList from "@/app/components/ContractLIst";
+import { contractTemplates as allTemplates } from "../dashboard/services/simple-agreement/data/contractTemplates"; 
 
-export interface Contract {
-  id: string;
-  title: string;
-  type: string;
-  status: "signed" | "pending" | "draft";
-  date: string;
-  amount?: number;
-  description: string;
-}
-
-export interface ContractTemplateType {
+// Define local interface for the component
+interface ContractTemplateType {
   id: string;
   title: string;
   description: string;
   icon: string;
-  category:
-    | "service"
-    | "employment"
-    | "vendor"
-    | "legal"
-    | "partnership"
-    | "freelancer";
+  category: string;
 }
 
-export const contractTemplates: ContractTemplateType[] = [
-  {
-    id: "service-agreement",
-    title: "Service Agreement",
-    description: "Standard service provision contract",
-    icon: "FileText",
-    category: "service",
-  },
-  {
-    id: "employment-contract",
-    title: "Employment Contract",
-    description: "Employee hiring contract template",
-    icon: "FileText",
-    category: "employment",
-  },
-  {
-    id: "nda-template",
-    title: "NDA Template",
-    description: "Non-disclosure agreement template",
-    icon: "FileText",
-    category: "legal",
-  },
-];
+// Use a subset of templates for the UI
+const contractTemplates: ContractTemplateType[] = allTemplates.slice(0, 6).map((template:any) => ({
+  id: template.id,
+  title: template.title,
+  description: template.description,
+  icon: template.icon,
+  category: template.category
+}));
 
 export default function ContractGen() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState("contracts");
+  const [activeTab, setActiveTab] = useState("contracts");
   const router = useRouter();
   const [contracts, setContracts] = useState<any[]>([]);
   const { userData } = useUserContextData();
@@ -82,90 +54,108 @@ export default function ContractGen() {
         body: JSON.stringify({ userEmail: email }),
       });
 
+      if (!res.ok) {
+        throw new Error("Failed to fetch contracts");
+      }
+
       const data = await res.json();
-      // console.log("Fetched Contracts:", data.contracts);
-      setContracts(data.contracts);
+      setContracts(data.contracts || []);
     } catch (error) {
-      console.log(error);
+      console.error("Error fetching contracts:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to load contracts. Please try again.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (userData?.email) fetchContracts(userData.email);
+    if (userData?.email) {
+      fetchContracts(userData.email);
+    }
   }, [userData]);
 
   const handleUseTemplate = (templateId: string) => {
-    router.push(
-      `/dashboard/services/simple-agreement/contract-editor/${templateId}`
-    );
+    router.push(`/dashboard/services/simple-agreement/contract-editor/${templateId}`);
   };
 
-    const filteredContracts = contracts?.filter((contract) => {
-      const title = contract.contract_title || "";
-      const status = contract.status || "";
-      const matchesSearch = title
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
-      const matchesStatus =
-        selectedStatus === "All" || status === selectedStatus.toLowerCase();
-      return matchesSearch && matchesStatus;
-    });
-
- 
+  const filteredContracts = contracts?.filter((contract) => {
+    const title = contract.contract_title || "";
+    const status = contract.status || "";
+    const matchesSearch = title
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      selectedStatus === "All" || 
+      status.toLowerCase() === selectedStatus.toLowerCase();
+    return matchesSearch && matchesStatus;
+  });
 
   const signedContracts = contracts.filter(
     (con) => con.status?.toLowerCase() === "signed"
   ).length;
+  
   const pendingContracts = contracts.filter(
     (con) => con.status?.toLowerCase() === "pending"
   ).length;
 
-
-
+  const draftContracts = contracts.filter(
+    (con) => con.status?.toLowerCase() === "draft"
+  ).length;
 
   return (
     <div className="space-y-6">
-
+      {/* Stats Cards - Only show when on contracts tab */}
       {activeTab === "contracts" && (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Total Contracts</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {contracts.length.toLocaleString()}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Signed Contracts</p>
-              <p className="text-2xl font-bold text-green-600">
-                {signedContracts}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Pending Contracts</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {pendingContracts}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Total Contracts</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {contracts.length.toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Signed Contracts</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {signedContracts}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Pending Contracts</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {pendingContracts}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Draft Contracts</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {draftContracts}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="contracts">My Contracts</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="create">Create New</TabsTrigger>
@@ -180,11 +170,11 @@ export default function ContractGen() {
                   <Input
                     placeholder="Search contracts..."
                     value={searchTerm}
-                    onChange={(e: any) => setSearchTerm(e.target.value)}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10"
                   />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   {["All", "Signed", "Pending", "Draft"].map((status) => (
                     <Button
                       key={status}
@@ -195,8 +185,8 @@ export default function ContractGen() {
                       onClick={() => setSelectedStatus(status)}
                       className={
                         selectedStatus === status
-                          ? `bg-[#C29307] hover:bg-[#b28a06] text-white border hover:shadow-xl transition-all duration-300`
-                          : "border hover:shadow-md transition-all duration-300"
+                          ? `bg-[#C29307] hover:bg-[#b28a06] text-white border hover:shadow-xl transition-all duration-300 whitespace-nowrap`
+                          : "border hover:shadow-md transition-all duration-300 whitespace-nowrap"
                       }
                     >
                       {status}
@@ -207,26 +197,41 @@ export default function ContractGen() {
             </CardContent>
           </Card>
 
-          <ContractList contracts={filteredContracts} loading={loading}  />
-
-          
+          <ContractList 
+            contracts={filteredContracts} 
+            loading={loading} 
+            // onRefresh={() => userData?.email && fetchContracts(userData.email)}
+          />
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Contract Templates</CardTitle>
+              <CardTitle className="text-xl font-bold">Contract Templates</CardTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                Choose from our professionally designed contract templates
+              </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {contractTemplates.map((template) => (
                   <ContractTemplateCard
                     key={template.id}
                     template={template}
-                    // loading={loading}
                     onUseTemplate={handleUseTemplate}
                   />
                 ))}
+              </div>
+              
+              {/* Show more templates button */}
+              <div className="mt-8 text-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setActiveTab("create")}
+                  className="border-[#C29307] text-[#C29307] hover:bg-[#C29307] hover:text-white"
+                >
+                  View All Templates
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -234,7 +239,15 @@ export default function ContractGen() {
 
         <TabsContent value="create" className="space-y-6">
           <Card>
-            <CreateNewView onUseTemplate={handleUseTemplate} />
+            <CardHeader>
+              <CardTitle className="text-xl font-bold">Create New Contract</CardTitle>
+              <p className="text-sm text-gray-600">
+                Select a template to start creating your contract
+              </p>
+            </CardHeader>
+            <CardContent>
+              <CreateNewView onUseTemplate={handleUseTemplate} />
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>

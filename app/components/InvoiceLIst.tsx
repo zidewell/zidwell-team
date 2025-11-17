@@ -3,11 +3,10 @@ import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
-import InvoicePreview from "./previews/InvoicePreview";
+import { InvoicePreview } from "./previews/InvoicePreview"; 
 import { useRouter } from "next/navigation";
 import { useUserContextData } from "../context/userData";
 import Swal from "sweetalert2";
-
 import withReactContent from "sweetalert2-react-content";
 import Loader from "./Loader";
 
@@ -30,13 +29,17 @@ const MySwal = withReactContent(Swal);
 type Props = {
   invoices: any[];
   loading: boolean;
+  onRefresh?: () => void;
 };
 
-const InvoiceList: React.FC<Props> = ({ invoices, loading }) => {
+const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
   const statusColors: Record<string, string> = {
     unpaid: "bg-yellow-100 text-yellow-800",
     draft: "bg-gray-100 text-gray-800",
-    paid: "bg-blue-100 text-blue-800",
+    paid: "bg-green-100 text-green-800",
+    overdue: "bg-red-100 text-red-800",
+    cancelled: "bg-gray-100 text-gray-800",
+    partially_paid: "bg-blue-100 text-blue-800",
   };
 
   const formatNumber = (value: number) => {
@@ -48,15 +51,10 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading }) => {
   };
 
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
-  const [processingInvoiceId, setProcessingInvoiceId] = useState<string | null>(
-    null
-  );
-
+  const [processingInvoiceId, setProcessingInvoiceId] = useState<string | null>(null);
   const [processing2, setProcessing2] = useState(false);
   const { userData } = useUserContextData();
-
   const router = useRouter();
-
   const [base64Logo, setBase64Logo] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,472 +66,372 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading }) => {
     loadLogo();
   }, []);
 
-  // Place this function outside the component or loop
-  const downloadPdf = async (invoice: any) => {
-    const invoiceItems = Array.isArray(invoice.invoice_items)
-      ? invoice.invoice_items
-      : JSON.parse(invoice.invoice_items || "[]");
+  const transformInvoiceForPreview = (invoice: any) => {
+    let invoiceItems: any[] = [];
+    try {
+      if (Array.isArray(invoice.invoice_items)) {
+        invoiceItems = invoice.invoice_items;
+      } else if (typeof invoice.invoice_items === "string") {
+        invoiceItems = JSON.parse(invoice.invoice_items);
+      }
+    } catch (err) {
+      invoiceItems = [];
+    }
 
-    const totalAmount = invoiceItems.reduce(
-      (sum: number, item: any) => sum + item.quantity * item.price,
+    const items = (invoiceItems || []).map((item: any, index: number) => ({
+      id: item.id || `item-${index}-${Math.random()}`,
+      description: item.item_description || item.description || "Item description",
+      quantity: Number(item.quantity) || 1,
+      unitPrice: Number(item.unit_price || item.unitPrice || 0),
+      total: Number(item.total_amount || item.total || (Number(item.quantity) || 1) * (Number(item.unit_price || item.unitPrice) || 0)),
+    }));
+
+    const subtotal = invoice.subtotal || items.reduce(
+      (sum: number, item: any) => sum + (item.total || 0),
       0
     );
 
-    const formattedTotal = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "NGN",
-    }).format(totalAmount);
+    const total = invoice.total_amount || subtotal + (invoice.fee_amount || 0);
 
-    const formattedCreatedAt = invoice.created_at
-      ? new Date(invoice.created_at).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : "N/A";
-    const formattedSignedAt = invoice.created_at
-      ? new Date(invoice.signed_at).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-      : "N/A";
-
-    const signedSection =
-      invoice.signee_name && invoice.signed_at
-        ? `
-      <div class="signatures">
-        <p>Signee: ${invoice.signee_name}</p>
-        <p>Date: ${formattedSignedAt}</p>
-      </div>
-    `
-        : "";
-
-    const fullHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Invoice</title>
-  <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f9fafb;
-      padding: 20px;
-      margin: 0;
+    let paidQuantity = 0;
+    if (invoice.allow_multiple_payments && invoice.unit && invoice.unit > 0) {
+      paidQuantity = invoice.paid_amount 
+        ? Math.floor(invoice.paid_amount / (total / invoice.unit))
+        : 0;
     }
 
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      background: #fff;
-      box-shadow: 0 5px 25px rgba(0,0,0,0.1);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .logo-con {
-     display: flex;
-     justify-content: start;
-     align-items: center;
+    const transformedData = {
+      id: invoice.id || `invoice-${Math.random()}`,
+      invoiceNumber: invoice.invoice_id || "N/A",
+      businessName: invoice.business_name || "Business Name",
+      businessLogo: invoice.business_logo || "",
+      clientName: invoice.client_name || "",
+      clientEmail: invoice.client_email || "",
+      clientPhone: invoice.client_phone || "",
+      items: items,
+      subtotal: subtotal || 0,
+      tax: 0,
+      total: total || 0,
+      allowMultiplePayments: invoice.allow_multiple_payments || false,
+      targetQuantity: invoice.unit || 0,
+      targetAmount: invoice.total_amount || total || 0,
+      paidQuantity: paidQuantity,
+      createdAt: invoice.created_at || new Date().toISOString(),
+      status: invoice.status || "unpaid",
+      redirectUrl: invoice.redirect_url || "",
+    };
 
-    }
-.logo-img{
-  width: 50px;
-  height: 50px;
+    return transformedData;
+  };
 
-  object-fit: contain;
-}
-    .header {
-      background: linear-gradient(90deg, #C29307, #937108);
-      color: #fff;
-      padding: 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .header-title h1 {
-      font-size: 2.2rem;
-      margin: 0; 
-      margin-right: 10px;
-    }
-
-    .header-title p {
-      font-size: 0.9rem;
-      opacity: 0.9;
-    }
-
-    .invoice-id {
-      font-size: 1.8rem;
-      font-weight: bold;
-      text-align: right;
-    }
-
-    .status-badge {
-      margin-top: 8px;
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      background: #facc15;
-      color: #000;
-      font-weight: bold;
-    }
-
-    .section {
-      padding: 30px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 25px;
-    }
-
-    .card {
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 20px;
-      background: #fdfdfd;
-    }
-
-    .card h2 {
-      font-size: 1.2rem;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #1f2937;
-    }
-
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 0.95rem;
-    }
-
-    .message {
-      border-left: 4px solid #C29307;
-      padding: 15px 20px;
-      margin-bottom: 30px;
-      background: #f0f4ff;
-    }
-
-    .message h3 {
-      margin-top: 0;
-      margin-bottom: 8px;
-      font-weight: 600;
-      font-size: 1rem;
-    }
-
-    .invoice-items {
-      margin-bottom: 30px;
-    }
-
-    .invoice-items h2 {
-      margin-bottom: 20px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-    }
-
-    th, td {
-      padding: 12px 15px;
-      border-bottom: 1px solid #e5e7eb;
-      text-align: left;
-    }
-
-    th {
-      background-color: #f3f4f6;
-      font-weight: 600;
-      color: #111827;
-    }
-
-    td {
-      color: #374151;
-    }
-
-    tr:hover td {
-      background: #f9fafb;
-    }
-
-    .totals {
-      display: flex;
-      justify-content: flex-end;
-      margin-bottom: 40px;
-    }
-
-    .totals-box {
-      min-width: 300px;
-      border: 1px solid #e5e7eb;
-      padding: 20px;
-      background: #f0f4ff;
-      border-radius: 8px;
-    }
-
-    .totals-box div {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 1rem;
-    }
-
-    .totals-box .total {
-      font-size: 1.3rem;
-      font-weight: bold;
-      margin-top: 10px;
-      border-top: 1px solid #e5e7eb;
-      padding-top: 10px;
-      color: #C29307;
-    }
-
-    .signatures {
-      display: flex;
-      justify-content: space-between;
-      border-top: 1px solid #e5e7eb;
-      padding-top: 30px;
-      margin-bottom: 30px;
-    }
-
-    .signature {
-      text-align: center;
-    }
-
-    .signature-line {
-      height: 0;
-      border-bottom: 1px solid #9ca3af;
-      width: 200px;
-      margin: 0 auto 10px;
-    }
-
-    .footer {
-      border-top: 1px solid #e5e7eb;
-      padding-top: 15px;
-      text-align: center;
-      color: #6b7280;
-      font-size: 0.9rem;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <!-- Header -->
-    <div class="header">
-      <div class="header-title">
-        <div class="logo-con">
-        <h1>INVOICE</h1>
-              <img src="${base64Logo}" alt="Logo" class="logo-img" />
-        </div>
-        <p>Professional Invoice Document</p>
-      </div>
-      <div>
-        <div class="invoice-id">#${invoice.invoice_id || "12345"}</div>
-        <div class="status-badge">${invoice.status || "unpaid"}</div>
-      </div>
-    </div>
-
-    <!-- Invoice Body -->
-    <div class="section">
-      <div class="grid">
-        <!-- Invoice Details -->
-        <div class="card">
-          <h2>📅 Invoice Details</h2>
-          <div class="info-row"><span>Issue Date:</span><span>${
-            invoice.issue_date || "N/A"
-          }</span></div>
-          <div class="info-row"><span>Due Date:</span><span>${
-            invoice.due_date || "N/A"
-          }</span></div>
-          <div class="info-row"><span>Payment Type:</span><span>${
-            invoice.payment_type || "N/A"
-          }</span></div>
-          <div class="info-row"><span>Fee Option:</span><span>${
-            invoice.fee_option || "N/A"
-          }</span></div>
-          <div class="info-row"><span>Unit Price:</span><span>${
-            invoice.unit_price || "N/A"
-          }</span></div>
-        </div>
-
-        <!-- Billing Information -->
-        <div>
-          <div class="card">
-            <h2>👤 From</h2>
-            <p>${invoice.initiator_name || "Your Business\nLagos, NG"}</p>
-          </div>
-
-          <div class="card" style="margin-top: 20px;">
-            <h2>📍 Bill To</h2>
-            <p>${invoice.bill_to || "Client Name\nAbuja, NG"}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Customer Message -->
-      <div class="message">
-        <h3>Message</h3>
-        <p>${
-          invoice.customer_note ||
-          "Thanks for your business. Payment due in 14 days."
-        }</p>
-      </div>
-
-      <!-- Invoice Items -->
-      <div class="invoice-items">
-        <h2>Invoice Items</h2>
-        <table>
-
-
-
-          
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th style="text-align:center;">Qty</th>
-              <th style="text-align:right;">Rate</th>
-              <th style="text-align:right;">Amount</th>
-            </tr>
-          </thead>
- <tbody>
-  ${invoiceItems
-    .map(
-      (item: any) => `
-        <tr>
-          <td>${item.item}</td>
-          <td>${item.quantity}</td>
-          <td>₦${Number(item.price).toLocaleString("en-NG")}</td>
-          <td>₦${Number(item.quantity * item.price).toLocaleString(
-            "en-NG"
-          )}</td>
-        </tr>
-      `
-    )
-    .join("")}
-</tbody>
-
-        </table>
-      </div>
-
-      <!-- Totals -->
-      <div class="totals">
-        <div class="totals-box">
-          <div><span>Subtotal:</span><span>${formattedTotal}</span></div>
-          <div class="total"><span>Total:</span><span>${formattedTotal}</span></div>
-        </div>
-      </div>
-
-      <!-- Signatures -->
-      <div class="signatures">
-        <div class="signature">
-          <div class="signature-line"></div>
-          <p><strong>${invoice.initiator_name}</strong></p>
-          <p>Initiator</p>
-          <p>${new Date(invoice.created_at).toLocaleDateString()}</p>
-        </div>
-        ${signedSection}
-
-      <!-- Footer -->
-      <div class="footer">
-        Thank you for your business! Please remit payment by the due date.
-      </div>
-    </div>
-  </div>
-</body>
-</html>`;
-
+  const downloadPdf = async (invoice: any) => {
     try {
       setProcessingInvoiceId(invoice.id);
-      const res = await fetch("/api/generate-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ html: fullHtml }),
+
+      const invoiceItems = Array.isArray(invoice.invoice_items)
+        ? invoice.invoice_items
+        : [];
+
+      const subtotal = invoice.subtotal || invoiceItems.reduce(
+        (sum: number, item: any) => sum + (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
+        0
+      );
+
+      const feeAmount = invoice.fee_amount || 0;
+      const totalAmount = invoice.total_amount || subtotal + feeAmount;
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Invoice ${invoice.invoice_id}</title>
+          <meta charset="UTF-8">
+          <style>
+            body { 
+              font-family: 'Arial', sans-serif; 
+              margin: 0;
+              padding: 40px;
+              color: #333;
+              line-height: 1.6;
+            }
+            .container {
+              max-width: 800px;
+              margin: 0 auto;
+              background: white;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              margin-bottom: 40px;
+              padding-bottom: 20px;
+              border-bottom: 2px solid #C29307;
+            }
+            .business-info {
+              flex: 1;
+            }
+            .invoice-info {
+              text-align: right;
+            }
+            .logo {
+              max-height: 80px;
+              max-width: 200px;
+              margin-bottom: 15px;
+            }
+            h1 {
+              color: #C29307;
+              margin: 0 0 10px 0;
+              font-size: 32px;
+              font-weight: bold;
+            }
+            h2 {
+              margin: 0 0 10px 0;
+              font-size: 24px;
+              color: #333;
+            }
+            h3 {
+              margin: 0 0 15px 0;
+              font-size: 18px;
+              color: #333;
+            }
+            .section {
+              margin: 30px 0;
+            }
+            .billing-info {
+              display: flex;
+              justify-content: space-between;
+              gap: 40px;
+            }
+            .billing-section {
+              flex: 1;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 30px 0;
+              font-size: 14px;
+            }
+            .items-table th {
+              background-color: #f8f9fa;
+              border: 1px solid #ddd;
+              padding: 12px 15px;
+              text-align: left;
+              font-weight: bold;
+              color: #333;
+            }
+            .items-table td {
+              border: 1px solid #ddd;
+              padding: 12px 15px;
+              text-align: left;
+            }
+            .items-table tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            .totals {
+              margin-top: 30px;
+              text-align: right;
+              font-size: 16px;
+            }
+            .total-row {
+              margin: 8px 0;
+            }
+            .grand-total {
+              font-size: 20px;
+              font-weight: bold;
+              color: #C29307;
+              margin-top: 15px;
+              padding-top: 15px;
+              border-top: 2px solid #ddd;
+            }
+            .message-box {
+              background-color: #f8f9fa;
+              padding: 20px;
+              border-radius: 8px;
+              border-left: 4px solid #C29307;
+              margin: 20px 0;
+            }
+            .note-box {
+              background-color: #e8f4fd;
+              padding: 20px;
+              border-radius: 8px;
+              border-left: 4px solid #2196F3;
+              margin: 20px 0;
+            }
+            .footer {
+              margin-top: 50px;
+              text-align: center;
+              color: #666;
+              font-size: 14px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+            }
+            .status-badge {
+              display: inline-block;
+              padding: 4px 12px;
+              background-color: #C29307;
+              color: white;
+              border-radius: 20px;
+              font-size: 12px;
+              font-weight: bold;
+              margin-left: 10px;
+            }
+            .due-date {
+              color: #d32f2f;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="business-info">
+                ${invoice.business_logo ? `<img src="${invoice.business_logo}" alt="${invoice.business_name}" class="logo">` : ''}
+                <h2>${invoice.business_name}</h2>
+                <p>${invoice.from_email}</p>
+                ${invoice.bill_to ? `<p>${invoice.bill_to}</p>` : ''}
+              </div>
+              <div class="invoice-info">
+                <h1>INVOICE</h1>
+                <p><strong>Invoice #:</strong> ${invoice.invoice_id}</p>
+                <p><strong>Issue Date:</strong> ${new Date(invoice.issue_date).toLocaleDateString()}</p>
+                <p><strong>Due Date:</strong> <span class="due-date">${new Date(invoice.due_date).toLocaleDateString()}</span></p>
+                <p><strong>Status:</strong> ${invoice.status} <span class="status-badge">${invoice.status.toUpperCase()}</span></p>
+              </div>
+            </div>
+
+            <div class="section">
+              <div class="billing-info">
+                <div class="billing-section">
+                  <h3>Bill To:</h3>
+                  <p><strong>${invoice.client_name || 'Client Information'}</strong></p>
+                  ${invoice.client_email ? `<p>📧 ${invoice.client_email}</p>` : ''}
+                  ${invoice.client_phone ? `<p>📞 ${invoice.client_phone}</p>` : ''}
+                </div>
+                <div class="billing-section">
+                  <h3>From:</h3>
+                  <p><strong>${invoice.from_name}</strong></p>
+                  <p>📧 ${invoice.from_email}</p>
+                </div>
+              </div>
+            </div>
+
+            ${invoice.message ? `
+            <div class="section">
+              <div class="message-box">
+                <h3>Message from ${invoice.from_name}:</h3>
+                <p>${invoice.message}</p>
+              </div>
+            </div>
+            ` : ''}
+
+            <div class="section">
+              <h3>Invoice Items</h3>
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th width="100">Qty</th>
+                    <th width="120">Unit Price</th>
+                    <th width="120">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${invoiceItems?.map((item:any) => `
+                    <tr>
+                      <td>${item.item_description || item.description}</td>
+                      <td>${item.quantity}</td>
+                      <td>₦${Number(item.unit_price || item.unitPrice).toLocaleString()}</td>
+                      <td>₦${Number(item.total_amount || item.total).toLocaleString()}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="totals">
+              <div class="total-row">
+                <strong>Subtotal:</strong> ₦${Number(subtotal).toLocaleString()}
+              </div>
+              ${feeAmount > 0 ? `
+              <div class="total-row">
+                <strong>Processing Fee (3.5%):</strong> ₦${Number(feeAmount).toLocaleString()}
+              </div>
+              ` : ''}
+              <div class="total-row grand-total">
+                <strong>TOTAL AMOUNT:</strong> ₦${Number(totalAmount).toLocaleString()}
+              </div>
+              ${invoice.fee_option === 'absorbed' ? `
+              <div class="total-row" style="font-size: 12px; color: #666;">
+                *Processing fees absorbed by merchant
+              </div>
+              ` : ''}
+            </div>
+
+            ${invoice.allow_multiple_payments ? `
+            <div class="section">
+              <div class="message-box">
+                <h3>Payment Information:</h3>
+                <p>This invoice allows multiple payments. You can make partial payments until the total amount is reached.</p>
+                ${invoice.unit && invoice.unit > 0 ? `<p><strong>Target Quantity:</strong> ${invoice.unit} units</p>` : ''}
+              </div>
+            </div>
+            ` : ''}
+
+            <div class="footer">
+              <p><strong>Thank you for your business!</strong></p>
+              <p>If you have any questions about this invoice, please contact ${invoice.from_email}</p>
+              <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          html: htmlContent,
+        }),
       });
 
-      if (!res.ok) {
-        const errorText = await res.text(); // Read once
-        throw new Error(errorText || "Failed to generate PDF");
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
       }
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
       a.href = url;
-      a.download = `invoice-${invoice.invoice_id || "download"}.pdf`;
+      a.download = `invoice-${invoice.invoice_id}.pdf`;
+      
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("PDF download failed:", err);
+      
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      Swal.fire({
+        icon: "success",
+        title: "PDF Downloaded!",
+        text: "Your invoice has been downloaded as PDF",
+        confirmButtonColor: "#C29307",
+      });
+
+    } catch (error) {
+      console.error('PDF download error:', error);
+      Swal.fire({
+        icon: "error",
+        title: "Download Failed",
+        text: "Failed to download PDF. Please try again.",
+        confirmButtonColor: "#C29307",
+      });
     } finally {
       setProcessingInvoiceId(null);
     }
-  };
-
-  const sendInvoiceEmail = async (invoice: any) => {
-    if (!userData?.email) return;
-
-    const result = await MySwal.fire({
-      title: "Send Invoice",
-      text: "How would you like to send the invoice?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonText: `<i class="fa-regular fa-envelope"></i> Send Invoice via Email`,
-      cancelButtonText: `<i class="fa-brands fa-whatsapp"></i> Send via WhatsApp`,
-      customClass: {
-        cancelButton: "whatsapp-button",
-      },
-      buttonsStyling: true,
-      didOpen: () => {
-        const whatsappBtn = document.querySelector(".swal2-cancel");
-        if (whatsappBtn) {
-          (whatsappBtn as HTMLElement).style.backgroundColor = "#25D366";
-          (whatsappBtn as HTMLElement).style.color = "#fff";
-          (whatsappBtn as HTMLElement).style.border = "none";
-        }
-      },
-    });
-
-    if (result.isConfirmed) {
-      try {
-        setProcessing2(true);
-        const res = await fetch("/api/send-invoice-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: userData.email, invoice }),
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || "Failed to send invoice email");
-        }
-
-        Swal.fire("Sent!", "Invoice sent via email.", "success");
-        setProcessing2(false);
-        setSelectedInvoice(null);
-      } catch (error) {
-        console.error("Error sending invoice email:", error);
-        Swal.fire(
-          "Error",
-          "Failed to send invoice email. Please try again.",
-          "error"
-        );
-        setProcessing2(false);
-      }
-    }
-    // else if (result.dismiss === Swal.DismissReason.cancel) {
-    //   // Send via WhatsApp
-    //   const invoiceUrl = invoice.signing_link;
-    //   const message = `Here is your invoice: ${invoiceUrl}`;
-    //   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    //   window.open(whatsappUrl, "_blank");
-    //   setProcessing2(false);
-    // }
   };
 
   if (loading) {
@@ -555,25 +453,12 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading }) => {
   return (
     <div className="space-y-4">
       {invoices?.map((invoice) => {
-        let items: any[] = [];
+        const invoiceItems = Array.isArray(invoice.invoice_items)
+          ? invoice.invoice_items
+          : [];
 
-        try {
-          if (Array.isArray(invoice.invoice_items)) {
-            items = invoice.invoice_items;
-          } else if (typeof invoice.invoice_items === "string") {
-            items = JSON.parse(invoice.invoice_items);
-          }
-        } catch (err) {
-          console.error(
-            "Failed to parse invoice_items:",
-            invoice.invoice_items,
-            err
-          );
-          items = [];
-        }
-
-        const totalAmount = items.reduce(
-          (sum, item) => sum + (item.quantity || 0) * (item.price || 0),
+        const totalAmount = invoice.total_amount || invoiceItems.reduce(
+          (sum: number, item: any) => sum + (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
           0
         );
 
@@ -592,13 +477,13 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading }) => {
                         "bg-gray-100 text-gray-800"
                       }
                     >
-                      {invoice.status}
+                      {invoice.status?.toUpperCase()}
                     </Badge>
                   </div>
                   <p className="text-gray-900 font-medium mb-1">
-                    {invoice.bill_to}
+                    {invoice.client_name || invoice.bill_to || "No client name"}
                   </p>
-                  <p className="text-gray-600 mb-2">{invoice.message}</p>
+                  <p className="text-gray-600 mb-2">{invoice.client_email}</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
                     <span>
                       Date: {new Date(invoice.issue_date).toLocaleDateString()}
@@ -606,28 +491,15 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading }) => {
                     <span>
                       Due: {new Date(invoice.due_date).toLocaleDateString()}
                     </span>
-                    {invoice.created_at && (
-                      <span>
-                        Signed Date:{" "}
-                        {new Date(invoice.created_at).toLocaleDateString(
-                          "en-GB",
-                          {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          }
-                        )}
-                      </span>
-                    )}
                     <span className="font-semibold text-gray-900">
-                      {formatNumber(totalAmount)}
+                      ₦{formatNumber(totalAmount)}
                     </span>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                   <Button
-                    onClick={() => setSelectedInvoice(invoice)}
+                    onClick={() => setSelectedInvoice(transformInvoiceForPreview(invoice))}
                     variant="outline"
                     size="sm"
                   >
@@ -635,44 +507,25 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading }) => {
                     View
                   </Button>
 
-                  <>
-                    <Button
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/services/create-invoice/invoice/edit/${invoice.id}`
-                        )
-                      }
-                      variant="outline"
-                      size="sm"
-                      disabled={invoice.status === "paid"}
-                    >
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </Button>
-
-                    {/* <Button
-                      onClick={() => sendInvoiceEmail(invoice)}
-                      variant="outline"
-                      size="sm"
-                      disabled={processing2}
-                    >
-                      {processing2 ? (
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4 mr-1" />
-                      )}
-                      Send
-                    </Button> */}
-                  </>
+                  <Button
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/services/create-invoice/invoice/edit/${invoice.id}`
+                      )
+                    }
+                    variant="outline"
+                    size="sm"
+                    disabled={invoice.status === "paid"}
+                  >
+                    <Edit className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
 
                   <Button
                     onClick={() => downloadPdf(invoice)}
                     variant="outline"
                     size="sm"
-                    disabled={
-                      invoice.status === "unpaid" ||
-                      processingInvoiceId === invoice.id
-                    }
+                    disabled={processingInvoiceId === invoice.id}
                   >
                     {processingInvoiceId === invoice.id ? (
                       <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -689,10 +542,21 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading }) => {
       })}
 
       {selectedInvoice && (
-        <InvoicePreview
-          form={selectedInvoice}
-          onClose={() => setSelectedInvoice(null)}
-        />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Invoice Preview</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedInvoice(null)}
+              >
+                Close
+              </Button>
+            </div>
+            <InvoicePreview invoice={selectedInvoice} />
+          </div>
+        </div>
       )}
     </div>
   );

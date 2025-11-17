@@ -1,99 +1,115 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Swal from "sweetalert2";
-import { useUserContextData } from "../../context/userData";
 
-function PaymentSuccessContent() {
-  const params = useSearchParams();
-  const reference = params.get("orderReference");
-  const userId = params.get("ref");
-  const { userData } = useUserContextData();
+function PaymentCallbackContent() {
   const router = useRouter();
-  const [status, setStatus] = useState<"pending" | "success" | "failed">(
-    "pending"
-  );
+  const searchParams = useSearchParams();
+  const [loading, setLoading] = useState(true);
 
-  const [verified, setVerified] = useState(false);
+  const invoiceId = searchParams.get("invoiceId");
+  const status = searchParams.get("status");
+  const paidAmount = searchParams.get("paidAmount");
+  const totalAmount = searchParams.get("totalAmount");
+  const allowMultiplePayments = searchParams.get("allowMultiplePayments") === "true";
+  const error = searchParams.get("error");
 
   useEffect(() => {
-    if (reference && !verified) {
-      setVerified(true);
-      verifyPayment(reference);
-    }
-  }, [reference, verified]);
-
-  const verifyPayment = async (ref: string) => {
-    try {
-      const res = await fetch("/api/fund-account-debit-card", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: "verify",
-          userId,
-          reference: ref,
-          email: userData?.email,
-        }),
-      });
-
-      const data = await res.json();
-
-      const paymentStatus =
-        data.message === "Payment verification completed" ||
-        data.data.results[0].status === "SUCCESS";
-
-      if (paymentStatus) {
-        setStatus("success");
-        Swal.fire({
-          icon: "success",
-          title: "Payment Successful 🎉",
-          text: "Your wallet has been funded successfully!",
-          confirmButtonText: "Go to Dashboard",
-          confirmButtonColor: "#2563eb", // Tailwind blue-600
-        }).then(() => {
-          router.push("/dashboard");
-        });
-      } else {
-        setStatus("failed");
-        Swal.fire({
-          icon: "error",
-          title: "Payment Failed ❌",
-          text: "We could not verify your payment. Please try again.",
-          confirmButtonText: "Retry",
-          confirmButtonColor: "#dc2626", 
-        }).then(() => {
-          router.push("/dashboard");
-        });
-      }
-    } catch (err) {
-      setStatus("failed");
+    if (error) {
       Swal.fire({
-        icon: "warning",
-        title: "Verification Error ⚠️",
-        text: "Something went wrong while verifying your payment.",
-        confirmButtonText: "Back to Dashboard",
+        title: "Payment Failed ❌",
+        text: "There was an issue processing your payment. Please try again.",
+        icon: "error",
+        confirmButtonText: "Try Again",
       }).then(() => {
-        router.push("/dashboard");
+        // The payment link is unlimited, so they can try again
+        window.history.back();
       });
+      setLoading(false);
+      return;
     }
-  };
+
+    if (status === "paid") {
+      Swal.fire({
+        title: "Payment Successful! 🎉",
+        text: `Invoice #${invoiceId} has been fully paid. Thank you!`,
+        icon: "success",
+        confirmButtonText: "View Invoice",
+      }).then(() => {
+        router.push(`/invoice/${invoiceId}`);
+      });
+    } else if (status === "partially_paid" && allowMultiplePayments) {
+      const remaining = Number(totalAmount) - Number(paidAmount);
+      
+      Swal.fire({
+        title: "Payment Received! ✅",
+        html: `
+          <div class="text-left">
+            <p>Thank you for your payment!</p>
+            <p><strong>Amount Paid:</strong> ₦${Number(paidAmount).toLocaleString()}</p>
+            <p><strong>Remaining Balance:</strong> ₦${remaining.toLocaleString()}</p>
+            <p><strong>Total Amount:</strong> ₦${Number(totalAmount).toLocaleString()}</p>
+            <p class="text-sm text-gray-600 mt-2">
+              You can use the same payment link again to pay the remaining balance.
+            </p>
+          </div>
+        `,
+        icon: "info",
+        showCancelButton: true,
+        confirmButtonText: "Pay Remaining Balance",
+        cancelButtonText: "View Invoice",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // The same payment link will work for remaining balance
+          window.history.back();
+        } else {
+          router.push(`/invoice/${invoiceId}`);
+        }
+      });
+    } else {
+      Swal.fire(
+        "Payment Processing ⏳",
+        "Your payment is being processed. Please wait...",
+        "info"
+      );
+    }
+    
+    setLoading(false);
+  }, [invoiceId, status, paidAmount, totalAmount, allowMultiplePayments, error, router]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-center">
-      {status === "pending" && (
-        <h2 className="text-xl font-semibold animate-pulse">
-          🔄 Verifying your payment...
-        </h2>
-      )}
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        {loading ? (
+          <>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C29307] mx-auto mb-4"></div>
+            <p className="text-gray-600">Processing your payment...</p>
+          </>
+        ) : (
+          <>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-gray-600">Redirecting you...</p>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function PaymentCallback() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <PaymentSuccessContent />
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C29307] mx-auto"></div>
+      </div>
+    }>
+      <PaymentCallbackContent />
     </Suspense>
   );
 }

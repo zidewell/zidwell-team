@@ -72,17 +72,17 @@ async function getCachedInvoices({ userEmail, limit, status, page = 1, dateFrom,
     throw new Error('Failed to fetch invoices');
   }
 
-  // Log the structure to debug
-  console.log(`Fetched ${invoices?.length || 0} invoices`);
-  if (invoices && invoices.length > 0) {
-    console.log('First invoice structure:', {
-      id: invoices[0].id,
-      invoice_id: invoices[0].invoice_id,
-      has_items: Array.isArray(invoices[0].invoice_items),
-      items_count: invoices[0].invoice_items?.length || 0,
-      first_item: invoices[0].invoice_items?.[0]
-    });
-  }
+  // // Log the structure to debug
+  // console.log(`Fetched ${invoices?.length || 0} invoices`);
+  // if (invoices && invoices.length > 0) {
+  //   console.log('First invoice structure:', {
+  //     id: invoices[0].id,
+  //     invoice_id: invoices[0].invoice_id,
+  //     has_items: Array.isArray(invoices[0].invoice_items),
+  //     items_count: invoices[0].invoice_items?.length || 0,
+  //     first_item: invoices[0].invoice_items?.[0]
+  //   });
+  // }
 
   // Prepare response data
   const responseData = {

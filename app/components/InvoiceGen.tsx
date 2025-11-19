@@ -105,7 +105,7 @@ export default function InvoiceGen() {
     }
   }, [userData?.email]);
 
-  // ✅ totals
+  // ✅ totals - UPDATED to include partially_paid
   const totalAmount = invoices?.reduce((sum, invoice) => {
     return sum + (invoice.total_amount || 0);
   }, 0);
@@ -115,6 +115,14 @@ export default function InvoiceGen() {
     .reduce((sum, invoice) => {
       return sum + (invoice.total_amount || 0);
     }, 0);
+
+  const partiallyPaidAmount = invoices
+    .filter((inv) => inv.status?.toLowerCase() === "partially_paid")
+    .reduce((sum, invoice) => {
+      return sum + (invoice.paid_amount || 0);
+    }, 0);
+
+  const totalReceivedAmount = paidAmount + partiallyPaidAmount;
 
   const paidInvoice = invoices.filter(
     (inv) => inv.status?.toLowerCase() === "paid"
@@ -128,14 +136,21 @@ export default function InvoiceGen() {
     (inv) => inv.status?.toLowerCase() === "draft"
   ).length;
 
-  const statusOptions = ["All", "Paid", "Unpaid", "Draft"];
+  const partiallyPaidInvoice = invoices.filter(
+    (inv) => inv.status?.toLowerCase() === "partially_paid"
+  ).length;
+
+  // UPDATED: Added partially_paid to status options
+  const statusOptions = ["All", "Paid", "Unpaid", "Draft", "Partially Paid"];
 
   const filteredInvoices = invoices.filter((item) => {
     // normalize db value
     const status = item.status?.toLowerCase().trim() || "";
 
     const statusMatch =
-      selectedStatus === "all" ? true : status === selectedStatus.toLowerCase();
+      selectedStatus === "all" ? true : 
+      selectedStatus === "partially paid" ? status === "partially_paid" :
+      status === selectedStatus.toLowerCase();
 
     const searchMatch =
       searchTerm === "" ||
@@ -161,9 +176,9 @@ export default function InvoiceGen() {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
+      {/* Summary Cards - UPDATED with partially paid */}
       {activeTab === "invoices" && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <Card>
             <CardContent className="p-6">
               <div className="text-center">
@@ -179,7 +194,10 @@ export default function InvoiceGen() {
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-1">Total Received</p>
                 <p className="text-2xl font-bold text-green-600">
-                  ₦{paidAmount.toLocaleString()}
+                  ₦{totalReceivedAmount.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  (Paid: ₦{paidAmount.toLocaleString()} + Partial: ₦{partiallyPaidAmount.toLocaleString()})
                 </p>
               </div>
             </CardContent>
@@ -200,6 +218,16 @@ export default function InvoiceGen() {
                 <p className="text-sm text-gray-600 mb-1">Unpaid Invoices</p>
                 <p className="text-2xl font-bold text-yellow-600">
                   {unpaidInvoice}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Partially Paid</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {partiallyPaidInvoice}
                 </p>
               </div>
             </CardContent>
@@ -256,13 +284,13 @@ export default function InvoiceGen() {
                           <Button
                             key={status}
                             variant={
-                              selectedStatus === lowercase
+                              selectedStatus === (status === "Partially Paid" ? "partially paid" : lowercase)
                                 ? "default"
                                 : "outline"
                             }
                             size="sm"
                             className="hover:bg-[#C29307] hover:text-white border hover:shadow-xl transition-all duration-300"
-                            onClick={() => setSelectedStatus(lowercase)}
+                            onClick={() => setSelectedStatus(status === "Partially Paid" ? "partially paid" : lowercase)}
                           >
                             {status}
                           </Button>
@@ -282,19 +310,19 @@ export default function InvoiceGen() {
                       </Button>
 
                       {isMenuOpen && (
-                        <div className="absolute right-0 top-full z-10 bg-white shadow-md rounded-lg mt-2 p-2 border border-gray-200 w-40">
+                        <div className="absolute right-0 top-full z-10 bg-white shadow-md rounded-lg mt-2 p-2 border border-gray-200 w-48">
                           {statusOptions.map((status) => {
-                            const lowercase = status.toLowerCase();
+                            const displayStatus = status === "Partially Paid" ? "partially paid" : status.toLowerCase();
                             return (
                               <button
                                 key={status}
                                 className={`w-full text-left p-2 rounded mb-1 text-sm ${
-                                  selectedStatus === lowercase
+                                  selectedStatus === displayStatus
                                     ? "bg-[#C29307] text-white"
                                     : "hover:bg-gray-100"
                                 }`}
                                 onClick={() => {
-                                  setSelectedStatus(lowercase);
+                                  setSelectedStatus(displayStatus);
                                   setIsMenuOpen(false);
                                 }}
                               >

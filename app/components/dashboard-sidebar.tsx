@@ -267,13 +267,10 @@ export default function DashboardSidebar() {
                 name: (
                   <div>
                     Create Invoice{" "}
-                    <span className="text-[10px] text-red-400">
-                      (Coming soon)
-                    </span>
+                  
                   </div>
                 ),
-                // href: "/dashboard/services/create-invoice",
-                href: "#",
+                href: "/dashboard/services/create-invoice",
                 icon: FileSpreadsheet,
               }}
               isActive={pathname === "/dashboard/services/create-invoice"}

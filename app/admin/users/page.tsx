@@ -425,22 +425,22 @@ export default function UsersPage() {
     return value;
   };
 
-  const renderRoleCell = (value: string) => {
-    if (value === "admin") {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-          👑 Admin
-        </span>
-      );
-    } else if (value === "user") {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          👤 User
-        </span>
-      );
-    }
-    return value;
-  };
+  // const renderRoleCell = (value: string) => {
+  //   if (value === "admin") {
+  //     return (
+  //       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+  //         👑 Admin
+  //       </span>
+  //     );
+  //   } else if (value === "user") {
+  //     return (
+  //       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+  //         👤 User
+  //       </span>
+  //     );
+  //   }
+  //   return value;
+  // };
 
   const renderKycCell = (value: string) => {
     if (value === "verified" || value === "approved") {
@@ -587,7 +587,7 @@ export default function UsersPage() {
     { key: "email", label: "Email" },
     { key: "full_name", label: "Name" },
     { key: "balance", label: "Balance", render: renderBalanceCell },
-    { key: "role", label: "Role", render: renderRoleCell },
+    // { key: "role", label: "Role", render: renderRoleCell },
     { key: "status", label: "Status", render: renderStatusCell },
     { key: "last_login", label: "Last Login", render: renderLastLoginCell },
     { key: "last_logout", label: "Last Logout", render: renderLastLogoutCell },
@@ -713,7 +713,7 @@ export default function UsersPage() {
               </SelectContent>
             </Select>
           </div>
-          
+{/*           
           <div className="w-full md:w-1/5">
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger>
@@ -725,7 +725,7 @@ export default function UsersPage() {
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </div> */}
           
           <div className="w-full md:w-1/5">
             <Select value={activityFilter} onValueChange={setActivityFilter}>

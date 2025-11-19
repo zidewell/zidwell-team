@@ -30,6 +30,7 @@ export async function getNombaToken() {
     const response = await fetch(url, options);
     const data = await response.json();
 
+
     // Debug: log the full response to see what fields are available
     // console.log("🔍 Full Nomba token response:", JSON.stringify(data, null, 2));
 

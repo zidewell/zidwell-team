@@ -1,4 +1,4 @@
-import { Download, Edit, Eye, Loader2} from "lucide-react";
+import { Download, Edit, Eye, Loader2, Users } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -52,7 +52,6 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [processingInvoiceId, setProcessingInvoiceId] = useState<string | null>(null);
-  const [processing2, setProcessing2] = useState(false);
   const { userData } = useUserContextData();
   const router = useRouter();
   const [base64Logo, setBase64Logo] = useState<string | null>(null);
@@ -93,13 +92,6 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
     const total = invoice.total_amount || subtotal + (invoice.fee_amount || 0);
 
-    let paidQuantity = 0;
-    if (invoice.allow_multiple_payments && invoice.unit && invoice.unit > 0) {
-      paidQuantity = invoice.paid_amount 
-        ? Math.floor(invoice.paid_amount / (total / invoice.unit))
-        : 0;
-    }
-
     const transformedData = {
       id: invoice.id || `invoice-${Math.random()}`,
       invoiceNumber: invoice.invoice_id || "N/A",
@@ -113,15 +105,52 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
       tax: 0,
       total: total || 0,
       allowMultiplePayments: invoice.allow_multiple_payments || false,
-      targetQuantity: invoice.unit || 0,
+      targetQuantity: invoice.target_quantity || 0,
       targetAmount: invoice.total_amount || total || 0,
-      paidQuantity: paidQuantity,
+      paidQuantity: invoice.paid_quantity || 0,
+      paidAmount: invoice.paid_amount || 0,
       createdAt: invoice.created_at || new Date().toISOString(),
       status: invoice.status || "unpaid",
       redirectUrl: invoice.redirect_url || "",
     };
 
     return transformedData;
+  };
+
+  const getPaymentProgress = (invoice: any) => {
+    if (invoice.allow_multiple_payments && invoice.target_quantity && invoice.target_quantity > 0) {
+      const paidCount = invoice.paid_quantity || 0;
+      const progress = (paidCount / invoice.target_quantity) * 100;
+      return {
+        paidCount,
+        targetQuantity: invoice.target_quantity,
+        progress,
+        isComplete: paidCount >= invoice.target_quantity
+      };
+    }
+    return null;
+  };
+
+  const getPaymentCountText = (invoice: any) => {
+    if (invoice.allow_multiple_payments) {
+      if (invoice.target_quantity && invoice.target_quantity > 0) {
+        // For invoices with target quantity
+        const paidCount = invoice.paid_quantity || 0;
+        return `${paidCount}/${invoice.target_quantity} payments`;
+      } else {
+        // For invoices without target quantity but with multiple payments
+        const paidAmount = invoice.paid_amount || 0;
+        const totalAmount = invoice.total_amount || 0;
+        if (paidAmount > 0) {
+          if (paidAmount >= totalAmount) {
+            return "Fully paid";
+          } else {
+            return "Partially paid";
+          }
+        }
+      }
+    }
+    return null;
   };
 
   const downloadPdf = async (invoice: any) => {
@@ -139,6 +168,10 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
       const feeAmount = invoice.fee_amount || 0;
       const totalAmount = invoice.total_amount || subtotal + feeAmount;
+      const paidAmount = invoice.paid_amount || 0;
+
+      const paymentProgress = getPaymentProgress(invoice);
+      const paymentCountText = getPaymentCountText(invoice);
 
       const htmlContent = `
         <!DOCTYPE html>
@@ -250,7 +283,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               border-left: 4px solid #C29307;
               margin: 20px 0;
             }
-            .note-box {
+            .payment-info {
               background-color: #e8f4fd;
               padding: 20px;
               border-radius: 8px;
@@ -278,6 +311,18 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
             .due-date {
               color: #d32f2f;
               font-weight: bold;
+            }
+            .progress-bar {
+              background-color: #e0e0e0;
+              border-radius: 10px;
+              height: 10px;
+              margin: 10px 0;
+              overflow: hidden;
+            }
+            .progress-fill {
+              background-color: #4CAF50;
+              height: 100%;
+              transition: width 0.3s ease;
             }
           </style>
         </head>
@@ -324,6 +369,29 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
             </div>
             ` : ''}
 
+            ${invoice.allow_multiple_payments ? `
+            <div class="section">
+              <div class="payment-info">
+                <h3>Payment Information:</h3>
+                ${paymentProgress ? `
+                <p><strong>Payment Progress:</strong> ${paymentProgress.paidCount} out of ${paymentProgress.targetQuantity} target payments</p>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: ${paymentProgress.progress}%"></div>
+                </div>
+                <p>${paymentProgress.isComplete ? '🎉 Target reached! This invoice is fully paid.' : `Progress: ${Math.round(paymentProgress.progress)}% complete`}</p>
+                ` : `
+                <p>This invoice allows multiple payments.</p>
+                ${paidAmount > 0 ? `
+                <p><strong>Amount Paid:</strong> ₦${Number(paidAmount).toLocaleString()} of ₦${Number(totalAmount).toLocaleString()}</p>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: ${(paidAmount / totalAmount) * 100}%"></div>
+                </div>
+                ` : '<p>No payments received yet.</p>'}
+                `}
+              </div>
+            </div>
+            ` : ''}
+
             <div class="section">
               <h3>Invoice Items</h3>
               <table class="items-table">
@@ -357,6 +425,14 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                 <strong>Processing Fee (3.5%):</strong> ₦${Number(feeAmount).toLocaleString()}
               </div>
               ` : ''}
+              ${paidAmount > 0 ? `
+              <div class="total-row">
+                <strong>Amount Paid:</strong> ₦${Number(paidAmount).toLocaleString()}
+              </div>
+              <div class="total-row">
+                <strong>Balance Due:</strong> ₦${Number(totalAmount - paidAmount).toLocaleString()}
+              </div>
+              ` : ''}
               <div class="total-row grand-total">
                 <strong>TOTAL AMOUNT:</strong> ₦${Number(totalAmount).toLocaleString()}
               </div>
@@ -366,16 +442,6 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               </div>
               ` : ''}
             </div>
-
-            ${invoice.allow_multiple_payments ? `
-            <div class="section">
-              <div class="message-box">
-                <h3>Payment Information:</h3>
-                <p>This invoice allows multiple payments. You can make partial payments until the total amount is reached.</p>
-                ${invoice.unit && invoice.unit > 0 ? `<p><strong>Target Quantity:</strong> ${invoice.unit} units</p>` : ''}
-              </div>
-            </div>
-            ` : ''}
 
             <div class="footer">
               <p><strong>Thank you for your business!</strong></p>
@@ -462,6 +528,9 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
           0
         );
 
+        const paymentProgress = getPaymentProgress(invoice);
+        const paymentCountText = getPaymentCountText(invoice);
+
         return (
           <Card key={invoice.id} className="hover:shadow-md transition-shadow">
             <CardContent className="p-4 sm:p-6">
@@ -479,11 +548,51 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     >
                       {invoice.status?.toUpperCase()}
                     </Badge>
+                    {/* Payment Count Badge */}
+                    {paymentCountText && (
+                      <Badge className="bg-purple-100 text-purple-800 flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        {paymentCountText}
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-gray-900 font-medium mb-1">
                     {invoice.client_name || invoice.bill_to || "No client name"}
                   </p>
                   <p className="text-gray-600 mb-2">{invoice.client_email}</p>
+                  
+                  {/* Payment Progress for Multiple Payments */}
+                  {paymentProgress && (
+                    <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-blue-800">
+                          Payment Progress
+                        </span>
+                        <span className="text-sm text-blue-700">
+                          {paymentProgress.paidCount} / {paymentProgress.targetQuantity}
+                        </span>
+                      </div>
+                      <div className="w-full bg-blue-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${paymentProgress.progress}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-blue-600 mt-1">
+                        {paymentProgress.isComplete ? '🎉 Target reached!' : `${Math.round(paymentProgress.progress)}% complete`}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Payment amount for non-target multiple payments */}
+                  {invoice.allow_multiple_payments && !paymentProgress && invoice.paid_amount > 0 && (
+                    <div className="mb-3 p-2 bg-green-50 rounded border border-green-200">
+                      <p className="text-sm text-green-700">
+                        <strong>Paid:</strong> ₦{formatNumber(invoice.paid_amount)} of ₦{formatNumber(totalAmount)}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
                     <span>
                       Date: {new Date(invoice.issue_date).toLocaleDateString()}

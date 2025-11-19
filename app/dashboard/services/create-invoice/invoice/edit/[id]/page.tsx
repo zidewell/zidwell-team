@@ -40,8 +40,8 @@ interface InvoiceForm {
   fee_option: "absorbed" | "customer";
   payment_type: "single" | "multiple";
   allow_multiple_payments: boolean;
-  unit: number;
   redirect_url?: string;
+  target_quantity: number; 
 }
 
 export default function Page() {
@@ -50,6 +50,8 @@ export default function Page() {
   const [form, setForm] = useState<InvoiceForm | null>(null);
   const [loading, setLoading] = useState(false);
   const firstErrorRef = useRef<HTMLInputElement | null>(null);
+
+
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -60,6 +62,8 @@ export default function Page() {
           return;
         }
         const data = await res.json();
+
+        console.log(data)
         
         // Transform the data to match our form structure
         const transformedData: InvoiceForm = {
@@ -82,8 +86,8 @@ export default function Page() {
           fee_option: data.fee_option || "customer",
           payment_type: data.payment_type || "single",
           allow_multiple_payments: data.allow_multiple_payments || false,
-          unit: data.unit || 0,
           redirect_url: data.redirect_url || "",
+          target_quantity: data.target_quantity || 1, // ADDED: Default to 1
           invoice_items: (data.invoice_items || []).map((item: any) => ({
             id: item.id,
             description: item.item_description || "",
@@ -103,13 +107,22 @@ export default function Page() {
     if (id) fetchInvoice();
   }, [id]);
 
+
+    console.log(form)
+
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     if (!form) return;
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
     
-    setForm(prev => prev ? { ...prev, [name]: value } : null);
+    // Handle checkbox separately
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setForm(prev => prev ? { ...prev, [name]: checked } : null);
+    } else {
+      setForm(prev => prev ? { ...prev, [name]: value } : null);
+    }
   };
 
   const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
@@ -199,7 +212,7 @@ export default function Page() {
         fee_option: form.fee_option,
         payment_type: form.payment_type,
         allow_multiple_payments: form.allow_multiple_payments,
-        unit: form.unit,
+        target_quantity: form.target_quantity, // ADDED: Include target quantity
         // Transform invoice items to match database schema
         invoice_items: form.invoice_items.map(item => ({
           id: item.id,
@@ -381,6 +394,74 @@ export default function Page() {
                 </div>
               </div>
 
+              {/* Payment Settings */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label htmlFor="payment_type" className="block font-medium mb-2">
+                    Payment Type
+                  </label>
+                  <select
+                    id="payment_type"
+                    name="payment_type"
+                    value={form.payment_type}
+                    onChange={handleChange}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="single">Single Payment</option>
+                    <option value="multiple">Multiple Payments</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="fee_option" className="block font-medium mb-2">
+                    Fee Option
+                  </label>
+                  <select
+                    id="fee_option"
+                    name="fee_option"
+                    value={form.fee_option}
+                    onChange={handleChange}
+                    className="w-full p-2 border rounded-md"
+                  >
+                    <option value="customer">Customer Pays Fee</option>
+                    <option value="absorbed">Absorb Fee</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="target_quantity" className="block font-medium mb-2">
+                    Target Quantity
+                  </label>
+                  <Input
+                    id="target_quantity"
+                    name="target_quantity"
+                    type="number"
+                    min="1"
+                    value={form.target_quantity}
+                    onChange={handleChange}
+                    placeholder="1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Number of times this invoice should be paid
+                  </p>
+                </div>
+              </div>
+
+              {/* Multiple Payments Toggle */}
+              <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="allow_multiple_payments"
+                  name="allow_multiple_payments"
+                  checked={form.allow_multiple_payments}
+                  onChange={handleChange}
+                  className="w-4 h-4 text-[#C29307] border-gray-300 rounded focus:ring-[#C29307]"
+                />
+                <label htmlFor="allow_multiple_payments" className="font-medium">
+                  Allow Multiple Payments
+                </label>
+              </div>
+
               {/* Invoice Items */}
               <div>
                 <div className="flex justify-between items-center mb-4">
@@ -455,6 +536,12 @@ export default function Page() {
                     <span>Total Amount:</span>
                     <span className="text-[#C29307]">₦{form.total_amount.toLocaleString()}</span>
                   </div>
+                  {form.allow_multiple_payments && (
+                    <div className="flex justify-between text-sm mt-2 pt-2 border-t">
+                      <span>Target Quantity:</span>
+                      <span className="font-medium">{form.target_quantity}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

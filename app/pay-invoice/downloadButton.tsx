@@ -34,7 +34,7 @@ interface InvoiceData {
   fee_option: string;
   status: string;
   allow_multiple_payments?: boolean;
-  unit?: number;
+  unit?: number | "";
 }
 
 interface DownloadInvoiceButtonProps {

@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import { Download } from "lucide-react";
+import { Download, CreditCard } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
 import { Separator } from "@/app/components/ui/separator";
-import DownloadInvoiceButton from "../downloadButton"; 
+import DownloadInvoiceButton from "../downloadButton";
+import PaymentForm from "@/app/components/invoice/PaymentForm"; 
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -69,7 +70,7 @@ export default async function SignPage({
     fee_option: invoice.fee_option,
     status: invoice.status,
     allow_multiple_payments: invoice.allow_multiple_payments,
-    unit: invoice.unit,
+    unit: invoice.target_quantity,
   };
 
   return (
@@ -77,8 +78,8 @@ export default async function SignPage({
       <div className="container mx-auto py-12 px-4 max-w-3xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Payment Request</h1>
-          <p className="text-muted-foreground">Review invoice details and proceed with payment</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Invoice Details</h1>
+          <p className="text-muted-foreground">Review invoice and proceed with payment</p>
         </div>
 
         {/* Invoice Card */}
@@ -107,6 +108,30 @@ export default async function SignPage({
 
           <Separator className="my-6" />
 
+          {/* Payment Status */}
+          {invoice.allow_multiple_payments && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center">
+                <div className="bg-blue-100 p-2 rounded-full mr-3">
+                  <CreditCard className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-blue-800">Multiple Payments Enabled</h3>
+                  <p className="text-sm text-blue-600 mt-1">
+                    This invoice allows multiple people to pay. Each person pays the full amount.
+                    {invoice.target_quantity && ` Target: ${invoice.paid_quantity || 0}/${invoice.target_quantity} paid`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Payment Form Component */}
+          <PaymentForm 
+            invoiceId={invoice.invoice_id} 
+            amount={invoice.total_amount}
+          />
+
           {/* Client Information */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div className="space-y-2">
@@ -119,7 +144,7 @@ export default async function SignPage({
                     {invoice.client_phone && <p>{invoice.client_phone}</p>}
                   </>
                 ) : (
-                  <p>Payment information will be collected during checkout</p>
+                  <p>Your information will be used for billing</p>
                 )}
               </div>
             </div>
@@ -190,20 +215,11 @@ export default async function SignPage({
           )}
         </Card>
 
-        {/* Payment CTA */}
+        {/* Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <DownloadInvoiceButton invoiceData={invoiceData} />
-          {invoice.payment_link && (
-            <Button 
-              size="lg" 
-              className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
-              asChild
-            >
-              <a href={invoice.payment_link} target="_blank" rel="noopener noreferrer">
-                Make Payment
-              </a>
-            </Button>
-          )}
+          
+          {/* Pay Now button is now inside the PaymentForm component */}
         </div>
 
         {/* Footer */}

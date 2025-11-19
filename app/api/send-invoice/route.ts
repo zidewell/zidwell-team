@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 import { transporter } from "@/lib/node-mailer";
-import { getNombaToken } from "@/lib/nomba";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -33,13 +32,12 @@ interface RequestBody {
   total_amount: number;
   payment_type: "single" | "multiple";
   fee_option: "absorbed" | "customer";
-  unit: number;
   status: "unpaid" | "paid" | "draft";
   business_logo?: string;
   redirect_url?: string;
   business_name: string;
   clientPhone?: string;
-  target_quantity?: number; // NEW: Add target_quantity to request body
+  target_quantity?: number;
 }
 
 function generateInvoiceId(): string {
@@ -96,56 +94,12 @@ async function uploadLogoToStorage(
   }
 }
 
-async function createNombaOrder(orderData: {
-  orderReference: string;
-  customerEmail: string;
-  amount: number;
-  callbackUrl: string;
-}): Promise<string> {
-  const token = await getNombaToken();
-  if (!token) throw new Error("Payment service unavailable");
-
-  const nombaPayload = {
-    order: {
-      orderReference: orderData.orderReference,
-      callbackUrl: orderData.callbackUrl,
-      customerEmail: orderData.customerEmail,
-      amount: Math.ceil(orderData.amount),
-      currency: "NGN",
-      accountId: process.env.NOMBA_ACCOUNT_ID,
-    },
-  };
-
-  const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout/order`, {
-    method: "POST",
-    headers: {
-      accountId: process.env.NOMBA_ACCOUNT_ID!,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(nombaPayload),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Nomba API error: ${errorText}`);
-  }
-
-  const data = await response.json();
-  if (!data?.data?.checkoutLink) {
-    throw new Error("Failed to create payment link");
-  }
-
-  return data.data.checkoutLink;
-}
-
 async function sendInvoiceEmail(params: {
   to: string;
   subject: string;
   invoiceId: string;
   amount: number;
   dueDate: string;
-  paymentLink: string;
   signingLink: string;
   senderName: string;
   message?: string;
@@ -154,15 +108,26 @@ async function sendInvoiceEmail(params: {
   targetQuantity?: number;
 }) {
   try {
-    const multiplePaymentsInfo = params.isMultiplePayments ? `
+    const multiplePaymentsInfo = params.isMultiplePayments
+      ? `
       <div style="background:#e8f4fd; padding:15px; border-radius:6px; border-left:4px solid #2196F3; margin:15px 0;">
         <p style="margin:0; font-weight:bold; color:#1976d2;">Multiple Payments Enabled</p>
         <p style="margin:5px 0; color:#1976d2;">
-          This invoice allows multiple people to pay. Share the same payment link with everyone - each person pays the full amount of ₦${Number(params.amount).toLocaleString()}.
-          ${params.targetQuantity ? `Target: ${params.targetQuantity} people` : ''}
+          This invoice allows multiple people to pay. Each person pays the full amount of ₦${Number(
+            params.amount
+          ).toLocaleString()}.
+          ${
+            params.targetQuantity
+              ? `Target: ${params.targetQuantity} people`
+              : ""
+          }
+        </p>
+        <p style="margin:5px 0; color:#1976d2; font-size:14px;">
+          <strong>How it works:</strong> Click "View Invoice" below, then "Pay Now" to provide your information and make payment.
         </p>
       </div>
-    ` : '';
+    `
+      : "";
 
     await transporter.sendMail({
       from: `Zidwell Invoice <${process.env.EMAIL_USER}>`,
@@ -192,7 +157,9 @@ async function sendInvoiceEmail(params: {
             </div>`
           }
           <p>Hello <strong>Valued Customer</strong>,</p>
-          <p>You have received an invoice from <strong>${params.senderName}</strong>.</p>
+          <p>You have received an invoice from <strong>${
+            params.senderName
+          }</strong>.</p>
           
           ${multiplePaymentsInfo}
 
@@ -205,30 +172,20 @@ async function sendInvoiceEmail(params: {
           ">
             <p style="margin:0; font-weight:bold;">Invoice Details:</p>
             <p style="margin:5px 0;">Invoice ID: ${params.invoiceId}</p>
-            <p style="margin:5px 0;">Amount: ₦${Number(params.amount).toLocaleString()}</p>
-            <p style="margin:5px 0;">Due Date: ${new Date(params.dueDate).toLocaleDateString()}</p>
+            <p style="margin:5px 0;">Amount: ₦${Number(
+              params.amount
+            ).toLocaleString()}</p>
+            <p style="margin:5px 0;">Due Date: ${new Date(
+              params.dueDate
+            ).toLocaleDateString()}</p>
           </div>
-          <p style="margin-bottom: 10px;">Use any of the buttons below:</p>
-          <div style="text-align:center; margin:25px 0; display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
-            <a href="${params.paymentLink}" 
-               target="_blank"
-               style="
-                 display:inline-block;
-                 background-color:#C29307;
-                 color:#fff;
-                 padding:12px 24px;
-                 border-radius:6px;
-                 text-decoration:none;
-                 font-weight:bold;
-                 font-size:16px;
-               ">
-              Pay Invoice
-            </a>
+          
+          <p style="margin-bottom: 10px;">Click the button below to view invoice details and make payment:</p>
+          <div style="text-align:center; margin:25px 0;">
             <a href="${params.signingLink}" 
                target="_blank"
                style="
                  display:inline-block;
-                 margin-left: 10px;
                  background-color:#C29307;
                  color:#fff;
                  padding:12px 24px;
@@ -237,9 +194,10 @@ async function sendInvoiceEmail(params: {
                  font-weight:bold;
                  font-size:16px;
                ">
-              View Invoice
+              View Invoice & Pay
             </a>
           </div>
+          
           ${
             params.message
               ? `
@@ -254,9 +212,11 @@ async function sendInvoiceEmail(params: {
             </div>`
               : ""
           }
+          
           <p style="color:#666; font-size:14px;">
-            After payment, you will also be able to sign the invoice electronically.
+            You'll be able to provide your payment information and complete the payment on the invoice page.
           </p>
+          
           <div style="margin-top:32px; padding-top:20px; border-top:1px solid #e0e0e0; text-align:center;">
             <p style="font-size:13px; color:#888; margin:0;">– Zidwell Contracts Team</p>
           </div>
@@ -297,19 +257,24 @@ export async function POST(req: Request) {
       total_amount,
       payment_type,
       fee_option,
-      unit,
       status,
       business_logo,
       redirect_url,
       business_name,
       clientPhone,
-      target_quantity, // NEW: Get target_quantity from request body
+      target_quantity,
     } = body;
 
-    if (!userId || !signee_email || !invoice_items || invoice_items.length === 0) {
+    if (
+      !userId ||
+      !signee_email ||
+      !invoice_items ||
+      invoice_items.length === 0
+    ) {
       return NextResponse.json(
         {
-          message: "Missing required fields: userId, signee_email, or invoice items",
+          message:
+            "Missing required fields: userId, signee_email, or invoice items",
         },
         { status: 400 }
       );
@@ -324,7 +289,10 @@ export async function POST(req: Request) {
     }
 
     // Validate target_quantity for multiple payments
-    if (payment_type === "multiple" && (!target_quantity || target_quantity < 1)) {
+    if (
+      payment_type === "multiple" &&
+      (!target_quantity || target_quantity < 1)
+    ) {
       return NextResponse.json(
         { message: "Target quantity must be at least 1 for multiple payments" },
         { status: 400 }
@@ -345,7 +313,7 @@ export async function POST(req: Request) {
     }
 
     const publicToken = uuidv4();
-    const signingLink = `${baseUrl}/sign-invoice/${publicToken}`;
+    const signingLink = `${baseUrl}/pay-invoice/${publicToken}`;
 
     const { subtotal, feeAmount, totalAmount } = calculateTotals(
       invoice_items,
@@ -383,27 +351,17 @@ export async function POST(req: Request) {
       console.warn("Invalid logo format provided, proceeding without logo");
     }
 
-    // Create Nomba order
-    const orderReference = uuidv4();
-    const callbackUrl = `${baseUrl}/api/invoice-payment-callback?invoiceId=${invoiceId}&orderReference=${orderReference}`;
-
-    const paymentLink = await createNombaOrder({
-      orderReference,
-      customerEmail: signee_email,
-      amount: totalAmount,
-      callbackUrl,
-    });
-
     // Insert invoice with multiple payments support
+    // NOTE: We're NOT creating a Nomba order here - payment links will be generated dynamically
     const { data: invoice, error: invoiceError } = await supabase
       .from("invoices")
       .insert([
         {
           user_id: userId,
           invoice_id: invoiceId,
-          order_reference: orderReference,
+          order_reference: uuidv4(),
           business_name: business_name,
-          business_logo: finalLogoUrl, 
+          business_logo: finalLogoUrl,
           from_email: initiator_email,
           from_name: initiator_name,
           client_name: signee_name,
@@ -415,9 +373,9 @@ export async function POST(req: Request) {
           status: status || "unpaid",
           payment_type: payment_type,
           fee_option: fee_option,
-          unit: unit || 1,
           allow_multiple_payments: payment_type === "multiple",
-          target_quantity: payment_type === "multiple" ? (target_quantity || 1) : 1,
+          target_quantity:
+            payment_type === "multiple" ? target_quantity || 1 : 1,
           paid_quantity: 0,
           subtotal: subtotal,
           fee_amount: feeAmount,
@@ -426,7 +384,7 @@ export async function POST(req: Request) {
           message: message,
           customer_note: customer_note,
           redirect_url: redirect_url,
-          payment_link: paymentLink, 
+          payment_link: signingLink,
           signing_link: signingLink,
           public_token: publicToken,
         },
@@ -470,38 +428,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create initial payment record for tracking
-    const { error: paymentError } = await supabase
-      .from("invoice_payments")
-      .insert([
-        {
-          invoice_id: invoice.id,
-          user_id: userId,
-          order_reference: orderReference,
-          payer_email: signee_email,
-          payer_name: signee_name,
-          amount: totalAmount,
-          paid_amount: 0,
-          status: "pending",
-          payment_link: paymentLink,
-          is_reusable: true, // Mark as reusable for multiple payments
-          payment_attempts: 0,
-          max_attempts: null, // No limit on usage
-        },
-      ]);
-
-    if (paymentError) {
-      console.error("Payment record error:", paymentError);
-    }
-
-    // Send email notification
+    // Send email notification with view link only
     await sendInvoiceEmail({
       to: signee_email,
       subject: `New Invoice from ${initiator_name}`,
       invoiceId,
       amount: totalAmount,
       dueDate: due_date,
-      paymentLink,
       signingLink,
       senderName: initiator_name,
       message,
@@ -513,7 +446,6 @@ export async function POST(req: Request) {
     return NextResponse.json(
       {
         message: "Invoice created successfully",
-        paymentLink,
         signingLink,
         invoiceId: invoice.invoice_id,
         targetQuantity: target_quantity,

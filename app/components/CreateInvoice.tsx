@@ -47,7 +47,6 @@ interface InvoiceForm {
   invoice_items: InvoiceItem[];
   payment_type: "single" | "multiple";
   fee_option: "absorbed" | "customer";
-  unit: number;
   status: "unpaid" | "paid" | "draft";
   business_logo?: string;
   redirect_url?: string;
@@ -119,7 +118,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [generatedSigningLink, setGeneratedSigningLink] = useState<string>("");
   const [savedInvoiceId, setSavedInvoiceId] = useState<string>("");
-  const [paymentLink, setPaymentLink] = useState<string>("");
   const [paymentProgress, setPaymentProgress] = useState({
     totalAmount: 0,
     paidAmount: 0,
@@ -145,7 +143,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     invoice_items: [],
     payment_type: "single",
     fee_option: "customer",
-    unit: 0,
     status: "unpaid",
     business_logo: "",
     redirect_url: "",
@@ -266,7 +263,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     success: boolean;
     signingLink?: string;
     invoiceId?: string;
-    paymentLink?: string;
   }> => {
     try {
       if (!userData?.id) {
@@ -298,7 +294,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
         total_amount: totalAmount,
         payment_type: form.payment_type,
         fee_option: form.fee_option,
-        unit: form.unit,
         status: form.status,
         business_logo: form.business_logo,
         redirect_url: form.redirect_url,
@@ -315,8 +310,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
       const result = await res.json();
       if (!res.ok) throw new Error(result.message);
 
-      // Set payment link and progress
-      setPaymentLink(result.paymentLink);
+      // Set payment progress
       setPaymentProgress({
         totalAmount: totalAmount,
         paidAmount: 0,
@@ -329,12 +323,11 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
           : 1,
       });
 
-      // Return success with all links
+      // Return success with signing link only (no payment link)
       return {
         success: true,
         signingLink: result.signingLink,
         invoiceId: result.invoiceId,
-        paymentLink: result.paymentLink,
       };
     } catch (err) {
       console.error(err);
@@ -406,7 +399,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     if (result.success) {
       setGeneratedSigningLink(result.signingLink || "");
       setSavedInvoiceId(result.invoiceId || form.invoice_id);
-      setPaymentLink(result.paymentLink || "");
       setLoading(false);
       setIsOpen(false);
       setShowSuccessModal(true);
@@ -527,27 +519,14 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     setIsOpen(true);
   };
 
-  // Handle copy payment link
-  const handleCopyPaymentLink = () => {
-    if (paymentLink) {
-      navigator.clipboard.writeText(paymentLink);
-      Swal.fire({
-        icon: "success",
-        title: "Payment Link Copied!",
-        text: "Payment link copied to clipboard",
-        confirmButtonColor: "#C29307",
-      });
-    }
-  };
-
   // Handle copy signing link
   const handleCopySigningLink = () => {
     if (generatedSigningLink) {
       navigator.clipboard.writeText(generatedSigningLink);
       Swal.fire({
         icon: "success",
-        title: "Signing Link Copied!",
-        text: "Signing link copied to clipboard",
+        title: "Invoice Link Copied!",
+        text: "Invoice link copied to clipboard",
         confirmButtonColor: "#C29307",
       });
     }
@@ -876,8 +855,8 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                   <li>Each person pays the full amount: ₦${Number(
                     totalAmount
                   ).toLocaleString()}</li>
-                  <li>Same payment link works for everyone</li>
-                  <li>Payment link never changes</li>
+                  <li>Share the invoice link with everyone</li>
+                  <li>Each person provides their info and pays</li>
                   <li>Perfect for events, tickets, group purchases</li>
                 </ul>
               </div>
@@ -1089,7 +1068,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 <div className="mt-3 p-3 bg-white rounded border border-blue-300">
                   <div className="flex items-start">
                     <svg
-                      className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0"
+                      className="w-4 h-4 text-blue-600 mt-0.5 mr-2 shrink-0"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -1103,12 +1082,13 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                     </svg>
                     <div>
                       <p className="text-blue-800 text-sm font-medium">
-                        Multiple Full Payments
+                        How Multiple Payments Work
                       </p>
                       <p className="text-blue-600 text-xs mt-1">
                         Each person pays the full amount: ₦
                         {paymentProgress.totalAmount.toLocaleString()}. Share
-                        the same payment link with everyone - it never changes!
+                        the invoice link with everyone - each person provides
+                        their info and pays individually!
                       </p>
                     </div>
                   </div>
@@ -1126,39 +1106,30 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 {pdfLoading ? "Generating PDF..." : "Download PDF"}
               </Button>
 
-              {/* Payment Link */}
-              {paymentLink && (
+              {/* Signing Link (Now the main link) */}
+              {generatedSigningLink && (
                 <div className="space-y-2">
                   <Button
-                    onClick={handleCopyPaymentLink}
+                    onClick={handleCopySigningLink}
                     variant="outline"
-                    className="w-full border-green-500 text-green-600 hover:bg-green-500 hover:text-white"
+                    className="w-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
                   >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy Payment Link
+                    <Link className="w-4 h-4 mr-2" />
+                    Copy Invoice Link
                   </Button>
                   <div className="text-xs text-gray-500 text-center">
                     {form.allowMultiplePayments
-                      ? "Share this link with multiple people - each pays the full amount"
-                      : "Share this payment link with your client"}
+                      ? "Share this link with multiple people - each provides their info and pays"
+                      : "Share this invoice link with your client to view details and pay"}
                   </div>
                 </div>
               )}
 
-              {/* Signing Link */}
-              {generatedSigningLink && (
-                <Button
-                  onClick={handleCopySigningLink}
-                  variant="outline"
-                  className="w-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
-                >
-                  <Link className="w-4 h-4 mr-2" />
-                  Copy Signing Link
-                </Button>
-              )}
-
               <Button
-                onClick={() => setShowSuccessModal(false)}
+                onClick={() => {
+                  setShowSuccessModal(false)
+                 window.location.reload();
+                }}
                 variant="outline"
                 className="w-full"
               >
@@ -1201,7 +1172,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 Create Invoice
               </h1>
               <p className="text-muted-foreground">
-                Generate a professional invoice and payment link
+                Generate a professional invoice and share the link for payments
               </p>
             </div>
           </div>
@@ -1364,6 +1335,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                       </p>
                     </div>
                     <Switch
+                    className="bg-[#C29307]"
                       id="multiplePayments"
                       checked={form.allowMultiplePayments}
                       onCheckedChange={(checked) =>

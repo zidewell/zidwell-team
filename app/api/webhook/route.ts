@@ -3,6 +3,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { getNombaToken } from "@/lib/nomba";
+import { sendInvoiceCreatorNotification, sendPaymentSuccessEmail } from "@/lib/invoice-email-confirmation";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -314,6 +316,433 @@ export async function POST(req: NextRequest) {
       }
       // -------------------- END SUBSCRIPTION HANDLING --------------------
 
+// -------------------- INVOICE PAYMENT HANDLING --------------------
+const isInvoicePayment = orderReference || 
+  payload?.data?.order?.callbackUrl?.includes("/api/invoice-payment-callback");
+
+if (isInvoicePayment) {
+  // console.log("🧾 Processing INVOICE payment...");
+
+  // FIXED: Better payment success detection based on webhook structure
+  const txStatus = payload?.data?.transaction?.status || 
+                  payload.event_type; // Use the actual webhook event_type
+
+  // console.log("🔍 Payment status check:", { 
+  //   eventType, 
+  //   txStatus, 
+  //   orderReference,
+  //   event_type: payload.event_type 
+  // });
+
+ 
+  const isPaymentSuccess = 
+    eventType === "payment_success" || 
+    payload.event_type === "payment_success";
+
+
+  if (!isPaymentSuccess) {
+    console.error("❌ Payment not successful - Event Type:", eventType);
+    return NextResponse.json({ error: "Payment not successful" }, { status: 400 });
+  }
+
+  
+  try {
+    const token = await getNombaToken();
+    
+    if (token) {
+      
+      const verifyUrl = `${process.env.NOMBA_URL}/v1/checkout/transaction?orderReference=${orderReference}`;
+      
+      const verifyResponse = await fetch(verifyUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "accountId": process.env.NOMBA_ACCOUNT_ID!,
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      
+      if (verifyResponse.ok) {
+        const verifyData = await verifyResponse.json();
+      
+
+      
+        const transactionStatus = verifyData.data?.transactionDetails?.statusCode || 
+                                verifyData.data?.status ||
+                                verifyData.status;
+
+
+
+        const isVerifiedSuccess = 
+          transactionStatus === "success" || 
+          transactionStatus === "SUCCESS" ||
+          transactionStatus === "SUCCESSFUL" ||
+          verifyData.data?.transactionDetails?.status === "SUCCESSFUL" ||
+          verifyData.success === true;
+
+        if (isVerifiedSuccess) {
+          console.log("✅ Payment verified as SUCCESS by Nomba API");
+        } else {
+          console.log("⚠️ Nomba verification inconclusive - Status:", transactionStatus);
+         
+        }
+      } else {
+        const errorText = await verifyResponse.text();
+       
+      }
+    } else {
+      console.log("⚠️ No token available, skipping verification");
+    }
+  } catch (verifyError: any) {
+    console.error("❌ Verification error, but continuing with webhook data:", verifyError.message);
+  }
+
+  try {
+    let invoiceId: string | null = null;
+    
+    // Try multiple ways to get invoiceId
+    invoiceId = payload?.data?.order?.metadata?.invoiceId;
+    
+    if (!invoiceId && payload?.data?.order?.callbackUrl) {
+      try {
+        const callbackUrl = new URL(payload.data.order.callbackUrl);
+        invoiceId = callbackUrl.searchParams.get("invoiceId");
+        
+      } catch (urlError) {
+        console.error("❌ Error parsing callback URL:", urlError);
+      }
+    }
+    
+    if (!invoiceId) {
+      invoiceId = orderReference;
+     
+    }
+
+
+
+    if (!invoiceId) {
+      console.error("❌ No invoice ID found");
+      return NextResponse.json({ error: "No invoice ID" }, { status: 400 });
+    }
+
+    // Find invoice in database
+    let invoice: any;
+    const { data: invoiceData, error: invoiceError } = await supabase
+      .from("invoices")
+      .select("*")
+      .eq("invoice_id", invoiceId)
+      .single();
+
+    if (invoiceError) {
+      console.error("❌ Invoice not found by invoice_id:", invoiceError);
+      
+      // Fallback: try finding by id
+      const { data: fallbackInvoice, error: fallbackError } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("id", invoiceId)
+        .single();
+        
+      if (fallbackError || !fallbackInvoice) {
+        console.error("❌ Invoice not found in fallback search");
+        return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+      }
+      
+      invoice = fallbackInvoice;
+     
+    } else {
+      invoice = invoiceData;
+    }
+
+    // console.log(`✅ Found invoice:`, {
+    //   id: invoice.id,
+    //   invoice_id: invoice.invoice_id,
+    //   total_amount: invoice.total_amount,
+    //   paid_amount: invoice.paid_amount,
+    //   status: invoice.status
+    // });
+
+    // Check for duplicate payments
+    const { data: existingPayment, error: checkError } = await supabase
+      .from("invoice_payments")
+      .select("*")
+      .or(`nomba_transaction_id.eq.${nombaTransactionId},order_reference.eq.${orderReference}`)
+      .maybeSingle();
+
+    if (existingPayment) {
+
+      await updateInvoiceTotals(invoice, transactionAmount);
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error("❌ Error checking existing payment:", checkError);
+      return NextResponse.json({ error: "Payment check failed" }, { status: 500 });
+    }
+
+    const paidAmount = transactionAmount;
+    const customerEmail = payload?.data?.order?.customerEmail;
+    const customerName = payload?.data?.order?.customerName;
+
+
+    const newOrderReference = orderReference || `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Create payment record
+    const { data: paymentRecord, error: paymentError } = await supabase
+      .from("invoice_payments")
+      .insert([
+        {
+          invoice_id: invoice.id,
+          user_id: invoice.user_id,
+          order_reference: newOrderReference,
+          payer_email: customerEmail || invoice.client_email,
+          payer_name: customerName || invoice.client_name,
+          amount: paidAmount,
+          paid_amount: paidAmount,
+          status: "completed",
+          payment_link: invoice.payment_link,
+          nomba_transaction_id: nombaTransactionId,
+          payment_method: "card_payment",
+          paid_at: new Date().toISOString(),
+          is_reusable: true,
+          payment_attempts: 1,
+          created_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error("❌ Failed to create payment record:", paymentError);
+      return NextResponse.json({ error: "Payment record failed" }, { status: 500 });
+    }
+
+    
+    // CREATE TRANSACTION RECORD FOR THE INVOICE CREATOR
+    try {
+    
+      
+      const transactionDescription = `${customerName || "Customer"} paid ₦${paidAmount} for invoice ${invoice.invoice_id}`;
+      
+      const { data: transaction, error: transactionError } = await supabase
+        .from('transactions')
+        .insert([
+          {
+            user_id: invoice.user_id, 
+            type: 'credit',
+            amount: paidAmount,
+            status: 'success',
+            reference: `INV-${invoice.invoice_id}-${nombaTransactionId || orderReference}`,
+            description: transactionDescription,
+            narration: `Payment received for Invoice #${invoice.invoice_id} from ${customerName || "customer"}`,
+            fee: payload?.data?.transaction?.fee || 0,
+            channel: 'invoice_payment',
+            sender: {
+              name: customerName,
+              email: customerEmail,
+              phone: payload?.data?.customer?.phone || null,
+              type: 'customer'
+            },
+            receiver: {
+              name: invoice.from_name,
+              email: invoice.from_email,
+              business: invoice.business_name,
+              type: 'merchant'
+            },
+            external_response: {
+              nomba_transaction_id: nombaTransactionId,
+              order_reference: orderReference,
+              payment_method: "card_payment"
+            }
+          }
+        ])
+        .select()
+        .single();
+
+      if (transactionError) {
+        console.error("❌ Failed to create transaction record:", transactionError);
+      } else {
+        console.log("✅ Transaction record created for merchant:", transaction.id);
+      }
+    } catch (transactionError: any) {
+      console.error("❌ Transaction creation error:", transactionError.message);
+    }
+
+    // Update invoice totals
+    await updateInvoiceTotals(invoice, paidAmount);
+
+    // Credit user's wallet
+    console.log(`💰 Crediting wallet: ${invoice.user_id}`);
+    
+    const { error: creditError } = await supabase.rpc(
+      "increment_wallet_balance",
+      {
+        user_id: invoice.user_id,
+        amt: paidAmount, 
+      }
+    );
+
+    if (creditError) {
+      console.error("❌ Failed to credit wallet:", creditError);
+      // Don't fail the entire process if wallet credit fails
+    } else {
+      console.log(`✅ Successfully credited ₦${paidAmount} to user ${invoice.user_id}`);
+    }
+
+
+    try {
+  
+      // Get invoice creator's email
+      const { data: creatorData } = await supabase
+        .from('users')
+        .select('email')
+        .eq('id', invoice.user_id)
+        .single();
+
+      const creatorEmail = creatorData?.email;
+      
+      // Send email to payer
+      if (customerEmail) {
+        sendPaymentSuccessEmail(
+          customerEmail,
+          invoice.invoice_id,
+          paidAmount,
+          customerName || "Customer",
+          invoice
+        ).catch(error => console.error('❌ Payer email failed:', error));
+      } else {
+        console.log('⚠️ No customer email available for payment confirmation');
+      }
+
+      // Send notification to invoice creator
+      if (creatorEmail) {
+        sendInvoiceCreatorNotification(
+          creatorEmail,
+          invoice.invoice_id,
+          paidAmount,
+          customerName || "Customer",
+          customerEmail || "N/A",
+          invoice
+        ).catch(error => console.error('❌ Creator notification failed:', error));
+      } else {
+        console.log('⚠️ No creator email available for notification');
+      }
+
+      console.log("✅ Email sending initiated");
+    } catch (emailError) {
+      console.error("❌ Email setup error (but payment still processed):", emailError);
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 });
+
+  } catch (invoiceError: any) {
+    console.error("❌ Invoice processing error:", invoiceError);
+    return NextResponse.json({ error: "Invoice processing failed" }, { status: 500 });
+  }
+}
+// -------------------- END INVOICE PAYMENT HANDLING --------------------
+
+// Helper function to update invoice totals
+async function updateInvoiceTotals(invoice: any, paidAmountNaira: number) {
+  try {
+    const paidAmount = paidAmountNaira;
+
+    const targetQty = Number(invoice.target_quantity || 1);
+    const totalAmount = Number(invoice.total_amount || 0);
+    const currentPaidAmount = Number(invoice.paid_amount || 0);
+    const currentPaidQty = Number(invoice.paid_quantity || 0);
+
+    let newPaidAmount = currentPaidAmount + paidAmount;
+    let newPaidQuantity = currentPaidQty;
+    let newStatus = invoice.status;
+
+    console.log("📊 Invoice update calculations:", {
+      currentPaidAmount,
+      paidAmount,
+      newPaidAmount,
+      totalAmount,
+      targetQty,
+      currentPaidQty,
+      allow_multiple_payments: invoice.allow_multiple_payments
+    });
+
+    if (invoice.allow_multiple_payments) {
+      // FIXED: Calculate how many COMPLETE quantities are paid for
+      const cumulativeQuantitiesPaid = Math.floor(newPaidAmount / totalAmount);
+      
+      console.log(`🔢 Cumulative quantities paid calculation:`, {
+        newPaidAmount,
+        totalAmount,
+        division: newPaidAmount / totalAmount,
+        cumulativeQuantitiesPaid
+      });
+
+      // Only update if we have more complete quantities than before
+      if (cumulativeQuantitiesPaid > currentPaidQty) {
+        newPaidQuantity = cumulativeQuantitiesPaid;
+        console.log(`✅ Quantity increased: ${currentPaidQty} → ${newPaidQuantity}`);
+      }
+
+      // Check if all quantities are paid
+      if (newPaidQuantity >= targetQty) {
+        newStatus = "paid";
+        console.log("🎯 All quantities paid - marking as fully paid");
+      } else if (newPaidQuantity > 0 || newPaidAmount > 0) {
+        newStatus = "partially_paid";
+        console.log("📦 Partially paid - some quantities completed");
+      }
+    } else {
+      // For single payment invoices
+      if (newPaidAmount >= totalAmount) {
+        newStatus = "paid";
+        console.log("🎯 Full amount paid - marking as paid");
+      } else if (newPaidAmount > 0) {
+        newStatus = "partially_paid";
+        console.log("💰 Partial payment received");
+      }
+    }
+
+    const updateData: any = {
+      paid_amount: newPaidAmount,
+      paid_quantity: newPaidQuantity,
+      status: newStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (newStatus === "paid") {
+      updateData.paid_at = new Date().toISOString();
+      console.log("⏰ Setting paid_at timestamp");
+    }
+
+    console.log("🔄 Updating invoice with data:", updateData);
+
+    const { error: updateError } = await supabase
+      .from("invoices")
+      .update(updateData)
+      .eq("id", invoice.id);
+
+    if (updateError) {
+      console.error("❌ Failed to update invoice:", updateError);
+      throw updateError;
+    }
+
+    console.log("✅ Invoice totals updated successfully:", {
+      invoice_id: invoice.invoice_id,
+      newPaidAmount,
+      newPaidQuantity,
+      targetQty,
+      newStatus
+    });
+
+    return { newPaidAmount, newPaidQuantity, newStatus };
+
+  } catch (error) {
+    console.error("❌ Error in updateInvoiceTotals:", error);
+    throw error;
+  }
+}
+
       // DETERMINE userId & reference for transaction
       let userId: string | null = null;
       let referenceToUse: string | null =
@@ -321,12 +750,12 @@ export async function POST(req: NextRequest) {
       let txType = isCardPayment ? "card_deposit" : "deposit";
       let channel = isCardPayment ? "card" : "bank";
 
-      console.log(
-        "➡️ Handling deposit/card flow. txType:",
-        txType,
-        "channel:",
-        channel
-      );
+      // console.log(
+      //   "➡️ Handling deposit/card flow. txType:",
+      //   txType,
+      //   "channel:",
+      //   channel
+      // );
 
       // For VA: aliasAccountReference === userId (you confirmed)
       if (isVirtualAccountDeposit) {
@@ -659,22 +1088,21 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      console.log(
-        "📦 Found pending transaction:",
-        pendingTx.id,
-        "status:",
-        pendingTx.status,
-        "type:",
-        pendingTx.type,
-        "pendingTx:",
-        pendingTx
-      );
+      // console.log(
+      //   "📦 Found pending transaction:",
+      //   pendingTx.id,
+      //   "status:",
+      //   pendingTx.status,
+      //   "type:",
+      //   pendingTx.type,
+      //   "pendingTx:",
+      //   pendingTx
+      // );
 
       // 🔥 NEW: Check if this is a P2P transfer or regular withdrawal
       const isP2PTransfer = pendingTx.type === "p2p_transfer";
       const isRegularWithdrawal = pendingTx.type === "withdrawal";
 
-      console.log("🎯 Transaction type detection:");
       console.log("   - Is P2P Transfer:", isP2PTransfer);
       console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
 

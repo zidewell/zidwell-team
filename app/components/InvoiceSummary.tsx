@@ -26,7 +26,7 @@ interface InvoiceSummaryProps {
     invoice_items: InvoiceItem[];
     payment_type: "single" | "multiple";
     fee_option: "absorbed" | "customer";
-    unit: number;
+    targetQuantity: number | "";
     status: "unpaid" | "paid" | "draft";
     business_name: string;
     allowMultiplePayments: boolean;
@@ -115,7 +115,7 @@ export default function InvoiceSummary({
                   {invoiceData.payment_type === "multiple" && (
                     <div className="flex justify-between">
                       <span className="text-gray-500">Total Units</span>
-                      <span className="text-gray-900">{invoiceData.unit}</span>
+                      <span className="text-gray-900">{invoiceData?.targetQuantity}</span>
                     </div>
                   )}
                 </div>

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin, ROLE_PERMISSIONS } from '@/lib/admin-auth';
+import { createAuditLog, getClientInfo } from '@/lib/audit-log';
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -17,12 +18,32 @@ const ADMIN_ROLES = [
 ];
 
 export async function GET(request: NextRequest) {
+  let adminUser: any = null;
+  
   try {
-    const adminUser = await requireAdmin(request);
+    adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
+
+    const clientInfo = getClientInfo(request.headers);
 
     // Only super_admin can fetch the admin list
     if (adminUser?.admin_role !== 'super_admin') {
+      // 🕵️ AUDIT LOG: Track unauthorized access attempt
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "unauthorized_admin_list_access",
+        resourceType: "Admin",
+        description: `User ${adminUser?.email} attempted to access admin list without super_admin privileges`,
+        metadata: {
+          userRole: adminUser?.admin_role,
+          requiredRole: 'super_admin',
+          ipAddress: clientInfo.ipAddress
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -61,6 +82,23 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching admins:', error);
+      
+      // 🕵️ AUDIT LOG: Track fetch failure
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "admin_list_fetch_failed",
+        resourceType: "Admin",
+        description: `Failed to fetch admin list: ${error.message}`,
+        metadata: {
+          error: error.message,
+          searchParams: { page, limit, search, roleFilter, statusFilter },
+          ipAddress: clientInfo.ipAddress
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+
       return NextResponse.json({ error: 'Failed to fetch admins' }, { status: 500 });
     }
 
@@ -80,6 +118,28 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // 🕵️ AUDIT LOG: Track successful admin list access
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "view_admin_list",
+      resourceType: "Admin",
+      description: `Viewed admin list with ${processedAdmins.length} admins`,
+      metadata: {
+        totalAdmins: count || 0,
+        page,
+        limit,
+        searchTerm: search,
+        roleFilter,
+        statusFilter,
+        resultsCount: processedAdmins.length,
+        roleCounts,
+        ipAddress: clientInfo.ipAddress
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    });
+
     return NextResponse.json({
       admins: processedAdmins,
       total: count || 0,
@@ -91,18 +151,57 @@ export async function GET(request: NextRequest) {
         ...roleCounts,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in admin list API:', error);
+    
+    // 🕵️ AUDIT LOG: Track unexpected errors
+    const clientInfo = getClientInfo(request.headers);
+    
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "admin_list_error",
+      resourceType: "Admin",
+      description: `Unexpected error in admin list API: ${error.message}`,
+      metadata: {
+        error: error.message,
+        stack: error.stack,
+        ipAddress: clientInfo.ipAddress
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    });
+    
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
+  let adminUser: any = null;
+  
   try {
-    const adminUser = await requireAdmin(request, 'create_admin_roles');
+    adminUser = await requireAdmin(request, 'create_admin_roles');
     if (adminUser instanceof NextResponse) return adminUser;
 
+    const clientInfo = getClientInfo(request.headers);
+
     if (adminUser?.admin_role !== 'super_admin') {
+      // 🕵️ AUDIT LOG: Track unauthorized creation attempt
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "unauthorized_admin_creation",
+        resourceType: "Admin",
+        description: `User ${adminUser?.email} attempted to create admin without super_admin privileges`,
+        metadata: {
+          userRole: adminUser?.admin_role,
+          requiredRole: 'super_admin',
+          ipAddress: clientInfo.ipAddress
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -110,6 +209,27 @@ export async function POST(request: NextRequest) {
     const { first_name, last_name, email, role, status = 'active' } = body;
 
     if (!first_name || !last_name || !email || !role) {
+      // 🕵️ AUDIT LOG: Track validation failure
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "admin_creation_validation_failed",
+        resourceType: "Admin",
+        description: `Admin creation validation failed for ${email}`,
+        metadata: {
+          providedData: body,
+          missingFields: [
+            !first_name && 'first_name',
+            !last_name && 'last_name',
+            !email && 'email',
+            !role && 'role'
+          ].filter(Boolean),
+          ipAddress: clientInfo.ipAddress
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+
       return NextResponse.json(
         { error: 'Missing required fields: first_name, last_name, email, role' },
         { status: 400 }
@@ -117,6 +237,23 @@ export async function POST(request: NextRequest) {
     }
 
     if (!ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS]) {
+      // 🕵️ AUDIT LOG: Track invalid role attempt
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "admin_creation_invalid_role",
+        resourceType: "Admin",
+        description: `Attempted to create admin with invalid role: ${role}`,
+        metadata: {
+          email,
+          attemptedRole: role,
+          validRoles: Object.keys(ROLE_PERMISSIONS),
+          ipAddress: clientInfo.ipAddress
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+
       return NextResponse.json({ error: 'Invalid admin role' }, { status: 400 });
     }
 
@@ -134,6 +271,7 @@ export async function POST(request: NextRequest) {
         .update({
           admin_role: role,
           is_blocked: status === 'inactive',
+          updated_at: new Date().toISOString()
         })
         .eq('id', existingUser.id)
         .select()
@@ -141,16 +279,51 @@ export async function POST(request: NextRequest) {
 
       if (updateError) {
         console.error('Error upgrading user to admin:', updateError);
+        
+        // 🕵️ AUDIT LOG: Track upgrade failure
+        await createAuditLog({
+          userId: adminUser?.id,
+          userEmail: adminUser?.email,
+          action: "admin_upgrade_failed",
+          resourceType: "Admin",
+          resourceId: existingUser.id,
+          description: `Failed to upgrade user ${email} to admin role ${role}`,
+          metadata: {
+            targetUserId: existingUser.id,
+            targetUserEmail: email,
+            targetRole: role,
+            targetStatus: status,
+            error: updateError.message,
+            ipAddress: clientInfo.ipAddress
+          },
+          ipAddress: clientInfo.ipAddress,
+          userAgent: clientInfo.userAgent
+        });
+
         return NextResponse.json({ error: 'Failed to upgrade user to admin' }, { status: 500 });
       }
 
-      await supabase.from('user_activity_logs').insert({
-        user_id: adminUser.id,
-        email: adminUser.email!,
-        action: 'create_admin_roles',
-        description: `Upgraded user to ${role} admin`,
-        ip_address: request.headers.get('x-forwarded-for') || 'unknown',
-        user_agent: request.headers.get('user-agent') || 'unknown',
+      // 🕵️ AUDIT LOG: Track successful user upgrade to admin
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "upgrade_user_to_admin",
+        resourceType: "Admin",
+        resourceId: existingUser.id,
+        description: `Upgraded user ${email} to ${role} admin`,
+        metadata: {
+          targetUserId: existingUser.id,
+          targetUserEmail: email,
+          previousRole: existingUser.admin_role,
+          newRole: role,
+          previousStatus: existingUser.is_blocked ? 'inactive' : 'active',
+          newStatus: status,
+          upgradedBy: adminUser?.email,
+          upgradeTime: new Date().toISOString(),
+          ipAddress: clientInfo.ipAddress
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
       });
 
       const roleInfo = ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS];
@@ -164,6 +337,7 @@ export async function POST(request: NextRequest) {
           role_description: roleInfo.description,
           is_current_user: false,
         },
+        action: 'upgraded'
       });
     }
 
@@ -176,6 +350,25 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
       console.error('Error creating auth user:', authError);
+      
+      // 🕵️ AUDIT LOG: Track auth creation failure
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "admin_auth_creation_failed",
+        resourceType: "Admin",
+        description: `Failed to create auth user for admin ${email}`,
+        metadata: {
+          email,
+          role,
+          status,
+          error: authError.message,
+          ipAddress: clientInfo.ipAddress
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+
       return NextResponse.json({ error: 'Failed to create admin user' }, { status: 500 });
     }
 
@@ -192,23 +385,58 @@ export async function POST(request: NextRequest) {
         is_blocked: status === 'inactive',
         zidcoin_balance: 0,
         pin_set: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
       .select()
       .single();
 
     if (profileError) {
       console.error('Error creating admin profile:', profileError);
+      
+      // 🕵️ AUDIT LOG: Track profile creation failure
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "admin_profile_creation_failed",
+        resourceType: "Admin",
+        description: `Failed to create admin profile for ${email}`,
+        metadata: {
+          authUserId: authUser.user.id,
+          email,
+          role,
+          status,
+          error: profileError.message,
+          ipAddress: clientInfo.ipAddress
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+
+      // Clean up auth user
       await supabase.auth.admin.deleteUser(authUser.user.id);
       return NextResponse.json({ error: 'Failed to create admin profile' }, { status: 500 });
     }
 
-    await supabase.from('user_activity_logs').insert({
-      user_id: adminUser.id,
-      email: adminUser.email!,
-      action: 'create_admin_roles',
-      description: `Created new ${role} admin`,
-      ip_address: request.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: request.headers.get('user-agent') || 'unknown',
+    // 🕵️ AUDIT LOG: Track successful admin creation
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "create_admin",
+      resourceType: "Admin",
+      resourceId: newAdmin.id,
+      description: `Created new ${role} admin: ${email}`,
+      metadata: {
+        adminId: newAdmin.id,
+        adminEmail: email,
+        role,
+        status,
+        createdBy: adminUser?.email,
+        creationTime: new Date().toISOString(),
+        ipAddress: clientInfo.ipAddress
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
     });
 
     const roleInfo = ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS];
@@ -222,10 +450,30 @@ export async function POST(request: NextRequest) {
         role_description: roleInfo.description,
         is_current_user: false,
       },
+      action: 'created'
     }, { status: 201 });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating admin:', error);
+    
+    // 🕵️ AUDIT LOG: Track unexpected errors
+    const clientInfo = getClientInfo(request.headers);
+    
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "admin_creation_error",
+      resourceType: "Admin",
+      description: `Unexpected error during admin creation: ${error.message}`,
+      metadata: {
+        error: error.message,
+        stack: error.stack,
+        ipAddress: clientInfo.ipAddress
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent
+    });
+    
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

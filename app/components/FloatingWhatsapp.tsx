@@ -59,7 +59,8 @@ const FloatingWhatsApp = () => {
 
   return (
     <div
-      className="fixed bottom-24 right-5 z-40 cursor-pointer transition-all duration-200 hover:scale-105"
+      // className="fixed bottom-24 right-5 z-40 cursor-pointer transition-all duration-200 hover:scale-105"
+      className="fixed bottom-7 right-5 z-40 cursor-pointer transition-all duration-200 hover:scale-105"
       onClick={handleClick}
     >
       <div className="relative">

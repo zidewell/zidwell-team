@@ -4,10 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 import { getNombaToken } from "@/lib/nomba";
 import bcrypt from "bcryptjs";
 import { transporter } from "@/lib/node-mailer";
-// import { clearUserWalletCache } from "../get-wallet-account-details/route";
-// import { clearElectricityProvidersCache } from "../electricity-providers/route";
-// import { clearWalletBalanceCache } from "../wallet-balance/route";
-// import { clearTransactionsCache } from "../bill-transactions/route";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -315,6 +311,40 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", transactionId);
 
+      // ✅ NEW: Call Nomba API after successful electricity purchase
+      try {
+        const nombaPayload = {
+          transactionRef: `ELECTRICITY-${merchantTxRef}`,
+          status: "SUCCESS",
+          source: "web",
+          type: "electricity_purchase",
+          terminalId: "WEB_PORTAL",
+          rrn: transactionId,
+          merchantTxRef: merchantTxRef,
+          orderReference: merchantTxRef,
+          orderId: transactionId
+        };
+
+        console.log("📤 Calling Nomba API with payload:", nombaPayload);
+
+        const nombaResponse = await fetch('https://api.nomba.com/v1/transactions/accounts', {
+          method: 'POST',
+          headers: {
+            accountId: process.env.NOMBA_ACCOUNT_ID!,
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(nombaPayload)
+        });
+
+        const nombaData = await nombaResponse.json();
+        console.log("✅ Nomba API response:", nombaData);
+
+      } catch (nombaError: any) {
+        console.error("❌ Nomba API call failed:", nombaError.message);
+        // Don't fail the main transaction if this fails
+      }
+
       // Send success email notification with token information
       await sendElectricityEmailNotification(
         userId,
@@ -324,13 +354,9 @@ export async function POST(req: NextRequest) {
         meterNumber,
         meterType,
         transactionId,
-        undefined, // No error detail for success
-        apiResponse.data // Include token data
+        undefined,
+        apiResponse.data
       );
-
-      // clearElectricityProvidersCache();
-      // clearWalletBalanceCache(userId);
-      // clearTransactionsCache(userId);
 
       return NextResponse.json({
         success: true,

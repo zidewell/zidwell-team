@@ -230,42 +230,44 @@ export default function ElectricityBills() {
     }
   };
 
-  const getPowerProviders = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/electricity-providers");
-      const data = await response.json();
+ const getPowerProviders = async () => {
+  try {
+    setLoading(true);
+    const response = await fetch("/api/electricity-providers");
+    const data = await response.json();
 
-      if (!response.ok)
-        throw new Error(data.error || "Failed to fetch providers");
+    if (!response.ok)
+      throw new Error(data.error || "Failed to fetch providers");
 
-      const prefixLogos: Record<string, string> = {
-        phed: "/disco-img/portharcourt.png",
-        jed: "/disco-img/jos.png",
-        kaduna: "/disco-img/kaduna.png",
-        ibedc: "/disco-img/ibadan.png",
-        eko: "/disco-img/eko.png",
-        benin: "/disco-img/benin.png",
-        abuja: "/disco-img/abuja.png",
-        kano: "/disco-img/kano.png",
-        ikeja: "/disco-img/ikeja.png",
-        enugu: "/disco-img/enugu.png",
-      };
+    const prefixLogos: Record<string, string> = {
+      "ikedc": "/disco-img/ikeja.png",
+      "ekedc": "/disco-img/eko.png",
+      "phed": "/disco-img/portharcourt.png",
+      "kedco": "/disco-img/kano.png",
+      "aedc": "/disco-img/abuja.png",
+      "ibedc": "/disco-img/ibadan.png",
+      "eedc": "/disco-img/enugu.png",
+      "bedc": "/disco-img/benin.png",
+      "jed": "/disco-img/jos.png",
+      "yedc": "/disco-img/yola.png",
+    };
 
-      // Merge logos into the providers
-      const enrichedProviders = data.data.map((provider: any) => ({
-        ...provider,
-        logo: prefixLogos[provider.id] || null,
-      }));
+    // Merge logos into the providers with proper fallback
+    const enrichedProviders = data.data.map((provider: any) => ({
+      ...provider,
+      logo: prefixLogos[provider.id] || "/disco-img/default.png",
+    }));
 
-      // console.log("Enriched providers:", enrichedProviders);
-      setPowerProviders(enrichedProviders);
-    } catch (error: any) {
-      console.error("Fetch error:", error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    console.log("Enriched providers:", enrichedProviders);
+    setPowerProviders(enrichedProviders);
+  } catch (error: any) {
+    console.error("Fetch error:", error.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const validateMeterNumber = async () => {
     const newErrors: { [key: string]: string } = {};
@@ -335,7 +337,8 @@ export default function ElectricityBills() {
   // 0209227217814
 
   return (
-    <div className="space-y-6 md:max-w-5xl md:mx-auto pointer-events-none opacity-50">
+  <div className="space-y-6 md:max-w-5xl md:mx-auto pointer-events-none opacity-50">
+    {/* <div className="space-y-6 md:max-w-5xl md:mx-auto"> */}
       {/* Header */}
       <PinPopOver
         setIsOpen={setIsOpen}

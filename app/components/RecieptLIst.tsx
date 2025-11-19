@@ -1,4 +1,3 @@
-
 import { Download, Edit, Eye, Loader2, Send } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
@@ -62,11 +61,11 @@ interface ReceiptForm {
 
 type Props = {
   receipts: any[];
-loading: boolean;
+  loading: boolean;
 };
 
 const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
- const statusColors: Record<string, string> = {
+  const statusColors: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-800",
     draft: "bg-gray-100 text-gray-800",
     signed: "bg-blue-100 text-blue-800",
@@ -79,9 +78,8 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
       maximumFractionDigits: 2,
     }).format(value);
 
-
   const [selectedReciept, setSelectedReciept] = useState<ReceiptForm | null>(null);
-  const [processing, setProcessing] = useState(false);
+  const [processing, setProcessing] = useState<any>(null);
   const [processing2, setProcessing2] = useState(false);
   const { user } = useUserContextData();
   const router = useRouter();
@@ -115,9 +113,15 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
     const signedSection =
       receipt.signee_name && receipt.signed_at
         ? `
-      <div class="signatures">
-        <p>Signee: ${receipt.signee_name}</p>
-        <p>Date: ${formattedSignedAt}</p>
+      <div class="signatures" style="display: flex; gap: 20px; margin-top: 20px;">
+        <div>
+          <p style="margin: 0; font-weight: 600;">Signee:</p>
+          <p style="margin: 5px 0 0 0;">${receipt.signee_name}</p>
+        </div>
+        <div>
+          <p style="margin: 0; font-weight: 600;">Date:</p>
+          <p style="margin: 5px 0 0 0;">${formattedSignedAt}</p>
+        </div>
       </div>
     `
         : "";
@@ -133,128 +137,318 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Receipt</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <title>Receipt - ${receipt.receipt_id || "Download"}</title>
   <style>
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #f9fafb;
-      padding: 20px;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-    .signatures {
+    
+    body {
+      font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #ffffff;
+      color: #374151;
+      line-height: 1.5;
+    }
+    
+    .receipt-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #ffffff;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+    
+    .receipt-header {
+      padding: 2rem;
+      color: black;
       display: flex;
-      gap: 20px;
-      margin-top: 20px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .logo {
+      height: 48px;
+      width: 48px;
+      object-fit: contain;
+    }
+    
+    .header-title h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .header-title p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+    
+    .receipt-body {
+      padding: 2rem;
+    }
+    
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .detail-card {
+      background: #f9fafb;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+    }
+    
+    .detail-card h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 1rem;
+    }
+    
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    
+    .detail-label {
+      color: #6b7280;
+      font-weight: 500;
+    }
+    
+    .detail-value {
+      color: #374151;
+      font-weight: 600;
+    }
+    
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 1rem;
+    }
+    
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+    
+    .items-table th {
+      background: #f3f4f6;
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: #374151;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .items-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .text-left { text-align: left; }
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    
+    .total-section {
+      background: #f3f4f6;
+      padding: 1.5rem;
+      border-radius: 8px;
+      max-width: 320px;
+      margin-left: auto;
+    }
+    
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 18px;
+    }
+    
+    .total-amount {
+      font-size: 24px;
+      font-weight: 700;
+      color: #059669;
+    }
+    
+    .notes-section {
+      background: #f9fafb;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      margin-bottom: 2rem;
+    }
+    
+    .notes-section h3 {
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 0.5rem;
+    }
+    
+    .signatures-section {
+      display: flex;
+      gap: 3rem;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid #e5e7eb;
+    }
+    
+    .signature-block {
+      flex: 1;
+    }
+    
+    .signature-label {
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 4px;
+    }
+    
+    .signature-value {
+      color: #6b7280;
+    }
+    
+    .footer {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e5e7eb;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 14px;
+    }
+    
+    @media (max-width: 768px) {
+      .details-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .receipt-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+      
+      .signatures-section {
+        flex-direction: column;
+        gap: 1rem;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="bg-white w-full max-w-4xl rounded-xl shadow-2xl mx-auto my-8 overflow-hidden">
-    <div class="bg-gray-200 px-8 py-6 flex justify-between items-center">
-      <img src="${base64Logo}" alt="Logo" class="h-10 w-10 mr-2" />
-      <div>
-        <h1 class="text-2xl font-bold">RECEIPT</h1>
-        <p class="text-sm mt-1">Proof of Payment</p>
+  <div class="receipt-container">
+    <div class="receipt-header">
+      <div class="logo-container">
+        <img src="${base64Logo}" alt="Company Logo" class="logo" />
+        <div class="header-title">
+          <h1>RECEIPT</h1>
+          <p>Proof of Payment</p>
+        </div>
       </div>
     </div>
 
-    <div class="p-8">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <div class="space-y-6">
-          <div class="bg-gray-50 p-6 rounded-lg border">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Receipt Details</h2>
-            <div class="space-y-3 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-500 font-medium">Receipt #:</span>
-                <span class="font-semibold text-blue-600">#${receipt.receipt_id || "0001"}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 font-medium">Issue Date:</span>
-                <span class="text-gray-800">${receipt.issue_date || "N/A"}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-500 font-medium">Payment For:</span>
-                <span class="text-gray-800">${receipt.payment_for || "N/A"}</span>
-              </div>
-            </div>
+    <div class="receipt-body">
+      <div class="details-grid">
+        <div class="detail-card">
+          <h2>Receipt Details</h2>
+          <div class="detail-row">
+            <span class="detail-label">Receipt #:</span>
+            <span class="detail-value">#${receipt.receipt_id || "0001"}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Issue Date:</span>
+            <span class="detail-value">${receipt.issue_date || "N/A"}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Payment For:</span>
+            <span class="detail-value">${receipt.payment_for || "N/A"}</span>
           </div>
         </div>
 
-        <div class="space-y-6">
-          <div class="bg-gray-50 p-6 rounded-lg border">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">From</h2>
-            <p class="text-gray-800 whitespace-pre-line">${receipt.initator_name || ""}</p>
+        <div class="space-y-4 flex flex-col gap-3">
+          <div class="detail-card">
+            <h2>From</h2>
+            <p style="color: #374151; white-space: pre-line;">${receipt.initiator_name || "N/A"}</p>
           </div>
-          <div class="bg-gray-50 p-6 rounded-lg border">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Bill To</h2>
-            <p class="text-gray-800 whitespace-pre-line">${receipt.bill_to || ""}</p>
+          <div class="detail-card">
+            <h2>Bill To</h2>
+            <p style="color: #374151; white-space: pre-line;">${receipt.bill_to || "N/A"}</p>
           </div>
         </div>
       </div>
 
-      <div class="mb-8">
-        <h2 class="text-xl font-semibold text-gray-900 mb-6">Receipt Items</h2>
-        <div class="overflow-x-auto border rounded-lg">
-          <table class="w-full">
-            <thead>
-              <tr class="bg-gray-100">
-                <th class="text-left p-4 font-semibold text-gray-800 border-b">Description</th>
-                <th class="text-center p-4 font-semibold text-gray-800 border-b">Qty</th>
-                <th class="text-right p-4 font-semibold text-gray-800 border-b">Rate</th>
-                <th class="text-right p-4 font-semibold text-gray-800 border-b">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${receipt.receipt_items
-                ?.map(
-                  (item) => `
-                <tr class="border-b">
-                  <td class="p-4 text-gray-800">${item.item}</td>
-                  <td class="p-4 text-center text-gray-800">${item.quantity}</td>
-                  <td class="p-4 text-right text-gray-800">${item.price.toLocaleString("en-NG", {
-                    style: "currency",
-                    currency: "NGN",
-                  })}</td>
-                  <td class="p-4 text-right font-semibold text-gray-800">${(item.quantity * item.price).toLocaleString("en-NG", {
-                    style: "currency",
-                    currency: "NGN",
-                  })}</td>
-                </tr>`
-                )
-                .join("")}
-            </tbody>
-          </table>
+      <h2 class="section-title">Receipt Items</h2>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="text-left">Description</th>
+            <th class="text-center">Qty</th>
+            <th class="text-right">Rate</th>
+            <th class="text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${receipt.receipt_items
+            ?.map(
+              (item) => `
+            <tr>
+              <td class="text-left">${item.item}</td>
+              <td class="text-center">${item.quantity}</td>
+              <td class="text-right">${item.price.toLocaleString("en-NG", {
+                style: "currency",
+                currency: "NGN",
+              })}</td>
+              <td class="text-right" style="font-weight: 600;">${(
+                item.quantity * item.price
+              ).toLocaleString("en-NG", {
+                style: "currency",
+                currency: "NGN",
+              })}</td>
+            </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+
+      <div class="total-section">
+        <div class="total-row">
+          <span>Total:</span>
+          <span class="total-amount">${formattedTotal}</span>
         </div>
       </div>
 
-      <div class="flex justify-end mb-8">
-        <div class="bg-gray-200 p-6 rounded-lg min-w-80">
-          <div class="space-y-3">
-            <div class="flex justify-between text-lg">
-              <span>Total:</span>
-              <span class="font-bold">${formattedTotal}</span>
-            </div>
-            
-          </div>
+      <div class="notes-section">
+        <h3>Customer Notes</h3>
+        <p>${receipt.customer_note || "Thank you for your payment!"}</p>
+      </div>
+
+      <div class="signatures-section">
+        <div class="signature-block">
+          <div class="signature-label">Initiator</div>
+          <div class="signature-value">${receipt.initiator_name || "N/A"}</div>
+          <div class="signature-label" style="margin-top: 8px;">Date</div>
+          <div class="signature-value">${formattedCreatedAt}</div>
         </div>
+        ${signedSection}
       </div>
 
-      <div class="bg-gray-50 p-6 rounded-lg border mb-8">
-        <h3 class="font-semibold text-gray-800 mb-3">Customer Notes</h3>
-        <p class="text-gray-600 leading-relaxed">${receipt.customer_note || "Thank you for your payment!"}</p>
-      </div>
-
-      <div class="signatures">
-        <p>Initiator: ${receipt.initiator_name}</p>
-        <p>Date: ${formattedCreatedAt}</p>
-      </div>
-
-      ${signedSection}
-
-      <div class="mt-8 pt-6 border-t text-center">
-        <p class="text-gray-500 text-sm">
-          This receipt serves as confirmation of payment. Please retain for your records.
-        </p>
+      <div class="footer">
+        <p>This receipt serves as confirmation of payment. Please retain for your records.</p>
       </div>
     </div>
   </div>
@@ -263,7 +457,7 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
 `;
 
     try {
-      setProcessing(true);
+      setProcessing(receipt.id);
       const res = await fetch("/api/generate-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -280,13 +474,16 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
 
       const a = document.createElement("a");
       a.href = url;
-      a.download = `reciept-${receipt.receipt_id || "download"}.pdf`;
+      a.download = `receipt-${receipt.receipt_id || "download"}.pdf`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("PDF download failed:", err);
+      Swal.fire("Error", "Failed to download PDF. Please try again.", "error");
     } finally {
-      setProcessing(false);
+      setProcessing(null);
     }
   };
 
@@ -294,22 +491,29 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
     if (!user?.email) return;
 
     const result = await MySwal.fire({
-      title: "Send Invoice",
-      text: "How would you like to send the invoice?",
+      title: "Send Receipt",
+      text: "How would you like to send the receipt?",
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: `<i class="fa-regular fa-envelope"></i> Send Receipt via Email`,
-      cancelButtonText: `<i class="fa-brands fa-whatsapp"></i> Send via WhatsApp`,
+      confirmButtonText: `Send Receipt via Email`,
+      cancelButtonText: `Send via WhatsApp`,
       customClass: {
         cancelButton: "whatsapp-button",
+        confirmButton: "email-button",
       },
       buttonsStyling: true,
       didOpen: () => {
         const whatsappBtn = document.querySelector(".swal2-cancel");
+        const emailBtn = document.querySelector(".swal2-confirm");
         if (whatsappBtn) {
           (whatsappBtn as HTMLElement).style.backgroundColor = "#25D366";
           (whatsappBtn as HTMLElement).style.color = "#fff";
           (whatsappBtn as HTMLElement).style.border = "none";
+        }
+        if (emailBtn) {
+          (emailBtn as HTMLElement).style.backgroundColor = "#4f46e5";
+          (emailBtn as HTMLElement).style.color = "#fff";
+          (emailBtn as HTMLElement).style.border = "none";
         }
       },
     });
@@ -323,89 +527,84 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
           body: JSON.stringify({ email: user.email, receipt }),
         });
 
-        if (!res.ok) throw new Error("Failed to send reciept email");
+        if (!res.ok) throw new Error("Failed to send receipt email");
 
-        Swal.fire("Sent!", "reciept sent via email.", "success");
+        Swal.fire("Sent!", "Receipt sent via email.", "success");
         setSelectedReciept(null);
       } catch (error) {
         Swal.fire(
           "Error",
-          "Failed to send reciept email. Please try again.",
+          "Failed to send receipt email. Please try again.",
           "error"
         );
       } finally {
         setProcessing2(false);
       }
     } else if (result.dismiss === Swal.DismissReason.cancel) {
-
-      const recieptUrl = receipt.signing_link
-      const message = `Here is your reciept: ${recieptUrl}`;
+      const receiptUrl = receipt.signing_link;
+      const message = `Here is your receipt: ${receiptUrl}`;
       window.open(
         `https://wa.me/?text=${encodeURIComponent(message)}`,
         "_blank"
       );
-      setProcessing2(false);
     }
   };
 
-  
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader />
+      <div className="flex items-center justify-center h-64">
+       <Loader/>
       </div>
     );
   }
 
-  
-    if (receipts.length === 0) {
+  if (receipts.length === 0) {
     return (
-      <div className="flex items-center justify-center text-semibold">
-       No receipts records
+      <div className="flex items-center justify-center h-64 text-gray-500 text-lg">
+        No receipt records found
       </div>
     );
   }
-
 
   return (
     <div className="space-y-4">
-      {receipts.map((reciept) => {
+      {receipts.map((receipt) => {
         const totalAmount =
-          reciept.receipt_items?.reduce(
-            (sum:any, item:any) => sum + item.quantity * item.price,
+          receipt.receipt_items?.reduce(
+            (sum: any, item: any) => sum + item.quantity * item.price,
             0
           ) || 0;
 
         return (
-          <Card key={reciept.id} className="hover:shadow-md transition-shadow">
+          <Card key={receipt.id} className="hover:shadow-md transition-shadow duration-200">
             <CardContent className="p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-lg">
-                      {reciept.receipt_id}
+                    <h3 className="font-semibold text-lg text-gray-900">
+                      {receipt.receipt_id}
                     </h3>
                     <Badge
                       className={
-                        statusColors[reciept.status] ||
+                        statusColors[receipt.status] ||
                         "bg-gray-100 text-gray-800"
                       }
                     >
-                      {reciept.status}
+                      {receipt.status}
                     </Badge>
                   </div>
                   <p className="text-gray-900 font-medium mb-1">
-                    {reciept.bill_to}
+                    {receipt.bill_to}
                   </p>
                  
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
                     <span>
-                      Date: {new Date(reciept.issue_date).toLocaleDateString()}
+                      Date: {new Date(receipt.issue_date).toLocaleDateString()}
                     </span>
-                    {reciept.sent_at && (
+                    {receipt.sent_at && (
                       <span>
                         Sent:{" "}
-                        {new Date(reciept.sent_at).toLocaleDateString("en-GB", {
+                        {new Date(receipt.sent_at).toLocaleDateString("en-GB", {
                           year: "numeric",
                           month: "long",
                           day: "numeric",
@@ -420,47 +619,51 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
 
                 <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                   <Button
-                    onClick={() => setSelectedReciept(reciept)}
+                    onClick={() => setSelectedReciept(receipt)}
                     variant="outline"
                     size="sm"
+                    className="flex items-center gap-1"
                   >
-                    <Eye className="w-4 h-4 mr-1" /> View
+                    <Eye className="w-4 h-4" /> View
                   </Button>
                   <Button
                     onClick={() =>
                       router.push(
-                        `/dashboard/services/create-receipt/receipt/edit/${reciept.id}`
+                        `/dashboard/services/create-receipt/receipt/edit/${receipt.id}`
                       )
                     }
                     variant="outline"
                     size="sm"
-                    disabled={reciept.status === "signed" }
+                    disabled={receipt.status === "signed"}
+                    className="flex items-center gap-1"
                   >
-                    <Edit className="w-4 h-4 mr-1" /> Edit
+                    <Edit className="w-4 h-4" /> Edit
                   </Button>
-                  {/* <Button
-                    onClick={() => sendrecieptEmail(reciept)}
+                  <Button
+                    onClick={() => sendrecieptEmail(receipt)}
                     variant="outline"
                     size="sm"
                     disabled={processing2}
+                    className="flex items-center gap-1"
                   >
                     {processing2 ? (
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Send className="w-4 h-4 mr-1" />
+                      <Send className="w-4 h-4" />
                     )}
                     Send
-                  </Button> */}
+                  </Button>
                   <Button
-                    onClick={() => downloadPdf(reciept)} 
+                    onClick={() => downloadPdf(receipt)}
                     variant="outline"
                     size="sm"
-                    disabled={reciept.status !== "signed" || processing}
+                    disabled={receipt.status !== "signed" || processing === receipt.id}
+                    className="flex items-center gap-1"
                   >
-                    {processing ? (
-                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    {processing === receipt.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <Download className="w-4 h-4 mr-1" />
+                      <Download className="w-4 h-4" />
                     )}
                     PDF
                   </Button>

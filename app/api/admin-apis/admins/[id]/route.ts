@@ -11,12 +11,12 @@ const supabase = createClient(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   let adminUser: any = null;
   
   try {
-    adminUser = await requireAdmin(request, "edit_admin_roles");
+    adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
       
     const allowedRoles = ['super_admin', 'operations_admin'];
@@ -24,7 +24,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
-    const id = (await params).id;
+    const { id } = params;
     const body = await request.json();
     const { first_name, last_name, email, role, status } = body;
     const clientInfo = getClientInfo(request.headers);
@@ -44,7 +44,6 @@ export async function PATCH(
       .single();
 
     if (fetchError || !existingAdmin) {
-      // 🕵️ AUDIT LOG: Track update attempt on non-existent admin
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -66,7 +65,6 @@ export async function PATCH(
 
     // Prevent self role modification
     if (id === adminUser?.id && role && role !== existingAdmin.admin_role) {
-      // 🕵️ AUDIT LOG: Track self-role modification attempt
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -92,7 +90,6 @@ export async function PATCH(
 
     // Validate new role
     if (role && !ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS]) {
-      // 🕵️ AUDIT LOG: Track invalid role attempt
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -170,7 +167,6 @@ export async function PATCH(
     if (error) {
       console.error("Error updating admin:", error);
       
-      // 🕵️ AUDIT LOG: Track update failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -192,7 +188,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Failed to update admin" }, { status: 500 });
     }
 
-    // 🕵️ AUDIT LOG: Track successful admin update
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -291,7 +286,6 @@ export async function PATCH(
   } catch (error: any) {
     console.error("Error updating admin:", error);
     
-    // 🕵️ AUDIT LOG: Track unexpected errors
     const clientInfo = getClientInfo(request.headers);
     
     await createAuditLog({
@@ -314,12 +308,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   let adminUser: any = null;
   
   try {
-    adminUser = await requireAdmin(request, "delete_admin_roles");
+    adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
 
     const allowedRoles = ["super_admin", "operations_admin"];
@@ -327,12 +321,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
-    const id = (await params).id;
+    const { id } = params;
     const clientInfo = getClientInfo(request.headers);
 
     // Prevent removing your own admin privileges
     if (id === adminUser?.id) {
-      // 🕵️ AUDIT LOG: Track self-removal attempt
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -355,7 +348,7 @@ export async function DELETE(
       );
     }
 
-    // ✅ Check if target user is an admin
+    // Check if target user is an admin
     const { data: existingAdmin, error: fetchError } = await supabase
       .from("users")
       .select("*")
@@ -370,7 +363,6 @@ export async function DELETE(
       .single();
 
     if (fetchError || !existingAdmin) {
-      // 🕵️ AUDIT LOG: Track removal attempt on non-existent admin
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -389,7 +381,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Admin not found" }, { status: 404 });
     }
 
-    // ✅ Downgrade the user: remove admin privileges
+    // Downgrade the user: remove admin privileges
     const { data: downgradedUser, error: updateError } = await supabase
       .from("users")
       .update({
@@ -406,7 +398,6 @@ export async function DELETE(
     if (updateError) {
       console.error("Error removing admin privileges:", updateError);
       
-      // 🕵️ AUDIT LOG: Track removal failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -427,7 +418,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Failed to remove admin privileges" }, { status: 500 });
     }
 
-    // 🕵️ AUDIT LOG: Track successful admin removal
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -456,7 +446,6 @@ export async function DELETE(
   } catch (error: any) {
     console.error("Error removing admin privileges:", error);
     
-    // 🕵️ AUDIT LOG: Track unexpected errors
     const clientInfo = getClientInfo(request.headers);
     
     await createAuditLog({

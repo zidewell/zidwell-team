@@ -223,7 +223,7 @@ export default function AdminManagementPage() {
   const inactiveAdmins = admins.filter(isAdminInactive);
   const blockedAdmins = admins.filter((admin:any) => admin.is_blocked);
   
-  const stats = data?.stats || data?.data?.stats || {
+  const stats = {
     total: admins.length,
     active: activeAdmins.length,
     super_admin: roleCounts.super_admin,
@@ -527,7 +527,7 @@ export default function AdminManagementPage() {
     if (!result.isConfirmed) return;
 
     try {
-      const r = await fetch(`/api/admin-apis/users/${admin.id}/force-logout`, {
+      const r = await fetch(`/api/admin-apis/admins/${admin.id}/force-logout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -550,7 +550,7 @@ export default function AdminManagementPage() {
 
   const handleViewLoginHistory = async (admin: any) => {
     try {
-      const response = await fetch(`/api/admin-apis/users/${admin.id}/login-history`);
+      const response = await fetch(`/api/admin-apis/admins/${admin.id}/login-history`);
       if (!response.ok) throw new Error("Failed to fetch login history");
       
       const history = await response.json();

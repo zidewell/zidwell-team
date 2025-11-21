@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import AdminLayout from "@/app/components/admin-components/layout";
@@ -23,22 +23,117 @@ import {
   SelectValue,
 } from "@/app/components/ui/select";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// Type definitions
+interface AuditLog {
+  id: string;
+  user_id?: string;
+  user_email?: string;
+  action: string;
+  resource_type: string;
+  resource_id?: string;
+  description: string;
+  metadata?: Record<string, any>;
+  ip_address?: string;
+  user_agent?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AuditLogsResponse {
+  logs: AuditLog[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  filters?: {
+    search: string;
+    action: string;
+    resourceType: string;
+    startDate?: string;
+    endDate?: string;
+  };
+}
+
+const fetcher = (url: string): Promise<AuditLogsResponse> => 
+  fetch(url).then((res) => res.json());
+
+// Common audit log actions and resource types for better filtering
+const COMMON_ACTIONS = [
+  "create", "update", "delete", "login", "logout", "view", "export",
+  "approve", "reject", "block", "unblock", "reset", "download"
+];
+
+const COMMON_RESOURCE_TYPES = [
+  "user", "admin", "contract", "transaction", "system", "audit",
+  "report", "payment", "wallet", "document", "settings"
+];
 
 export default function AuditLogsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [actionFilter, setActionFilter] = useState("all");
   const [resourceTypeFilter, setResourceTypeFilter] = useState("all");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const itemsPerPage = 10;
 
-  const { data, error, isLoading, mutate } = useSWR(
-    `/api/admin-apis/audit-logs?page=${currentPage}&limit=${itemsPerPage}&search=${searchTerm}&action=${actionFilter !== 'all' ? actionFilter : ''}&resourceType=${resourceTypeFilter !== 'all' ? resourceTypeFilter : ''}`,
+  // Debounce search term to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1); // Reset to first page when search changes
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Build query parameters
+  const buildQueryParams = () => {
+    const params = new URLSearchParams({
+      page: currentPage.toString(),
+      limit: itemsPerPage.toString(),
+    });
+
+    if (debouncedSearch) {
+      params.append('search', debouncedSearch);
+    }
+
+    if (actionFilter && actionFilter !== 'all') {
+      params.append('action', actionFilter);
+    }
+
+    if (resourceTypeFilter && resourceTypeFilter !== 'all') {
+      params.append('resourceType', resourceTypeFilter);
+    }
+
+    return params.toString();
+  };
+
+  const { data, error, isLoading, mutate } = useSWR<AuditLogsResponse>(
+    `/api/admin-apis/audit-logs?${buildQueryParams()}`,
     fetcher,
     {
-      refreshInterval: 30000, // Auto-refresh every 30 seconds
+      refreshInterval: 30000, // Refresh every 30 seconds
+      revalidateOnFocus: false,
     }
   );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [actionFilter, resourceTypeFilter]);
+
+  const handleRefresh = () => {
+    mutate();
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setActionFilter("all");
+    setResourceTypeFilter("all");
+    setCurrentPage(1);
+  };
 
   if (isLoading) {
     return (
@@ -53,15 +148,32 @@ export default function AuditLogsPage() {
   if (error) {
     return (
       <AdminLayout>
-        <p className="p-6 text-red-600 text-center">
-          Failed to load audit logs ❌
-        </p>
+        <div className="p-6">
+          <p className="text-red-600 text-center mb-4">
+            Failed to load audit logs ❌
+          </p>
+          <div className="text-center">
+            <Button onClick={handleRefresh} variant="outline">
+              Retry
+            </Button>
+          </div>
+        </div>
       </AdminLayout>
     );
   }
 
   const logs = data?.logs || [];
   const pagination = data?.pagination;
+
+  // Extract unique actions and resource types from logs for dynamic filters
+  const uniqueActions = [...new Set(logs.map((log: AuditLog) => log.action))].filter(Boolean);
+  const uniqueResourceTypes = [...new Set(logs.map((log: AuditLog) => log.resource_type))].filter(Boolean);
+
+  const hasActiveFilters = searchTerm || actionFilter !== "all" || resourceTypeFilter !== "all";
+
+  // Count user actions vs system actions with proper typing
+  const userActionsCount = logs.filter((log: AuditLog) => log.user_email).length;
+  const systemActionsCount = logs.filter((log: AuditLog) => !log.user_email).length;
 
   return (
     <AdminLayout>
@@ -74,9 +186,16 @@ export default function AuditLogsPage() {
               Track admin and system-level actions
             </p>
           </div>
-          <Button variant="outline" onClick={() => mutate()}>
-            🔄 Refresh
-          </Button>
+          <div className="flex gap-2">
+            {hasActiveFilters && (
+              <Button variant="outline" onClick={handleClearFilters}>
+                🗑️ Clear Filters
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleRefresh}>
+              🔄 Refresh
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -84,7 +203,7 @@ export default function AuditLogsPage() {
           {/* Search */}
           <div className="w-full md:w-1/3">
             <Input
-              placeholder="Search actions, users, or descriptions..."
+              placeholder="Search actions, users, descriptions..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -94,14 +213,24 @@ export default function AuditLogsPage() {
           <div className="w-full md:w-1/4">
             <Select value={actionFilter} onValueChange={setActionFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by action" />
+                <SelectValue placeholder="All Actions" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="create">Create</SelectItem>
-                <SelectItem value="update">Update</SelectItem>
-                <SelectItem value="delete">Delete</SelectItem>
-                <SelectItem value="login">Login</SelectItem>
+                {COMMON_ACTIONS.map(action => (
+                  <SelectItem key={action} value={action}>
+                    {action.charAt(0).toUpperCase() + action.slice(1)}
+                  </SelectItem>
+                ))}
+                {/* Dynamic actions from current data */}
+                {uniqueActions
+                  .filter((action: string) => !COMMON_ACTIONS.includes(action))
+                  .map(action => (
+                    <SelectItem key={action} value={action}>
+                      {action.charAt(0).toUpperCase() + action.slice(1)}
+                    </SelectItem>
+                  ))
+                }
               </SelectContent>
             </Select>
           </div>
@@ -110,18 +239,51 @@ export default function AuditLogsPage() {
           <div className="w-full md:w-1/4">
             <Select value={resourceTypeFilter} onValueChange={setResourceTypeFilter}>
               <SelectTrigger>
-                <SelectValue placeholder="Filter by resource" />
+                <SelectValue placeholder="All Resources" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Resources</SelectItem>
-                <SelectItem value="contract">Contract</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="system">System</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                {COMMON_RESOURCE_TYPES.map(resource => (
+                  <SelectItem key={resource} value={resource}>
+                    {resource.charAt(0).toUpperCase() + resource.slice(1)}
+                  </SelectItem>
+                ))}
+                {/* Dynamic resource types from current data */}
+                {uniqueResourceTypes
+                  .filter((resource: string) => !COMMON_RESOURCE_TYPES.includes(resource))
+                  .map(resource => (
+                    <SelectItem key={resource} value={resource}>
+                      {resource.charAt(0).toUpperCase() + resource.slice(1)}
+                    </SelectItem>
+                  ))
+                }
               </SelectContent>
             </Select>
           </div>
         </div>
+
+        {/* Active Filters Indicator */}
+        {hasActiveFilters && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-blue-800">
+                <span>Active filters:</span>
+                {searchTerm && (
+                  <span className="bg-blue-100 px-2 py-1 rounded">Search: "{searchTerm}"</span>
+                )}
+                {actionFilter !== "all" && (
+                  <span className="bg-blue-100 px-2 py-1 rounded">Action: {actionFilter}</span>
+                )}
+                {resourceTypeFilter !== "all" && (
+                  <span className="bg-blue-100 px-2 py-1 rounded">Resource: {resourceTypeFilter}</span>
+                )}
+              </div>
+              <span className="text-blue-600 text-sm">
+                Showing {logs.length} of {pagination?.total || 0} logs
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -134,13 +296,13 @@ export default function AuditLogsPage() {
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">User Actions</h3>
             <p className="text-2xl font-semibold text-blue-600">
-              {logs.filter((log:any) => log.user_email).length}
+              {userActionsCount}
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">System Actions</h3>
             <p className="text-2xl font-semibold text-green-600">
-              {logs.filter((log:any) => !log.user_email).length}
+              {systemActionsCount}
             </p>
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
@@ -152,7 +314,19 @@ export default function AuditLogsPage() {
         </div>
 
         {/* Table */}
-        <AuditLogsTable logs={logs} />
+        {logs.length > 0 ? (
+          <AuditLogsTable logs={logs} />
+        ) : (
+          <div className="text-center py-12 bg-white rounded-lg border">
+            <div className="text-gray-500 text-lg mb-2">No audit logs found</div>
+            <div className="text-gray-400 text-sm">
+              {hasActiveFilters 
+                ? "Try adjusting your filters to see more results" 
+                : "Audit logs will appear here as actions are performed"
+              }
+            </div>
+          </div>
+        )}
 
         {/* Pagination */}
         {pagination && pagination.totalPages > 1 && (
@@ -163,20 +337,38 @@ export default function AuditLogsPage() {
                   <PaginationPrevious
                     href="#"
                     onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
 
-                {Array.from({ length: pagination.totalPages }).map((_, i) => (
-                  <PaginationItem key={i}>
-                    <PaginationLink
-                      href="#"
-                      isActive={i + 1 === currentPage}
-                      onClick={() => setCurrentPage(i + 1)}
-                    >
-                      {i + 1}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
+                {Array.from({ length: pagination.totalPages }).map((_, i) => {
+                  // Show limited pagination for better UX
+                  const pageNum = i + 1;
+                  const showPage = 
+                    pageNum === 1 || 
+                    pageNum === pagination.totalPages ||
+                    Math.abs(pageNum - currentPage) <= 1;
+
+                  if (!showPage && Math.abs(pageNum - currentPage) === 2) {
+                    return (
+                      <PaginationItem key={i}>
+                        <span className="px-3 py-2 text-gray-500">...</span>
+                      </PaginationItem>
+                    );
+                  }
+
+                  return showPage ? (
+                    <PaginationItem key={i}>
+                      <PaginationLink
+                        href="#"
+                        isActive={pageNum === currentPage}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  ) : null;
+                })}
 
                 <PaginationItem>
                   <PaginationNext
@@ -184,6 +376,7 @@ export default function AuditLogsPage() {
                     onClick={() =>
                       setCurrentPage((p) => Math.min(p + 1, pagination.totalPages))
                     }
+                    className={currentPage >= pagination.totalPages ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
               </PaginationContent>

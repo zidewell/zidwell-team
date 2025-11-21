@@ -1,4 +1,3 @@
-// app/api/admin-apis/admins/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin, ROLE_PERMISSIONS } from '@/lib/admin-auth';
@@ -28,7 +27,6 @@ export async function GET(request: NextRequest) {
 
     // Only super_admin can fetch the admin list
     if (adminUser?.admin_role !== 'super_admin') {
-      // 🕵️ AUDIT LOG: Track unauthorized access attempt
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -83,7 +81,6 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching admins:', error);
       
-      // 🕵️ AUDIT LOG: Track fetch failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -118,7 +115,6 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    // 🕵️ AUDIT LOG: Track successful admin list access
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -154,7 +150,6 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Error in admin list API:', error);
     
-    // 🕵️ AUDIT LOG: Track unexpected errors
     const clientInfo = getClientInfo(request.headers);
     
     await createAuditLog({
@@ -180,13 +175,12 @@ export async function POST(request: NextRequest) {
   let adminUser: any = null;
   
   try {
-    adminUser = await requireAdmin(request, 'create_admin_roles');
+    adminUser = await requireAdmin(request);
     if (adminUser instanceof NextResponse) return adminUser;
 
     const clientInfo = getClientInfo(request.headers);
 
     if (adminUser?.admin_role !== 'super_admin') {
-      // 🕵️ AUDIT LOG: Track unauthorized creation attempt
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -209,7 +203,6 @@ export async function POST(request: NextRequest) {
     const { first_name, last_name, email, role, status = 'active' } = body;
 
     if (!first_name || !last_name || !email || !role) {
-      // 🕵️ AUDIT LOG: Track validation failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -237,7 +230,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS]) {
-      // 🕵️ AUDIT LOG: Track invalid role attempt
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -280,7 +272,6 @@ export async function POST(request: NextRequest) {
       if (updateError) {
         console.error('Error upgrading user to admin:', updateError);
         
-        // 🕵️ AUDIT LOG: Track upgrade failure
         await createAuditLog({
           userId: adminUser?.id,
           userEmail: adminUser?.email,
@@ -303,7 +294,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to upgrade user to admin' }, { status: 500 });
       }
 
-      // 🕵️ AUDIT LOG: Track successful user upgrade to admin
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -351,7 +341,6 @@ export async function POST(request: NextRequest) {
     if (authError) {
       console.error('Error creating auth user:', authError);
       
-      // 🕵️ AUDIT LOG: Track auth creation failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -394,7 +383,6 @@ export async function POST(request: NextRequest) {
     if (profileError) {
       console.error('Error creating admin profile:', profileError);
       
-      // 🕵️ AUDIT LOG: Track profile creation failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -418,7 +406,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create admin profile' }, { status: 500 });
     }
 
-    // 🕵️ AUDIT LOG: Track successful admin creation
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -456,7 +443,6 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Error creating admin:', error);
     
-    // 🕵️ AUDIT LOG: Track unexpected errors
     const clientInfo = getClientInfo(request.headers);
     
     await createAuditLog({

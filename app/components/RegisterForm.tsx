@@ -162,7 +162,7 @@ function RegisterForm() {
       });
 
       const data = await res.json();
-      console.log("saveToDatabase response:", data);
+      // console.log("saveToDatabase response:", data);
       if (!res.ok) {
       
         throw new Error(data.error || "Something went wrong");

@@ -100,6 +100,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       message: "Receipt signing request sent successfully.",
+      signingLink
+      
     });
   } catch (error: any) {
     console.error("Unexpected error:", error);

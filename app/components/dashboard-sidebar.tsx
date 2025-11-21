@@ -123,7 +123,7 @@ export default function DashboardSidebar() {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 overflow-y-auto transform transition-transform duration-300 ease-in-out lg:translate-x-0 overflow-hidden ${
+        className={`fixed inset-y-0 left-0 z-40 w-62 bg-gray-900 overflow-y-auto transform transition-transform duration-300 ease-in-out lg:translate-x-0 overflow-hidden ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -186,7 +186,7 @@ export default function DashboardSidebar() {
 
             <NavItem
               item={{
-                name: "Tax Filing",
+                name: "Tax Manager",
                 href: "/dashboard/services/tax-filing",
                 icon: FileSpreadsheet,
               }}
@@ -197,7 +197,8 @@ export default function DashboardSidebar() {
             <NavItem
               item={{
                 name: "Simple Agreement",
-                href: "/dashboard/services/simple-agreement",
+                // href: "/dashboard/services/simple-agreement",
+                href: "#",
                 icon: FileText,
               }}
               isActive={pathname === "/dashboard/services/simple-agreement"}

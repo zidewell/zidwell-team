@@ -6,13 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useUserContextData } from "../context/userData";
-import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 import { Label } from "./ui/label";
 import ReceiptPreview from "./previews/RecieptPreview";
-import { Plus } from "lucide-react";
+import { Plus, Download, Link, RefreshCw, Users } from "lucide-react";
 import PinPopOver from "./PinPopOver";
-import ReceiptSummary from "./ReceiptSummary"; 
+import ReceiptSummary from "./ReceiptSummary";
 
 interface ReceiptItem {
   item: string;
@@ -39,7 +38,11 @@ function CreateReceipt() {
   const [pin, setPin] = useState(Array(inputCount).fill(""));
   const [isOpen, setIsOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [showReceiptSummary, setShowReceiptSummary] = useState(false); // New state for summary
+  const [generatedSigningLink, setGeneratedSigningLink] = useState<string>("");
+  const [showReceiptSummary, setShowReceiptSummary] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [savedReceiptId, setSavedReceiptId] = useState("");
   const [form, setForm] = useState<ReceiptForm>({
     name: "",
     email: "",
@@ -169,11 +172,8 @@ function CreateReceipt() {
   const handleSaveReceipt = async () => {
     try {
       if (!userData?.email) {
-        return Swal.fire({
-          icon: "warning",
-          title: "Unauthorized",
-          text: "You must be logged in to send a receipt.",
-        });
+        console.error("Unauthorized: You must be logged in to send a receipt.");
+        return false;
       }
 
       const payload = {
@@ -194,32 +194,22 @@ function CreateReceipt() {
       });
 
       const result = await res.json();
+
+      setGeneratedSigningLink(result.signingLink || "");
       if (!res.ok) {
         result.message;
-        Swal.fire({
-          icon: "error",
-          title: "Failed to Send Receipt",
-          text: result.message || "An unexpected error occurred.",
-        });
+        console.error("Failed to send receipt:", result.message);
         await handleRefund();
         return false;
       }
 
-      Swal.fire({
-        icon: "success",
-        title: "Receipt Saved!",
-        text: "Your receipt was successfully saved.",
-        confirmButtonColor: "#3085d6",
-      }).then(() => {
-        router.refresh();
-      });
+      // SUCCESS: Show custom modal
+      setSavedReceiptId(form.receiptId);
+      setShowSuccessModal(true);
+      
       return true;
     } catch (err) {
-      Swal.fire({
-        icon: "error",
-        title: "Failed to Send Receipt",
-        text: (err as Error)?.message || "An unexpected error occurred.",
-      });
+      console.error("Failed to send receipt:", err);
       await handleRefund();
       return false;
     }
@@ -266,18 +256,14 @@ function CreateReceipt() {
         .then(async (res) => {
           const data = await res.json();
           if (!res.ok) {
-            Swal.fire(
-              "Error",
-              data.error || "Something went wrong",
-              "error"
-            );
+            console.error("Payment error:", data.error);
             resolve(false);
           } else {
             resolve(true);
           }
         })
         .catch((err) => {
-          Swal.fire("Error", err.message, "error");
+          console.error("Payment error:", err);
           resolve(false);
         });
     });
@@ -294,18 +280,9 @@ function CreateReceipt() {
           description: "Refund for failed receipt generation",
         }),
       });
-      Swal.fire({
-        icon: "info",
-        title: "Refund Processed",
-        text: "₦100 has been refunded to your wallet due to failed receipt sending.",
-      });
+      console.log("Refund processed: ₦100 has been refunded to your wallet");
     } catch (err) {
       console.error("Refund failed:", err);
-      Swal.fire({
-        icon: "warning",
-        title: "Refund Failed",
-        text: "Payment deduction was made, but refund failed. Please contact support.",
-      });
     }
   };
 
@@ -332,11 +309,7 @@ function CreateReceipt() {
   // Function to show receipt summary first
   const handleGenerateReceipt = () => {
     if (!validateForm()) {
-      Swal.fire({
-        icon: "error",
-        title: "Validation Failed",
-        text: "Please correct the errors before generating the receipt.",
-      });
+      console.error("Validation Failed: Please correct the errors before generating the receipt.");
       return;
     }
 
@@ -348,6 +321,43 @@ function CreateReceipt() {
   const handleSummaryConfirm = () => {
     setShowReceiptSummary(false);
     setIsOpen(true); // Show PIN popup next
+  };
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    setPdfLoading(true);
+    try {
+      // Your PDF generation logic here
+      const response = await fetch(`/api/generate-receipt-pdf?receiptId=${savedReceiptId}`);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `receipt-${savedReceiptId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Failed to download PDF:", error);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // Handle copy signing link
+  const handleCopySigningLink = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedSigningLink);
+      console.log("Link copied to clipboard!");
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+    }
+  };
+
+  // Handle refresh status (if needed)
+  const handleRefreshStatus = () => {
+    console.log("Refreshing status...");
   };
 
   return (
@@ -372,6 +382,84 @@ function CreateReceipt() {
         onBack={() => setShowReceiptSummary(false)}
         onConfirm={handleSummaryConfirm}
       />
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-white/10 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg max-h-[90vh] overflow-y-auto">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-8 h-8 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Receipt Created Successfully!
+              </h3>
+              <p className="text-gray-600">
+                Your receipt has been generated and is ready to share.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                onClick={handleDownloadPDF}
+                disabled={pdfLoading}
+                className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {pdfLoading ? "Generating PDF..." : "Download PDF"}
+              </Button>
+
+              {/* Signing Link */}
+              {generatedSigningLink && (
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleCopySigningLink}
+                    variant="outline"
+                    className="w-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                  >
+                    <Link className="w-4 h-4 mr-2" />
+                    Copy Receipt Link
+                  </Button>
+                  <div className="text-xs text-gray-500 text-center">
+                    Share this receipt link with your customer to view details
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  window.location.reload();
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Close
+              </Button>
+            </div>
+
+            {/* Additional Information */}
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-700 text-center">
+                <strong>Receipt ID:</strong> {savedReceiptId}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TabsContent value="create" className="space-y-6">
         <Card>

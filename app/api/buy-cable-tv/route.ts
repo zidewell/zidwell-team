@@ -8,7 +8,6 @@ import { transporter } from "@/lib/node-mailer";
 // import { clearWalletBalanceCache } from "../wallet-balance/route";
 // import { clearTransactionsCache } from "../bill-transactions/route";
 
-
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -30,7 +29,9 @@ async function getCachedUser(userId: string) {
   // Fetch fresh data
   const { data: user, error } = await supabase
     .from("users")
-    .select("wallet_balance, transaction_pin, email, first_name")
+    .select(
+      "wallet_balance, transaction_pin, zidcoin_balance, email, first_name"
+    )
     .eq("id", userId)
     .single();
 
@@ -260,7 +261,7 @@ export async function POST(req: NextRequest) {
       {
         user_id: userId,
         amt: parsedAmount,
-        transaction_type: "cable", // set type to cable
+        transaction_type: "cable",
         reference: merchantTxRef,
         description: `Cable TV purchase for ${customerId}`,
       }
@@ -313,6 +314,23 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", transactionId);
 
+      const { data: cashbackResult, error: cashbackError } = await supabase.rpc(
+        "award_zidcoin_cashback",
+        {
+          p_user_id: userId,
+          p_transaction_id: transactionId,
+          p_transaction_type: "cable",
+          p_amount: amount,
+        }
+      );
+
+      if (cashbackResult && cashbackResult.success) {
+        console.log(
+          "🎉 Zidcoin cashback awarded:",
+          cashbackResult.zidcoins_earned
+        );
+      }
+
       // Send success email notification
       await sendCableTVEmailNotification(
         userId,
@@ -330,6 +348,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
+        zidCoinBalance: user?.zidcoin_balance,
         data: response.data,
         transactionId,
       });

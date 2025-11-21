@@ -33,7 +33,6 @@ export interface Invoice {
   client_phone?: string;
   bill_to?: string;
   issue_date: string;
-  due_date: string;
   status: "draft" | "unpaid" | "paid" | "overdue" | "cancelled" | "partially_paid";
   payment_type: "single" | "multiple";
   fee_option: "absorbed" | "customer";

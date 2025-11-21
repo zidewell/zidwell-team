@@ -32,7 +32,7 @@ async function getCachedUser(userId: string) {
   // Fetch fresh data
   const { data: user, error } = await supabase
     .from("users")
-    .select("transaction_pin, wallet_balance, email, first_name")
+    .select("transaction_pin, wallet_balance,zidcoin_balance, email, first_name")
     .eq("id", userId)
     .single();
 
@@ -425,6 +425,23 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", transactionId);
 
+               const { data: cashbackResult, error: cashbackError } = await supabase.rpc(
+      "award_zidcoin_cashback",
+      {
+        p_user_id: userId,
+        p_transaction_id: transactionId,
+        p_transaction_type: "data", 
+        p_amount: amount,
+      }
+    );
+
+    if (cashbackResult && cashbackResult.success) {
+      console.log(
+        "🎉 Zidcoin cashback awarded:",
+        cashbackResult.zidcoins_earned
+      );
+    }
+
     if (updateError) {
       console.error("❌ Failed to update transaction status:", updateError);
       // Continue anyway - don't fail the whole request
@@ -451,6 +468,7 @@ export async function POST(req: NextRequest) {
       success: true,
       message: `Data purchase ${transactionStatus}`,
       status: transactionStatus,
+      zidCoinBalance: user?.zidcoin_balance,
       nomba_status: nombaStatus,
       transactionId,
       merchantTxRef: finalMerchantTxRef,

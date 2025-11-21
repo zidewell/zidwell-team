@@ -11,6 +11,7 @@ import {
   Link,
   RefreshCw,
   Users,
+  Save,
 } from "lucide-react";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
@@ -42,7 +43,6 @@ interface InvoiceForm {
   bill_to: string;
   from: string;
   issue_date: string;
-  due_date: string;
   customer_note: string;
   invoice_items: InvoiceItem[];
   payment_type: "single" | "multiple";
@@ -63,7 +63,12 @@ const convertToInvoicePreview = (form: InvoiceForm) => {
     0
   );
 
-  const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
+  const feePercentage = 0.03;
+  const feeAmount =
+    form.fee_option === "customer"
+      ? Math.min(subtotal * feePercentage, 2000)
+      : 0;
+
   const total =
     form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
 
@@ -87,7 +92,7 @@ const convertToInvoicePreview = (form: InvoiceForm) => {
     targetAmount: form.allowMultiplePayments ? total : undefined,
     paidQuantity: 0,
     createdAt: form.issue_date,
-    status: "draft" as const,
+    status: form.status as "draft" | "unpaid" | "paid",
     redirectUrl: form.redirect_url || "",
   };
 };
@@ -113,11 +118,13 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
   const router = useRouter();
   const [showInvoiceSummary, setShowInvoiceSummary] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [generatedSigningLink, setGeneratedSigningLink] = useState<string>("");
   const [savedInvoiceId, setSavedInvoiceId] = useState<string>("");
+  const [details, setDetails] = useState<any>(null);
   const [paymentProgress, setPaymentProgress] = useState({
     totalAmount: 0,
     paidAmount: 0,
@@ -136,14 +143,11 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     bill_to: "",
     from: "",
     issue_date: new Date().toISOString().slice(0, 10),
-    due_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10),
     customer_note: "",
     invoice_items: [],
     payment_type: "single",
     fee_option: "customer",
-    status: "unpaid",
+    status: "draft",
     business_logo: "",
     redirect_url: "",
     business_name: "",
@@ -154,14 +158,18 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
 
   const { userData } = useUserContextData();
 
-  // Calculate total amount and fees
   const calculateTotals = () => {
     const subtotal = form.invoice_items.reduce(
       (sum, item) => sum + Number(item.quantity) * Number(item.unitPrice),
       0
     );
 
-    const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
+    const feePercentage = 0.03;
+    const feeAmount =
+      form.fee_option === "customer"
+        ? Math.min(subtotal * feePercentage, 2000)
+        : 0;
+
     const totalAmount =
       form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
 
@@ -224,7 +232,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
         ...prev,
         invoice_id: generateInvoiceId(),
         issue_date: today,
-        due_date: due.toISOString().slice(0, 10),
         from: userData.email || "",
         business_name:
           userData.firstName && userData.lastName
@@ -233,6 +240,221 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
       }));
     }
   }, [userData]);
+
+ const handleSaveDraft = async () => {
+  try {
+    setDraftLoading(true);
+
+    if (!userData?.id) {
+      Swal.fire({
+        icon: "warning",
+        title: "Unauthorized",
+        text: "You must be logged in to save a draft.",
+      });
+      return;
+    }
+
+    const { totalAmount } = calculateTotals();
+
+    const payload = {
+      userId: userData?.id,
+      initiator_email: userData?.email || "",
+      initiator_name: userData
+        ? `${userData.firstName} ${userData.lastName}`
+        : "",
+      invoice_id: form.invoice_id,
+      signee_name: form.name,
+      signee_email: form.email,
+      message: form.message,
+      bill_to: form.bill_to,
+      issue_date: form.issue_date,
+      customer_note: form.customer_note,
+      invoice_items: form.invoice_items,
+      total_amount: totalAmount,
+      payment_type: form.payment_type,
+      fee_option: form.fee_option,
+      status: "draft",
+      business_logo: form.business_logo,
+      redirect_url: form.redirect_url,
+      business_name: form.business_name,
+      target_quantity: form.allowMultiplePayments ? form.targetQuantity : 1,
+      is_draft: true,
+      clientPhone: form.clientPhone,
+    };
+
+    // Use the draft endpoint with PUT method
+    const res = await fetch("/api/save-invoice-draft", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error || result.message);
+    }
+
+    Swal.fire({
+      icon: "success",
+      title: "Draft Saved!",
+      text: "Your invoice draft has been saved successfully.",
+      confirmButtonColor: "#C29307",
+    });
+  } catch (err) {
+    Swal.fire({
+      icon: "error",
+      title: "Failed to Save Draft",
+      text: (err as Error)?.message || "An unexpected error occurred.",
+    });
+  } finally {
+    setDraftLoading(false);
+  }
+};
+
+  const loadUserDrafts = async () => {
+    try {
+      if (!userData?.id) {
+        console.log("No user data found");
+        return;
+      }
+
+      const res = await fetch(`/api/get-invoice-drafts?userId=${userData.id}`);
+
+      const result = await res.json();
+
+      if (res.ok && result.drafts && result.drafts.length > 0) {
+        const swalResult = await Swal.fire({
+          title: "Drafts Found!",
+          html: `You have ${result.drafts.length} saved draft(s). Would you like to load the most recent one?`,
+          icon: "info",
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: "Load Recent",
+          denyButtonText: "View All",
+          cancelButtonText: "Start Fresh",
+          confirmButtonColor: "#C29307",
+        });
+
+        if (swalResult.isConfirmed) {
+          const recentDraft = result.drafts[0];
+
+          loadDraftIntoForm(recentDraft);
+        } else if (swalResult.isDenied) {
+          showDraftsList(result.drafts);
+        }
+      } else {
+        console.log("No drafts found or API error:", result);
+      }
+    } catch (error) {
+      console.error("Failed to load drafts:", error);
+    }
+  };
+
+  const loadDraftIntoForm = (draft: any) => {
+    console.log("Loading draft:", draft);
+
+    // Handle different possible data structures for items
+    let transformedItems: InvoiceItem[] = [];
+
+    // Check if items exist in the draft
+    if (draft.items && Array.isArray(draft.items)) {
+      // If items are already in the correct format
+      transformedItems = draft.items.map((item: any) => ({
+        id: item.id || crypto.randomUUID(),
+        description: item.description || "",
+        quantity: Number(item.quantity) || 1,
+        unitPrice: Number(item.unitPrice) || Number(item.unit_price) || 0,
+        total: Number(item.total) || Number(item.total_amount) || 0,
+      }));
+    } else if (draft.invoice_items && Array.isArray(draft.invoice_items)) {
+      // If items are in invoice_items format
+      transformedItems = draft.invoice_items.map((item: any) => ({
+        id: item.id || crypto.randomUUID(),
+        description: item.description || item.item_description || "",
+        quantity: Number(item.quantity) || 1,
+        unitPrice: Number(item.unitPrice) || Number(item.unit_price) || 0,
+        total: Number(item.total) || Number(item.total_amount) || 0,
+      }));
+    }
+
+  
+    const formData = {
+      name: draft.client_name || draft.signee_name || "",
+      email: draft.client_email || draft.signee_email || "",
+      message: draft.message || "",
+      invoice_id: draft.invoice_id || generateInvoiceId(),
+      bill_to: draft.bill_to || "",
+      from: draft.from_name || draft.initiator_name || "",
+      issue_date: draft.issue_date || new Date().toISOString().slice(0, 10),
+      customer_note: draft.customer_note || "",
+      invoice_items: transformedItems,
+      payment_type: draft.payment_type || "single",
+      fee_option: draft.fee_option || "customer",
+      status: "draft" as const,
+      business_logo: draft.business_logo || "",
+      redirect_url: draft.redirect_url || "",
+      business_name: draft.business_name || "",
+      allowMultiplePayments: draft.allow_multiple_payments || false,
+      clientPhone: draft.client_phone || "",
+      targetQuantity: draft.target_quantity || 1,
+    };
+
+    setForm(formData);
+
+    Swal.fire({
+      icon: "success",
+      title: "Draft Loaded!",
+      text: "Your draft has been loaded into the form.",
+      confirmButtonColor: "#C29307",
+    });
+  };
+
+  const showDraftsList = (drafts: any[]) => {
+    const draftListHTML = drafts
+      .map(
+        (draft, index) => `
+    <div style="padding: 8px; border-bottom: 1px solid #eee; cursor: pointer;" 
+         data-draft-index="${index}">
+      <strong>${draft.business_name || "Untitled Invoice"}</strong><br>
+      <small>Created: ${new Date(draft.created_at).toLocaleDateString()}</small>
+    </div>
+  `
+      )
+      .join("");
+
+    Swal.fire({
+      title: "Your Drafts",
+      html: `
+      <div style="text-align: left; max-height: 300px; overflow-y: auto;">
+        ${draftListHTML}
+      </div>
+    `,
+      showConfirmButton: true,
+      confirmButtonText: "Close",
+      confirmButtonColor: "#C29307",
+      width: 500,
+      didOpen: () => {
+        // Add click handlers after the modal opens
+        const draftElements = document.querySelectorAll("[data-draft-index]");
+        draftElements.forEach((element) => {
+          element.addEventListener("click", () => {
+            const index = parseInt(
+              element.getAttribute("data-draft-index") || "0"
+            );
+            loadDraftIntoForm(drafts[index]);
+            Swal.close();
+          });
+        });
+      },
+    });
+  };
+
+  useEffect(() => {
+    if (userData?.id) {
+      loadUserDrafts();
+    }
+  }, [userData?.id]);
 
   // NEW: Function to fetch payment status
   const fetchPaymentStatus = async (invoiceId: string) => {
@@ -259,58 +481,99 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     }
   };
 
-  const handleSaveInvoice = async (): Promise<{
-    success: boolean;
-    signingLink?: string;
-    invoiceId?: string;
-  }> => {
+useEffect(() => {
+const fetchAccountDetails = async () => {
+    if (!userData?.id) return;
     try {
-      if (!userData?.id) {
-        Swal.fire({
-          icon: "warning",
-          title: "Unauthorized",
-          text: "You must be logged in to send an invoice.",
-        });
-        return { success: false };
-      }
-
-      const { totalAmount } = calculateTotals();
-
-      const payload = {
-        userId: userData?.id,
-        initiator_email: userData?.email || "",
-        initiator_name: userData
-          ? `${userData.firstName} ${userData.lastName}`
-          : "",
-        invoice_id: form.invoice_id || generateInvoiceId(),
-        signee_name: form.name,
-        signee_email: form.email,
-        message: form.message,
-        bill_to: form.bill_to,
-        issue_date: form.issue_date,
-        due_date: form.due_date,
-        customer_note: form.customer_note,
-        invoice_items: form.invoice_items,
-        total_amount: totalAmount,
-        payment_type: form.payment_type,
-        fee_option: form.fee_option,
-        status: form.status,
-        business_logo: form.business_logo,
-        redirect_url: form.redirect_url,
-        business_name: form.business_name,
-        target_quantity: form.allowMultiplePayments ? form.targetQuantity : 1,
-      };
-
-      const res = await fetch("/api/send-invoice", {
+      const res = await fetch("/api/get-wallet-account-details", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ userId: userData.id }),
       });
+      const data = await res.json();
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message);
+      setDetails(data);
+    } catch (error) {
+      console.error("Error fetching balance:", error);
+    }
+  };
 
-      // Set payment progress
+ fetchAccountDetails();
+
+}, [userData?.id])
+  
+const handleSaveInvoice = async (
+  isDraft: boolean = false
+): Promise<{
+  success: boolean;
+  signingLink?: string;
+  invoiceId?: string;
+}> => {
+  try {
+    if (!userData?.id) {
+      Swal.fire({
+        icon: "warning",
+        title: "Unauthorized",
+        text: "You must be logged in to send an invoice.",
+      });
+      return { success: false };
+    }
+
+    if (!details) {
+      return { success: false };
+    }
+
+    const { totalAmount } = calculateTotals();
+
+    const payload = {
+      userId: userData?.id,
+      initiator_email: userData?.email || "",
+      initiator_name: userData
+        ? `${userData.firstName} ${userData.lastName}`
+        : "",
+      invoice_id: form.invoice_id,
+      signee_name: form.name,
+      signee_email: form.email,
+      message: form.message,
+      bill_to: form.bill_to,
+      issue_date: form.issue_date,
+      customer_note: form.customer_note,
+      invoice_items: form.invoice_items,
+      total_amount: totalAmount,
+      payment_type: form.payment_type,
+      fee_option: form.fee_option,
+      status: isDraft ? "draft" : "unpaid",
+      business_logo: form.business_logo,
+      redirect_url: form.redirect_url,
+      business_name: form.business_name,
+      target_quantity: form.allowMultiplePayments ? form.targetQuantity : 1,
+      is_draft: isDraft,
+      clientPhone: form.clientPhone,
+      initiator_account_number: details?.bank_details.bank_account_number,
+      initiator_account_name: details?.bank_details.bank_name,
+    };
+
+
+
+    // Use DIFFERENT endpoints based on whether it's a draft or final invoice
+    const endpoint = isDraft ? "/api/save-invoice-draft" : "/api/send-invoice";
+    const method = isDraft ? "PUT" : "POST"; // Use PUT for draft updates, POST for new final invoices
+
+    const res = await fetch(endpoint, {
+      method: method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const result = await res.json();
+    
+    if (!res.ok) {
+      console.error('API Error:', result);
+      throw new Error(result.error || result.message || 'Failed to save invoice');
+    }
+
+
+    if (!isDraft) {
       setPaymentProgress({
         totalAmount: totalAmount,
         paidAmount: 0,
@@ -322,24 +585,26 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
           ? Number(form.targetQuantity || 0)
           : 1,
       });
-
-      // Return success with signing link only (no payment link)
-      return {
-        success: true,
-        signingLink: result.signingLink,
-        invoiceId: result.invoiceId,
-      };
-    } catch (err) {
-      console.error(err);
-      await handleRefund();
-      Swal.fire({
-        icon: "error",
-        title: "Failed to Save Invoice",
-        text: (err as Error)?.message || "An unexpected error occurred.",
-      });
-      return { success: false };
     }
-  };
+
+    return {
+      success: true,
+      signingLink: isDraft ? undefined : result.signingLink,
+      invoiceId: form.invoice_id,
+    };
+  } catch (err) {
+    console.error('Error in handleSaveInvoice:', err);
+    if (!isDraft) {
+      await handleRefund();
+    }
+    Swal.fire({
+      icon: "error",
+      title: `Failed to ${isDraft ? "Save Draft" : "Send Invoice"}`,
+      text: (err as Error)?.message || "An unexpected error occurred.",
+    });
+    return { success: false };
+  }
+};
 
   const validateInvoiceForm = () => {
     let newErrors: Record<string, string> = {};
@@ -394,33 +659,45 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
-  const handleSubmit = async () => {
-    const result = await handleSaveInvoice();
-    if (result.success) {
+ const handleSubmit = async (isDraft: boolean = false) => {
+ 
+  const result = await handleSaveInvoice(isDraft);
+ 
+  
+  if (result.success) {
+    if (!isDraft) {
       setGeneratedSigningLink(result.signingLink || "");
       setSavedInvoiceId(result.invoiceId || form.invoice_id);
-      setLoading(false);
-      setIsOpen(false);
       setShowSuccessModal(true);
 
       // Start polling for payment status if multiple payments are enabled
       if (form.allowMultiplePayments && result.invoiceId) {
-        // Initial fetch
         fetchPaymentStatus(result.invoiceId);
-        // Poll every 10 seconds for updates
         const pollInterval = setInterval(() => {
           fetchPaymentStatus(result.invoiceId!);
         }, 10000);
-
-        // Clear interval after 10 minutes
         setTimeout(() => clearInterval(pollInterval), 10 * 60 * 1000);
       }
-
-      if (onInvoiceCreated) {
-        onInvoiceCreated();
-      }
+    } else {
+      Swal.fire({
+        icon: "success",
+        title: "Draft Saved!",
+        text: "Your invoice draft has been saved successfully.",
+        confirmButtonColor: "#C29307",
+      });
     }
-  };
+
+    setLoading(false);
+    setIsOpen(false);
+
+    if (onInvoiceCreated) {
+      onInvoiceCreated();
+    }
+  } else {
+    console.error('Invoice submission failed');
+  }
+};
+
 
   const handleDeduct = async (): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -488,7 +765,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
 
       if (paymentSuccess) {
         // If payment successful, send invoice
-        await handleSubmit();
+        await handleSubmit(false); // false = not a draft
       }
     } catch (error) {
       console.error("Error in process:", error);
@@ -498,7 +775,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     }
   };
 
-  // Function to show invoice summary first
   const handleGenerateInvoice = () => {
     if (!validateInvoiceForm()) {
       Swal.fire({
@@ -513,7 +789,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     setShowInvoiceSummary(true);
   };
 
-  // Function to proceed to PIN after summary confirmation
   const handleSummaryConfirm = () => {
     setShowInvoiceSummary(false);
     setIsOpen(true);
@@ -546,7 +821,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     }
   };
 
-  // PDF Download Function using your Puppeteer API
   const handleDownloadPDF = async () => {
     try {
       setPdfLoading(true);
@@ -555,6 +829,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
 
       // Generate HTML content for PDF
       const htmlContent = `
+        
         <!DOCTYPE html>
         <html>
         <head>
@@ -590,7 +865,15 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
             .logo {
               max-height: 80px;
               max-width: 200px;
-              margin-bottom: 15px;
+              margin-bottom: 10px;
+            }
+            .accound-details {
+             display: flex;
+             flex-direction: column;
+             gap: 10px;
+            }
+            .accound-details h2 {
+            color: #C29307;;
             }
             h1 {
               color: #C29307;
@@ -689,10 +972,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
               font-weight: bold;
               margin-left: 10px;
             }
-            .due-date {
-              color: #d32f2f;
-              font-weight: bold;
-            }
+          
             .payment-info {
               background-color: #f0f9ff;
               padding: 20px;
@@ -714,6 +994,16 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 <h2>${form.business_name}</h2>
                 <p>${userData?.email || ""}</p>
                 ${form.bill_to ? `<p>${form.bill_to}</p>` : ""}
+
+                <div class="account-details">
+
+                  <h2>Account Details</h2>
+
+                  <h3>${details?.bank_details.bank_account_number}</h3>
+                <h3>${details?.bank_details.bank_name}</h3>
+                </div>
+
+              
               </div>
               <div class="invoice-info">
                 <h1>INVOICE</h1>
@@ -721,9 +1011,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 <p><strong>Issue Date:</strong> ${new Date(
                   form.issue_date
                 ).toLocaleDateString()}</p>
-                <p><strong>Due Date:</strong> <span class="due-date">${new Date(
-                  form.due_date
-                ).toLocaleDateString()}</span></p>
+    
                 <p><strong>Status:</strong> ${
                   form.status
                 } <span class="status-badge">${form.status.toUpperCase()}</span></p>
@@ -801,7 +1089,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 feeAmount > 0
                   ? `
               <div class="total-row">
-                <strong>Processing Fee (3.5%):</strong> ₦${Number(
+                <strong>Processing Fee (3%):</strong> ₦${Number(
                   feeAmount
                 ).toLocaleString()}
               </div>
@@ -817,7 +1105,13 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 form.fee_option === "absorbed"
                   ? `
               <div class="total-row" style="font-size: 12px; color: #666;">
-                *Processing fees absorbed by merchant
+                *3% processing fees absorbed by merchant
+              </div>
+              `
+                  : form.fee_option === "customer"
+                  ? `
+              <div class="total-row" style="font-size: 12px; color: #666;">
+                *3% processing fee applied (capped at ₦2,000)
               </div>
               `
                   : ""
@@ -875,6 +1169,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
           </div>
         </body>
         </html>
+      
       `;
 
       // Call your PDF generation API
@@ -924,15 +1219,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     } finally {
       setPdfLoading(false);
     }
-  };
-
-  const handleSaveDraft = () => {
-    Swal.fire({
-      icon: "success",
-      title: "Draft Saved",
-      text: "Invoice saved as draft",
-      confirmButtonColor: "#C29307",
-    });
   };
 
   const previewInvoice = convertToInvoicePreview(form);
@@ -1041,9 +1327,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                     <div className="font-semibold text-green-600">
                       {paymentProgress.paidQuantity}
                     </div>
-                    <div className="text-blue-600 text-xs">
-                      Paid Registrations
-                    </div>
+                    <div className="text-blue-600 text-xs">Paid</div>
                   </div>
                   <div className="text-center p-2 bg-white rounded border">
                     <div className="font-semibold text-blue-700">
@@ -1053,7 +1337,9 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                           paymentProgress.paidQuantity
                       )}
                     </div>
-                    <div className="text-blue-600 text-xs">Remaining Slots</div>
+                    <div className="text-blue-600 text-xs">
+                      Remaining payments
+                    </div>
                   </div>
                 </div>
 
@@ -1106,7 +1392,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 {pdfLoading ? "Generating PDF..." : "Download PDF"}
               </Button>
 
-              {/* Signing Link (Now the main link) */}
+            
               {generatedSigningLink && (
                 <div className="space-y-2">
                   <Button
@@ -1127,8 +1413,8 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
 
               <Button
                 onClick={() => {
-                  setShowSuccessModal(false)
-                 window.location.reload();
+                  setShowSuccessModal(false);
+                  window.location.reload();
                 }}
                 variant="outline"
                 className="w-full"
@@ -1177,7 +1463,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
             </div>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-8">
+          <div className="grid lg:grid-cols-2 gap-3">
             {/* Left Column - Invoice Form */}
             <Card className="p-6 h-fit">
               <LogoUpload
@@ -1286,7 +1572,11 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                 <div className="border-t border-border pt-4 mt-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-semibold text-foreground">Items</h3>
-                    <Button variant="outline" size="sm" onClick={addItem}>
+                    <Button
+                      className="bg-[#C29307] text-white cursor-pointer"
+                      size="sm"
+                      onClick={addItem}
+                    >
                       <Plus className="h-4 w-4 mr-1" />
                       Add Item
                     </Button>
@@ -1335,7 +1625,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                       </p>
                     </div>
                     <Switch
-                    className="bg-[#C29307]"
+                      className="bg-[#C29307]"
                       id="multiplePayments"
                       checked={form.allowMultiplePayments}
                       onCheckedChange={(checked) =>
@@ -1419,9 +1709,11 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                   <Button
                     variant="outline"
                     onClick={handleSaveDraft}
+                    disabled={draftLoading}
                     className="flex-1"
                   >
-                    Save Draft
+                    <Save className="w-4 h-4 mr-2" />
+                    {draftLoading ? "Saving..." : "Save Draft"}
                   </Button>
                   <Button
                     onClick={handleGenerateInvoice}

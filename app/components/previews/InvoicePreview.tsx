@@ -15,8 +15,8 @@ export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
 
 
   return (
-    <Card className="p-8 bg-invoice-bg border-invoice-border h-full overflow-auto">
-      <div className="max-w-2xl mx-auto">
+    <Card className="p-4 bg-invoice-bg border-invoice-border h-full overflow-auto">
+      <div className="max-w-xl mx-auto">
         {/* Header - Payment Page Style */}
         <div className="text-center mb-8">
           {invoice.businessLogo && (

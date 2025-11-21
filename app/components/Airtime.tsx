@@ -87,7 +87,7 @@ export default function AirtimePurchase() {
   const [customAmount, setCustomAmount] = useState("");
   const [isCustomAmount, setIsCustomAmount] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const { userData } = useUserContextData();
+  const { userData, setUserData } = useUserContextData();
   const router = useRouter();
   const handlePhoneNumberChange = (value: string) => {
     const cleanValue = value.replace(/\D/g, "");
@@ -179,13 +179,13 @@ export default function AirtimePurchase() {
 
       if (!response.ok) throw data;
 
-      // if (data.newWalletBalance !== undefined) {
-      //   setUserData((prev: any) => {
-      //     const updated = { ...prev, walletBalance: data.newWalletBalance };
-      //     localStorage.setItem("userData", JSON.stringify(updated));
-      //     return updated;
-      //   });
-      // }
+      if (data.zidCoinBalance !== undefined) {
+        setUserData((prev: any) => {
+          const updated = { ...prev, zidcoinBalance: data.zidCoinBalance };
+          localStorage.setItem("userData", JSON.stringify(updated));
+          return updated;
+        });
+      }
 
       Swal.fire({
         icon: "success",

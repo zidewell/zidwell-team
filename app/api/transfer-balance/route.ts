@@ -429,20 +429,10 @@ export async function POST(req: Request) {
         external_response: data,
       })
       .eq("id", pendingTx.id);
+  
 
-    // Send processing email notification
-    await sendWithdrawalEmailNotification(
-      userId,
-      "processing",
-      amount,
-      fee,
-      totalDeduction,
-      accountName,
-      accountNumber,
-      bankName,
-      pendingTx.id
-    );
 
+      
     return NextResponse.json({
       message: "Withdrawal initiated successfully.",
       transactionId: pendingTx.id,

@@ -263,7 +263,7 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               </div>
               ${invoiceData.fee_amount > 0 ? `
               <div class="total-row">
-                <strong>Processing Fee (3.5%):</strong> ₦${Number(invoiceData.fee_amount).toLocaleString()}
+                <strong>Processing Fee:</strong> ₦${Number(invoiceData.fee_amount).toLocaleString()}
               </div>
               ` : ''}
               <div class="total-row grand-total">
@@ -285,15 +285,15 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
             </div>
             ` : ''}
 
-            ${invoiceData.allow_multiple_payments ? `
-            <div class="section">
-              <div class="message-box">
-                <h3>Payment Information:</h3>
-                <p>This invoice allows multiple payments. You can make partial payments until the total amount is reached.</p>
-                ${invoiceData.unit && invoiceData.unit > 0 ? `<p><strong>Target Quantity:</strong> ${invoiceData.unit} units</p>` : ''}
-              </div>
-            </div>
-            ` : ''}
+            // ${invoiceData.allow_multiple_payments ? `
+            // <div class="section">
+            //   <div class="message-box">
+            //     <h3>Payment Information:</h3>
+            //     <p>This invoice allows multiple payments. You can make partial payments until the total amount is reached.</p>
+            //     ${invoiceData.unit && invoiceData.unit > 0 ? `<p><strong>Target Quantity:</strong> ${invoiceData.unit} units</p>` : ''}
+            //   </div>
+            // </div>
+            // ` : ''}
 
             <div class="footer">
               <p><strong>Thank you for your business!</strong></p>

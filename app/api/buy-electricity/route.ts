@@ -26,7 +26,7 @@ async function getCachedUser(userId: string) {
   // Fetch fresh data
   const { data: user, error } = await supabase
     .from("users")
-    .select("transaction_pin, wallet_balance, email, first_name")
+    .select("transaction_pin, wallet_balance,zidcoin_balance, email, first_name")
     .eq("id", userId)
     .single();
 
@@ -281,7 +281,7 @@ export async function POST(req: NextRequest) {
 
     transactionId = rpcResult[0].tx_id;
 
-    // 3️⃣ Call Nomba API
+   
     try {
       const apiResponse = await axios.post(
         `${process.env.NOMBA_URL}/v1/bill/electricity`,
@@ -311,7 +311,7 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", transactionId);
 
-      // ✅ NEW: Call Nomba API after successful electricity purchase
+      
       try {
         const nombaPayload = {
           transactionRef: `ELECTRICITY-${merchantTxRef}`,
@@ -345,6 +345,25 @@ export async function POST(req: NextRequest) {
         // Don't fail the main transaction if this fails
       }
 
+
+      
+    const { data: cashbackResult, error: cashbackError } = await supabase.rpc(
+      "award_zidcoin_cashback",
+      {
+        p_user_id: userId,
+        p_transaction_id: transactionId,
+        p_transaction_type: "electricity", 
+        p_amount: amount,
+      }
+    );
+
+    if (cashbackResult && cashbackResult.success) {
+      console.log(
+        "🎉 Zidcoin cashback awarded:",
+        cashbackResult.zidcoins_earned
+      );
+    }
+
       // Send success email notification with token information
       await sendElectricityEmailNotification(
         userId,
@@ -360,6 +379,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
+         zidCoinBalance: user?.zidcoin_balance,
         token: apiResponse.data,
       });
     } catch (apiError: any) {

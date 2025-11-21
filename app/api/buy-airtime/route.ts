@@ -25,7 +25,7 @@ async function getCachedUser(userId: string) {
   // Fetch fresh data
   const { data: user, error } = await supabase
     .from("users")
-    .select("transaction_pin, wallet_balance, email, first_name")
+    .select("transaction_pin, wallet_balance, zidcoin_balance, email, first_name")
     .eq("id", userId)
     .single();
 
@@ -133,21 +133,29 @@ Best regards,
 Zidwell Team
     `;
 
-    const emailBody = 
-      status === "success" ? successBody :
-      status === "pending" ? pendingBody : failedBody;
+    const emailBody =
+      status === "success"
+        ? successBody
+        : status === "pending"
+        ? pendingBody
+        : failedBody;
 
-    const statusColor = 
-      status === "success" ? "#22c55e" :
-      status === "pending" ? "#f59e0b" : "#ef4444";
+    const statusColor =
+      status === "success"
+        ? "#22c55e"
+        : status === "pending"
+        ? "#f59e0b"
+        : "#ef4444";
 
-    const statusIcon = 
-      status === "success" ? "✅" :
-      status === "pending" ? "🟡" : "❌";
+    const statusIcon =
+      status === "success" ? "✅" : status === "pending" ? "🟡" : "❌";
 
-    const statusText = 
-      status === "success" ? "Airtime Purchase Successful" :
-      status === "pending" ? "Airtime Purchase Processing" : "Airtime Purchase Failed";
+    const statusText =
+      status === "success"
+        ? "Airtime Purchase Successful"
+        : status === "pending"
+        ? "Airtime Purchase Processing"
+        : "Airtime Purchase Failed";
 
     await transporter.sendMail({
       from: process.env.EMAIL_FROM || '"Zidwell" <notifications@zidwell.com>',
@@ -170,17 +178,25 @@ Zidwell Team
             <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
             <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
-              ${status === "success" ? "Success" : status === "pending" ? "Processing" : "Failed"}
+              ${
+                status === "success"
+                  ? "Success"
+                  : status === "pending"
+                  ? "Processing"
+                  : "Failed"
+              }
             </span></p>
             ${
               status === "failed"
-                ? `<p><strong>Reason:</strong> ${errorDetail || "Transaction failed"}</p>`
+                ? `<p><strong>Reason:</strong> ${
+                    errorDetail || "Transaction failed"
+                  }</p>`
                 : ""
             }
           </div>
           
           ${
-            status === "pending" 
+            status === "pending"
               ? `<p style="color: #64748b;">
                   You will receive another notification once the transaction is completed.
                   This usually takes just a few moments.
@@ -231,7 +247,14 @@ export async function POST(req: NextRequest) {
     const { senderName, pin } = body;
 
     // Validate required fields
-    if (!userId || !pin || !amount || amount < 100 || !phoneNumber || !network) {
+    if (
+      !userId ||
+      !pin ||
+      !amount ||
+      amount < 100 ||
+      !phoneNumber ||
+      !network
+    ) {
       return NextResponse.json(
         {
           message:
@@ -242,15 +265,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Generate merchantTxRef if not provided
-    const finalMerchantTxRef = merchantTxRef || `AIRTIME-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const finalMerchantTxRef =
+      merchantTxRef ||
+      `AIRTIME-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    console.log("📱 Starting airtime purchase:", {
-      userId,
-      amount,
-      phoneNumber,
-      network,
-      merchantTxRef: finalMerchantTxRef
-    });
+    // console.log("📱 Starting airtime purchase:", {
+    //   userId,
+    //   amount,
+    //   phoneNumber,
+    //   network,
+    //   merchantTxRef: finalMerchantTxRef
+    // });
 
     // Get Nomba token
     const token = await getNombaToken();
@@ -347,7 +372,7 @@ export async function POST(req: NextRequest) {
 
     // console.log("📊 Nomba Response Analysis:", {
     //   responseCode,
-    //   nombaStatus, 
+    //   nombaStatus,
     //   responseDescription,
     //   hasSuccess: responseDescription === "SUCCESS"
     // });
@@ -359,20 +384,28 @@ export async function POST(req: NextRequest) {
     if (responseCode === "00" && responseDescription === "SUCCESS") {
       transactionStatus = "success";
       emailStatus = "success";
-      console.log("🟢 Airtime transaction marked as SUCCESS - immediate confirmation from Nomba");
-    } 
+      console.log(
+        "🟢 Airtime transaction marked as SUCCESS - immediate confirmation from Nomba"
+      );
+    }
     // If code is "00" but no explicit success, wait for webhook
     else if (responseCode === "00") {
       transactionStatus = "pending";
       emailStatus = "pending";
-      console.log("🟡 Airtime transaction set to PENDING - code 00 but no explicit success");
+      console.log(
+        "🟡 Airtime transaction set to PENDING - code 00 but no explicit success"
+      );
     }
     // Other success indicators
-    else if (nombaStatus === "SUCCESS" || nombaStatus === "Success" || nombaStatus === "Completed") {
+    else if (
+      nombaStatus === "SUCCESS" ||
+      nombaStatus === "Success" ||
+      nombaStatus === "Completed"
+    ) {
       transactionStatus = "success";
       emailStatus = "success";
       console.log("🟢 Airtime transaction marked as SUCCESS");
-    } 
+    }
     // Processing indicators
     else if (nombaStatus === "Processing" || nombaStatus === "PENDING") {
       transactionStatus = "pending";
@@ -389,7 +422,9 @@ export async function POST(req: NextRequest) {
     else {
       transactionStatus = "pending";
       emailStatus = "pending";
-      console.log("🟡 Airtime transaction set to PENDING - default for unknown status");
+      console.log(
+        "🟡 Airtime transaction set to PENDING - default for unknown status"
+      );
     }
 
     // Store additional data for webhook processing
@@ -398,19 +433,36 @@ export async function POST(req: NextRequest) {
       phoneNumber,
       network,
       userId,
-      originalMerchantTxRef: finalMerchantTxRef
+      originalMerchantTxRef: finalMerchantTxRef,
     };
 
     // Update transaction status based on response
     const { error: updateError } = await supabase
       .from("transactions")
-      .update({ 
+      .update({
         status: transactionStatus,
         external_response: externalData,
         merchant_tx_ref: finalMerchantTxRef,
-        narration: `Airtime ${network} ${phoneNumber}`
+        narration: `Airtime ${network} ${phoneNumber}`,
       })
       .eq("id", transactionId);
+
+    const { data: cashbackResult, error: cashbackError } = await supabase.rpc(
+      "award_zidcoin_cashback",
+      {
+        p_user_id: userId,
+        p_transaction_id: transactionId,
+        p_transaction_type: "airtime", 
+        p_amount: amount,
+      }
+    );
+
+    if (cashbackResult && cashbackResult.success) {
+      console.log(
+        "🎉 Zidcoin cashback awarded:",
+        cashbackResult.zidcoins_earned
+      );
+    }
 
     if (updateError) {
       console.error("❌ Failed to update transaction status:", updateError);
@@ -439,10 +491,10 @@ export async function POST(req: NextRequest) {
       status: transactionStatus,
       nomba_status: nombaStatus,
       transactionId: transactionId,
+      zidCoinBalance: user?.zidcoin_balance,
       merchantTxRef: finalMerchantTxRef,
       data: response.data,
     });
-
   } catch (error: any) {
     console.error(
       "Airtime Purchase Error:",
@@ -457,10 +509,13 @@ export async function POST(req: NextRequest) {
     if (userId && amount && transactionId) {
       try {
         console.log("🔄 Attempting refund...");
-        const { error: refundError } = await supabase.rpc("refund_wallet_balance", {
-          user_id: userId,
-          amt: amount,
-        });
+        const { error: refundError } = await supabase.rpc(
+          "refund_wallet_balance",
+          {
+            user_id: userId,
+            amt: amount,
+          }
+        );
 
         if (refundError) {
           console.error("Refund RPC failed:", refundError);
@@ -470,7 +525,7 @@ export async function POST(req: NextRequest) {
             .select("wallet_balance")
             .eq("id", userId)
             .single();
-          
+
           if (userBefore) {
             const newBalance = Number(userBefore.wallet_balance) + amount;
             await supabase
@@ -486,16 +541,15 @@ export async function POST(req: NextRequest) {
         // Update transaction status
         await supabase
           .from("transactions")
-          .update({ 
+          .update({
             status: "failed_refunded",
             external_response: {
               error: errorDetail,
               refundStatus,
-              stack: error.stack
-            }
+              stack: error.stack,
+            },
           })
           .eq("id", transactionId);
-
       } catch (refundError) {
         console.error("Refund process failed:", refundError);
         if (transactionId) {
@@ -536,12 +590,11 @@ export async function POST(req: NextRequest) {
   }
 }
 
-
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const transactionId = searchParams.get('transactionId');
-    const merchantTxRef = searchParams.get('merchantTxRef');
+    const transactionId = searchParams.get("transactionId");
+    const merchantTxRef = searchParams.get("merchantTxRef");
 
     if (!transactionId && !merchantTxRef) {
       return NextResponse.json(
@@ -550,10 +603,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    let query = supabase
-      .from("transactions")
-      .select("*")
-      .eq("type", "airtime");
+    let query = supabase.from("transactions").select("*").eq("type", "airtime");
 
     if (transactionId) {
       query = query.eq("id", transactionId);
@@ -577,9 +627,8 @@ export async function GET(req: NextRequest) {
       createdAt: transaction.created_at,
       updatedAt: transaction.updated_at,
       merchantTxRef: transaction.merchant_tx_ref,
-      externalResponse: transaction.external_response
+      externalResponse: transaction.external_response,
     });
-
   } catch (error: any) {
     console.error("Check transaction status error:", error);
     return NextResponse.json(

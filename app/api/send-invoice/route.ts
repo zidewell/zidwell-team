@@ -26,7 +26,6 @@ interface RequestBody {
   message: string;
   bill_to: string;
   issue_date: string;
-  due_date: string;
   customer_note: string;
   invoice_items: InvoiceItem[];
   total_amount: number;
@@ -37,6 +36,8 @@ interface RequestBody {
   redirect_url?: string;
   business_name: string;
   clientPhone?: string;
+  initiator_account_number: string;
+  initiator_account_name: string;
   target_quantity?: number;
 }
 
@@ -99,7 +100,6 @@ async function sendInvoiceEmail(params: {
   subject: string;
   invoiceId: string;
   amount: number;
-  dueDate: string;
   signingLink: string;
   senderName: string;
   message?: string;
@@ -175,9 +175,7 @@ async function sendInvoiceEmail(params: {
             <p style="margin:5px 0;">Amount: ₦${Number(
               params.amount
             ).toLocaleString()}</p>
-            <p style="margin:5px 0;">Due Date: ${new Date(
-              params.dueDate
-            ).toLocaleDateString()}</p>
+          
           </div>
           
           <p style="margin-bottom: 10px;">Click the button below to view invoice details and make payment:</p>
@@ -251,7 +249,6 @@ export async function POST(req: Request) {
       message,
       bill_to,
       issue_date,
-      due_date,
       customer_note,
       invoice_items,
       total_amount,
@@ -262,6 +259,8 @@ export async function POST(req: Request) {
       redirect_url,
       business_name,
       clientPhone,
+      initiator_account_number,
+      initiator_account_name,
       target_quantity,
     } = body;
 
@@ -315,24 +314,18 @@ export async function POST(req: Request) {
     const publicToken = uuidv4();
     const signingLink = `${baseUrl}/pay-invoice/${publicToken}`;
 
+    console.log(signingLink, "signingLink")
+
     const { subtotal, feeAmount, totalAmount } = calculateTotals(
       invoice_items,
       fee_option
     );
 
     const issueDate = new Date(issue_date);
-    const dueDate = new Date(due_date);
 
-    if (isNaN(issueDate.getTime()) || isNaN(dueDate.getTime())) {
+    if (isNaN(issueDate.getTime())) {
       return NextResponse.json(
         { message: "Invalid date format" },
-        { status: 400 }
-      );
-    }
-
-    if (dueDate < issueDate) {
-      return NextResponse.json(
-        { message: "Due date cannot be before issue date" },
         { status: 400 }
       );
     }
@@ -369,7 +362,6 @@ export async function POST(req: Request) {
           client_phone: clientPhone,
           bill_to: bill_to,
           issue_date: issueDate.toISOString().split("T")[0],
-          due_date: dueDate.toISOString().split("T")[0],
           status: status || "unpaid",
           payment_type: payment_type,
           fee_option: fee_option,
@@ -387,6 +379,8 @@ export async function POST(req: Request) {
           payment_link: signingLink,
           signing_link: signingLink,
           public_token: publicToken,
+          initiator_account_number,
+          initiator_account_name,
         },
       ])
       .select()
@@ -434,7 +428,6 @@ export async function POST(req: Request) {
       subject: `New Invoice from ${initiator_name}`,
       invoiceId,
       amount: totalAmount,
-      dueDate: due_date,
       signingLink,
       senderName: initiator_name,
       message,

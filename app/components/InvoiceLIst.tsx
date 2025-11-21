@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { InvoicePreview } from "./previews/InvoicePreview"; 
+import { InvoicePreview } from "./previews/InvoicePreview";
 import { useRouter } from "next/navigation";
 import { useUserContextData } from "../context/userData";
 import Swal from "sweetalert2";
@@ -51,7 +51,9 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
   };
 
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
-  const [processingInvoiceId, setProcessingInvoiceId] = useState<string | null>(null);
+  const [processingInvoiceId, setProcessingInvoiceId] = useState<string | null>(
+    null
+  );
   const { userData } = useUserContextData();
   const router = useRouter();
   const [base64Logo, setBase64Logo] = useState<string | null>(null);
@@ -79,16 +81,21 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
     const items = (invoiceItems || []).map((item: any, index: number) => ({
       id: item.id || `item-${index}-${Math.random()}`,
-      description: item.item_description || item.description || "Item description",
+      description:
+        item.item_description || item.description || "Item description",
       quantity: Number(item.quantity) || 1,
       unitPrice: Number(item.unit_price || item.unitPrice || 0),
-      total: Number(item.total_amount || item.total || (Number(item.quantity) || 1) * (Number(item.unit_price || item.unitPrice) || 0)),
+      total: Number(
+        item.total_amount ||
+          item.total ||
+          (Number(item.quantity) || 1) *
+            (Number(item.unit_price || item.unitPrice) || 0)
+      ),
     }));
 
-    const subtotal = invoice.subtotal || items.reduce(
-      (sum: number, item: any) => sum + (item.total || 0),
-      0
-    );
+    const subtotal =
+      invoice.subtotal ||
+      items.reduce((sum: number, item: any) => sum + (item.total || 0), 0);
 
     const total = invoice.total_amount || subtotal + (invoice.fee_amount || 0);
 
@@ -118,14 +125,18 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
   };
 
   const getPaymentProgress = (invoice: any) => {
-    if (invoice.allow_multiple_payments && invoice.target_quantity && invoice.target_quantity > 0) {
+    if (
+      invoice.allow_multiple_payments &&
+      invoice.target_quantity &&
+      invoice.target_quantity > 0
+    ) {
       const paidCount = invoice.paid_quantity || 0;
       const progress = (paidCount / invoice.target_quantity) * 100;
       return {
         paidCount,
         targetQuantity: invoice.target_quantity,
         progress,
-        isComplete: paidCount >= invoice.target_quantity
+        isComplete: paidCount >= invoice.target_quantity,
       };
     }
     return null;
@@ -161,10 +172,14 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
         ? invoice.invoice_items
         : [];
 
-      const subtotal = invoice.subtotal || invoiceItems.reduce(
-        (sum: number, item: any) => sum + (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
-        0
-      );
+      const subtotal =
+        invoice.subtotal ||
+        invoiceItems.reduce(
+          (sum: number, item: any) =>
+            sum +
+            (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
+          0
+        );
 
       const feeAmount = invoice.fee_amount || 0;
       const totalAmount = invoice.total_amount || subtotal + feeAmount;
@@ -210,6 +225,14 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               max-height: 80px;
               max-width: 200px;
               margin-bottom: 15px;
+            }
+              .accound-details {
+             display: flex;
+             flex-direction: column;
+             gap: 10px;
+            }
+            .accound-details h2 {
+            color: #C29307;;
             }
             h1 {
               color: #C29307;
@@ -308,10 +331,8 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               font-weight: bold;
               margin-left: 10px;
             }
-            .due-date {
-              color: #d32f2f;
-              font-weight: bold;
-            }
+          
+          
             .progress-bar {
               background-color: #e0e0e0;
               border-radius: 10px;
@@ -330,17 +351,33 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
           <div class="container">
             <div class="header">
               <div class="business-info">
-                ${invoice.business_logo ? `<img src="${invoice.business_logo}" alt="${invoice.business_name}" class="logo">` : ''}
+                ${
+                  invoice.business_logo
+                    ? `<img src="${invoice.business_logo}" alt="${invoice.business_name}" class="logo">`
+                    : ""
+                }
                 <h2>${invoice.business_name}</h2>
                 <p>${invoice.from_email}</p>
-                ${invoice.bill_to ? `<p>${invoice.bill_to}</p>` : ''}
+                ${invoice.bill_to ? `<p>${invoice.bill_to}</p>` : ""}
+
+                  <div class="account-details">
+
+                  <h2>Account Details</h2>
+
+          
+                  <h3>${invoice.initiator_account_name}</h3>
+                  <h3>${invoice.initiator_account_number}</h3>
+                </div>
               </div>
               <div class="invoice-info">
                 <h1>INVOICE</h1>
                 <p><strong>Invoice #:</strong> ${invoice.invoice_id}</p>
-                <p><strong>Issue Date:</strong> ${new Date(invoice.issue_date).toLocaleDateString()}</p>
-                <p><strong>Due Date:</strong> <span class="due-date">${new Date(invoice.due_date).toLocaleDateString()}</span></p>
-                <p><strong>Status:</strong> ${invoice.status} <span class="status-badge">${invoice.status.toUpperCase()}</span></p>
+                <p><strong>Issue Date:</strong> ${new Date(
+                  invoice.issue_date
+                ).toLocaleDateString()}</p>
+                <p><strong>Status:</strong> ${
+                  invoice.status
+                } <span class="status-badge">${invoice.status.toUpperCase()}</span></p>
               </div>
             </div>
 
@@ -348,9 +385,19 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               <div class="billing-info">
                 <div class="billing-section">
                   <h3>Bill To:</h3>
-                  <p><strong>${invoice.client_name || 'Client Information'}</strong></p>
-                  ${invoice.client_email ? `<p>📧 ${invoice.client_email}</p>` : ''}
-                  ${invoice.client_phone ? `<p>📞 ${invoice.client_phone}</p>` : ''}
+                  <p><strong>${
+                    invoice.client_name || "Client Information"
+                  }</strong></p>
+                  ${
+                    invoice.client_email
+                      ? `<p>📧 ${invoice.client_email}</p>`
+                      : ""
+                  }
+                  ${
+                    invoice.client_phone
+                      ? `<p>📞 ${invoice.client_phone}</p>`
+                      : ""
+                  }
                 </div>
                 <div class="billing-section">
                   <h3>From:</h3>
@@ -360,37 +407,65 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               </div>
             </div>
 
-            ${invoice.message ? `
+            ${
+              invoice.message
+                ? `
             <div class="section">
               <div class="message-box">
                 <h3>Message from ${invoice.from_name}:</h3>
                 <p>${invoice.message}</p>
               </div>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
 
-            ${invoice.allow_multiple_payments ? `
-            <div class="section">
-              <div class="payment-info">
-                <h3>Payment Information:</h3>
-                ${paymentProgress ? `
-                <p><strong>Payment Progress:</strong> ${paymentProgress.paidCount} out of ${paymentProgress.targetQuantity} target payments</p>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: ${paymentProgress.progress}%"></div>
-                </div>
-                <p>${paymentProgress.isComplete ? '🎉 Target reached! This invoice is fully paid.' : `Progress: ${Math.round(paymentProgress.progress)}% complete`}</p>
-                ` : `
-                <p>This invoice allows multiple payments.</p>
-                ${paidAmount > 0 ? `
-                <p><strong>Amount Paid:</strong> ₦${Number(paidAmount).toLocaleString()} of ₦${Number(totalAmount).toLocaleString()}</p>
-                <div class="progress-bar">
-                  <div class="progress-fill" style="width: ${(paidAmount / totalAmount) * 100}%"></div>
-                </div>
-                ` : '<p>No payments received yet.</p>'}
-                `}
-              </div>
-            </div>
-            ` : ''}
+            // ${
+              invoice.allow_multiple_payments
+                ? `
+            // <div class="section">
+            //   <div class="payment-info">
+            //     <h3>Payment Information:</h3>
+            //     ${
+              paymentProgress
+                ? `
+            //     <p><strong>Payment Progress:</strong> ${
+              paymentProgress.paidCount
+            } out of ${paymentProgress.targetQuantity} target payments</p>
+            //     <div class="progress-bar">
+            //       <div class="progress-fill" style="width: ${
+              paymentProgress.progress
+            }%"></div>
+            //     </div>
+            //     <p>${
+              paymentProgress.isComplete
+                ? "🎉 Target reached! This invoice is fully paid."
+                : `Progress: ${Math.round(paymentProgress.progress)}% complete`
+            }</p>
+            //     `
+                : `
+            //     <p>This invoice allows multiple payments.</p>
+            //     ${
+              paidAmount > 0
+                ? `
+            //     <p><strong>Amount Paid:</strong> ₦${Number(
+              paidAmount
+            ).toLocaleString()} of ₦${Number(totalAmount).toLocaleString()}</p>
+            //     <div class="progress-bar">
+            //       <div class="progress-fill" style="width: ${
+              (paidAmount / totalAmount) * 100
+            }%"></div>
+            //     </div>
+            //     `
+                : "<p>No payments received yet.</p>"
+            }
+            //     `
+            }
+            //   </div>
+            // </div>
+            // `
+                : ""
+            }
 
             <div class="section">
               <h3>Invoice Items</h3>
@@ -404,14 +479,22 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                   </tr>
                 </thead>
                 <tbody>
-                  ${invoiceItems?.map((item:any) => `
+                  ${invoiceItems
+                    ?.map(
+                      (item: any) => `
                     <tr>
                       <td>${item.item_description || item.description}</td>
                       <td>${item.quantity}</td>
-                      <td>₦${Number(item.unit_price || item.unitPrice).toLocaleString()}</td>
-                      <td>₦${Number(item.total_amount || item.total).toLocaleString()}</td>
+                      <td>₦${Number(
+                        item.unit_price || item.unitPrice
+                      ).toLocaleString()}</td>
+                      <td>₦${Number(
+                        item.total_amount || item.total
+                      ).toLocaleString()}</td>
                     </tr>
-                  `).join('')}
+                  `
+                    )
+                    .join("")}
                 </tbody>
               </table>
             </div>
@@ -420,32 +503,54 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               <div class="total-row">
                 <strong>Subtotal:</strong> ₦${Number(subtotal).toLocaleString()}
               </div>
-              ${feeAmount > 0 ? `
+              ${
+                feeAmount > 0
+                  ? `
               <div class="total-row">
-                <strong>Processing Fee (3.5%):</strong> ₦${Number(feeAmount).toLocaleString()}
+                <strong>Processing Fee:</strong> ₦${Number(
+                  feeAmount
+                ).toLocaleString()}
               </div>
-              ` : ''}
-              ${paidAmount > 0 ? `
+              `
+                  : ""
+              }
+              ${
+                paidAmount > 0
+                  ? `
               <div class="total-row">
-                <strong>Amount Paid:</strong> ₦${Number(paidAmount).toLocaleString()}
+                <strong>Amount Paid:</strong> ₦${Number(
+                  paidAmount
+                ).toLocaleString()}
               </div>
               <div class="total-row">
-                <strong>Balance Due:</strong> ₦${Number(totalAmount - paidAmount).toLocaleString()}
+                <strong>Balance Due:</strong> ₦${Number(
+                  totalAmount - paidAmount
+                ).toLocaleString()}
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
               <div class="total-row grand-total">
-                <strong>TOTAL AMOUNT:</strong> ₦${Number(totalAmount).toLocaleString()}
+                <strong>TOTAL AMOUNT:</strong> ₦${Number(
+                  totalAmount
+                ).toLocaleString()}
               </div>
-              ${invoice.fee_option === 'absorbed' ? `
+              ${
+                invoice.fee_option === "absorbed"
+                  ? `
               <div class="total-row" style="font-size: 12px; color: #666;">
                 *Processing fees absorbed by merchant
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
 
             <div class="footer">
               <p><strong>Thank you for your business!</strong></p>
-              <p>If you have any questions about this invoice, please contact ${invoice.from_email}</p>
+              <p>If you have any questions about this invoice, please contact ${
+                invoice.from_email
+              }</p>
               <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
             </div>
           </div>
@@ -453,10 +558,10 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
         </html>
       `;
 
-      const response = await fetch('/api/generate-pdf', {
-        method: 'POST',
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           html: htmlContent,
@@ -464,19 +569,19 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+        throw new Error("Failed to generate PDF");
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
+      const a = document.createElement("a");
+      a.style.display = "none";
       a.href = url;
       a.download = `invoice-${invoice.invoice_id}.pdf`;
-      
+
       document.body.appendChild(a);
       a.click();
-      
+
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
@@ -486,9 +591,8 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
         text: "Your invoice has been downloaded as PDF",
         confirmButtonColor: "#C29307",
       });
-
     } catch (error) {
-      console.error('PDF download error:', error);
+      console.error("PDF download error:", error);
       Swal.fire({
         icon: "error",
         title: "Download Failed",
@@ -523,10 +627,14 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
           ? invoice.invoice_items
           : [];
 
-        const totalAmount = invoice.total_amount || invoiceItems.reduce(
-          (sum: number, item: any) => sum + (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
-          0
-        );
+        const totalAmount =
+          invoice.total_amount ||
+          invoiceItems.reduce(
+            (sum: number, item: any) =>
+              sum +
+              (item.quantity || 0) * (item.unit_price || item.unitPrice || 0),
+            0
+          );
 
         const paymentProgress = getPaymentProgress(invoice);
         const paymentCountText = getPaymentCountText(invoice);
@@ -560,7 +668,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     {invoice.client_name || invoice.bill_to || "No client name"}
                   </p>
                   <p className="text-gray-600 mb-2">{invoice.client_email}</p>
-                  
+
                   {/* Payment Progress for Multiple Payments */}
                   {paymentProgress && (
                     <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -569,37 +677,42 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                           Payment Progress
                         </span>
                         <span className="text-sm text-blue-700">
-                          {paymentProgress.paidCount} / {paymentProgress.targetQuantity}
+                          {paymentProgress.paidCount} /{" "}
+                          {paymentProgress.targetQuantity}
                         </span>
                       </div>
                       <div className="w-full bg-blue-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${paymentProgress.progress}%` }}
                         ></div>
                       </div>
                       <p className="text-xs text-blue-600 mt-1">
-                        {paymentProgress.isComplete ? '🎉 Target reached!' : `${Math.round(paymentProgress.progress)}% complete`}
+                        {paymentProgress.isComplete
+                          ? "🎉 Target reached!"
+                          : `${Math.round(paymentProgress.progress)}% complete`}
                       </p>
                     </div>
                   )}
 
                   {/* Payment amount for non-target multiple payments */}
-                  {invoice.allow_multiple_payments && !paymentProgress && invoice.paid_amount > 0 && (
-                    <div className="mb-3 p-2 bg-green-50 rounded border border-green-200">
-                      <p className="text-sm text-green-700">
-                        <strong>Paid:</strong> ₦{formatNumber(invoice.paid_amount)} of ₦{formatNumber(totalAmount)}
-                      </p>
-                    </div>
-                  )}
+                  {invoice.allow_multiple_payments &&
+                    !paymentProgress &&
+                    invoice.paid_amount > 0 && (
+                      <div className="mb-3 p-2 bg-green-50 rounded border border-green-200">
+                        <p className="text-sm text-green-700">
+                          <strong>Paid:</strong> ₦
+                          {formatNumber(invoice.paid_amount)} of ₦
+                          {formatNumber(totalAmount)}
+                        </p>
+                      </div>
+                    )}
 
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
                     <span>
                       Date: {new Date(invoice.issue_date).toLocaleDateString()}
                     </span>
-                    <span>
-                      Due: {new Date(invoice.due_date).toLocaleDateString()}
-                    </span>
+
                     <span className="font-semibold text-gray-900">
                       ₦{formatNumber(totalAmount)}
                     </span>
@@ -608,7 +721,9 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
 
                 <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                   <Button
-                    onClick={() => setSelectedInvoice(transformInvoiceForPreview(invoice))}
+                    onClick={() =>
+                      setSelectedInvoice(transformInvoiceForPreview(invoice))
+                    }
                     variant="outline"
                     size="sm"
                   >
@@ -624,7 +739,9 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     }
                     variant="outline"
                     size="sm"
-                    disabled={invoice.status === "paid"}
+                    disabled={
+                      invoice.status === "paid" || invoice.status === "draft"
+                    }
                   >
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
@@ -634,7 +751,10 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     onClick={() => downloadPdf(invoice)}
                     variant="outline"
                     size="sm"
-                    disabled={processingInvoiceId === invoice.id}
+                    disabled={
+                      processingInvoiceId === invoice.id ||
+                      invoice.status === "draft"
+                    }
                   >
                     {processingInvoiceId === invoice.id ? (
                       <Loader2 className="w-4 h-4 mr-1 animate-spin" />

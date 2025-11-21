@@ -11,7 +11,7 @@ export default function InvoiceCreate() {
     <div className="min-h-screen bg-gray-50">
       <DashboardSidebar />
 
-      <div className="lg:ml-64">
+      <div className="lg:ml-62">
         <DashboardHeader />
 
         <main className="">

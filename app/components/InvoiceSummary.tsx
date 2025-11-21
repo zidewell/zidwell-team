@@ -20,7 +20,6 @@ interface InvoiceSummaryProps {
     bill_to: string;
     from: string;
     issue_date: string;
-    due_date: string;
     customer_note: string;
     message: string;
     invoice_items: InvoiceItem[];
@@ -102,10 +101,7 @@ export default function InvoiceSummary({
                     <span className="text-gray-500">Issue Date</span>
                     <span className="text-gray-900">{invoiceData.issue_date}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Due Date</span>
-                    <span className="text-gray-900">{invoiceData.due_date}</span>
-                  </div>
+                
                   <div className="flex justify-between">
                     <span className="text-gray-500">Fee Option</span>
                     <span className="text-gray-900 capitalize">
@@ -188,7 +184,7 @@ export default function InvoiceSummary({
                     </div>
                     {invoiceData.fee_option === "customer" && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Processing Fee (3.5%)</span>
+                        <span className="text-gray-600">Processing Fee (3.5%) capped at ₦2000</span>
                         <span className="text-gray-900">₦{totals.feeAmount.toLocaleString()}</span>
                       </div>
                     )}

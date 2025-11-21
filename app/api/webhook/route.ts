@@ -3316,23 +3316,43 @@ if (userId) {
           })
           .eq("id", pendingTx.id);
 
-        const withdrawalDetails =
-          pendingTx.external_response?.withdrawal_details || {};
-        const accountName = withdrawalDetails.account_name || "N/A";
-        const accountNumber = withdrawalDetails.account_number || "N/A";
-        const bankName = withdrawalDetails.bank_name || "N/A";
+       // In the WITHDRAWAL SUCCESS section, update the data extraction:
+const withdrawalDetails =
+  pendingTx.external_response?.withdrawal_details || {};
 
-        await sendWithdrawalEmailNotification(
-          pendingTx.user_id,
-          "success",
-          txAmount,
-          appFee,
-          totalDeduction,
-          accountName,
-          accountNumber,
-          bankName,
-          pendingTx.id
-        );
+// 🆕 UPDATED: Extract withdrawal details from the actual webhook payload
+const recipientName = 
+  payload.data?.customer?.recipientName || // "ibrahim lawal abbalolo" from your sample
+  withdrawalDetails.account_name || 
+  "N/A";
+
+const recipientAccount = 
+  payload.data?.customer?.accountNumber || // "9132316236" from your sample
+  withdrawalDetails.account_number || 
+  "N/A";
+
+const bankName = 
+  payload.data?.customer?.bankName || // "Paycom (Opay)" from your sample
+  withdrawalDetails.bank_name || 
+  "N/A";
+
+console.log("🏦 Extracted Withdrawal Details:", {
+  recipientName,
+  recipientAccount,
+  bankName
+});
+
+await sendWithdrawalEmailNotification(
+  pendingTx.user_id,
+  "success",
+  txAmount,
+  appFee,
+  totalDeduction,
+  recipientName,
+  recipientAccount,
+  bankName,
+  pendingTx.id
+);
         if (updateErr) {
           console.error("❌ Failed to update transaction:", updateErr);
           return NextResponse.json({ error: "Update failed" }, { status: 500 });
@@ -3417,99 +3437,127 @@ if (userId) {
         );
       }
 
-      // ❌ FAILURE CASE — REFUND USER
-      if (eventType === "payout_failed" || txStatus === "failed") {
-        console.log(
-          `❌ ${
-            isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-          } failed - refunding user and marking transaction failed`
-        );
+     // ❌ FAILURE CASE — REFUND USER
+if (eventType === "payout_failed" || txStatus === "failed") {
+  console.log(
+    `❌ ${
+      isP2PTransfer ? "P2P Transfer" : "Withdrawal"
+    } failed - refunding user and marking transaction failed`
+  );
 
-        const updatedExternalResponse = {
-          ...payload,
-          fee_breakdown: {
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
-            nomba_fee: nombaFee,
-            app_fee: appFee,
-            total_fee: totalFees,
-            failed: true,
-          },
-        };
+  // 🆕 ADD: Extract error details from the payload
+  const errorDetail = 
+    payload.data?.transaction?.responseMessage ||
+    payload.data?.transaction?.narration ||
+    payload.error?.message ||
+    "Transaction failed";
 
-        // Update transaction to failed
-        const { error: updateError } = await supabase
-          .from("transactions")
-          .update({
-            status: "failed",
-            external_response: updatedExternalResponse,
-            reference: nombaTransactionId || pendingTx.reference,
-          })
-          .eq("id", pendingTx.id);
+  const updatedExternalResponse = {
+    ...payload,
+    fee_breakdown: {
+      transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+      nomba_fee: nombaFee,
+      app_fee: appFee,
+      total_fee: totalFees,
+      failed: true,
+    },
+  };
 
-        const withdrawalDetails =
-          pendingTx.external_response?.withdrawal_details || {};
-        const accountName = withdrawalDetails.account_name || "N/A";
-        const accountNumber = withdrawalDetails.account_number || "N/A";
-        const bankName = withdrawalDetails.bank_name || "N/A";
+  // Update transaction to failed
+  const { error: updateError } = await supabase
+    .from("transactions")
+    .update({
+      status: "failed",
+      external_response: updatedExternalResponse,
+      reference: nombaTransactionId || pendingTx.reference,
+    })
+    .eq("id", pendingTx.id);
 
-        await sendWithdrawalEmailNotification(
-          pendingTx.user_id,
-          "failed",
-          txAmount,
-          appFee,
-          totalDeduction,
-          accountName,
-          accountNumber,
-          bankName,
-          pendingTx.id
-        );
+  // 🆕 UPDATED: Extract withdrawal details from the actual webhook payload
+  const withdrawalDetails =
+    pendingTx.external_response?.withdrawal_details || {};
 
-        if (updateError) {
-          console.error("❌ Failed to update transaction status:", updateError);
-          return NextResponse.json(
-            { error: "Failed to update transaction" },
-            { status: 500 }
-          );
-        }
+  const recipientName = 
+    payload.data?.customer?.recipientName ||
+    withdrawalDetails.account_name || 
+    "N/A";
 
-        // Refund wallet via RPC since we deducted earlier
-        console.log("🔄 Refunding user wallet...");
-        const refundReference = `refund_${
-          nombaTransactionId || crypto.randomUUID()
-        }`;
-        const { error: refundErr } = await supabase.rpc(
-          "deduct_wallet_balance",
-          {
-            user_id: pendingTx.user_id,
-            amt: -totalDeduction, // negative = credit back
-            transaction_type: "credit",
-            reference: refundReference,
-            description: `Refund for failed ${
-              isP2PTransfer ? "P2P transfer" : "withdrawal"
-            } of ₦${txAmount}`,
-          }
-        );
+  const recipientAccount = 
+    payload.data?.customer?.accountNumber ||
+    withdrawalDetails.account_number || 
+    "N/A";
 
-        if (refundErr) {
-          console.error("❌ Refund RPC failed:", refundErr.message);
-          return NextResponse.json(
-            { error: "Failed to refund wallet via RPC" },
-            { status: 500 }
-          );
-        }
+  const bankName = 
+    payload.data?.customer?.bankName ||
+    withdrawalDetails.bank_name || 
+    "N/A";
 
-        console.log(
-          `✅ Refund completed successfully for user ${pendingTx.user_id}`
-        );
-        return NextResponse.json(
-          {
-            refunded: true,
-            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
-          },
-          { status: 200 }
-        );
-      }
+  console.log("🏦 Extracted Withdrawal Details:", {
+    recipientName,
+    recipientAccount,
+    bankName,
+    errorDetail
+  });
 
+  if (updateError) {
+    console.error("❌ Failed to update transaction status:", updateError);
+    return NextResponse.json(
+      { error: "Failed to update transaction" },
+      { status: 500 }
+    );
+  }
+
+  // Refund wallet via RPC since we deducted earlier
+  console.log("🔄 Refunding user wallet...");
+  const refundReference = `refund_${
+    nombaTransactionId || crypto.randomUUID()
+  }`;
+  const { error: refundErr } = await supabase.rpc(
+    "deduct_wallet_balance",
+    {
+      user_id: pendingTx.user_id,
+      amt: -totalDeduction, // negative = credit back
+      transaction_type: "credit",
+      reference: refundReference,
+      description: `Refund for failed ${
+        isP2PTransfer ? "P2P transfer" : "withdrawal"
+      } of ₦${txAmount}`,
+    }
+  );
+
+  if (refundErr) {
+    console.error("❌ Refund RPC failed:", refundErr.message);
+    return NextResponse.json(
+      { error: "Failed to refund wallet via RPC" },
+      { status: 500 }
+    );
+  }
+
+  // 🆕 ADD: Send failure email with error details
+  await sendWithdrawalEmailNotification(
+    pendingTx.user_id,
+    "failed",
+    txAmount,
+    appFee,
+    totalDeduction,
+    recipientName,
+    recipientAccount,
+    bankName,
+    pendingTx.id,
+    errorDetail // 🆕 NOW INCLUDED
+  );
+
+  console.log(
+    `✅ Refund completed successfully for user ${pendingTx.user_id}`
+  );
+  return NextResponse.json(
+    {
+      refunded: true,
+      transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+    },
+    { status: 200 }
+  );
+}
       console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
       return NextResponse.json(
         { message: "Ignored transfer event" },

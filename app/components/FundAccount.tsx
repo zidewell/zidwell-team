@@ -159,7 +159,7 @@ export default function FundAccountMethods() {
         </Card>
 
         {/* Current Balance */}
-        <Card className="bg-gradient-to-r from-gray-600 to-gray-800 text-white flex items-center justify-between shadow-lg rounded-xl p-4">
+        <Card className="bg-linear-to-r from-gray-600 to-gray-800 text-white flex items-center justify-between shadow-lg rounded-xl p-4">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
               Current Balance

@@ -1772,10 +1772,11 @@ async function sendVirtualAccountDepositEmailNotification(
   transactionId: string,
   bankName: string,
   accountNumber: string,
-  accountName: string
+  accountName: string,
+  senderName: string
 ) {
   try {
-    // Fetch user email
+    // Fetch user email and name
     const { data: user, error } = await supabase
       .from("users")
       .select("email, first_name")
@@ -1803,6 +1804,7 @@ Your virtual account deposit was successful!
 • Bank: ${bankName}
 • Account Number: ${accountNumber}
 • Account Name: ${accountName}
+• Sender: ${senderName}
 • Transaction ID: ${transactionId}
 • Date: ${new Date().toLocaleString()}
 
@@ -1833,6 +1835,7 @@ Zidwell Team
             <p><strong>Bank:</strong> ${bankName}</p>
             <p><strong>Account Number:</strong> ${accountNumber}</p>
             <p><strong>Account Name:</strong> ${accountName}</p>
+            <p><strong>Sender:</strong> ${senderName}</p>
             <p><strong>Transaction ID:</strong> ${transactionId}</p>
             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
             <p><strong>Status:</strong> <span style="color: #22c55e; font-weight: bold;">Success</span></p>
@@ -1854,7 +1857,7 @@ Zidwell Team
     });
 
     console.log(
-      `💰 Virtual account deposit email notification sent to ${user.email} for ₦${amount}`
+      `💰 Virtual account deposit email notification sent to ${user.email} for ₦${amount} from ${senderName}`
     );
   } catch (emailError) {
     console.error(
@@ -3127,37 +3130,50 @@ export async function POST(req: NextRequest) {
         `✅ Auto-created transaction and credited user ${userId} with ₦${netCredit}`
       );
 
-      console.log("🔍 Virtual Account Deposit Payload Structure:", {
-        transaction: payload.data?.transaction,
-        bank: payload.data?.bank,
-        customer: payload.data?.customer,
-        fullPayload: payload,
-      });
+    console.log("🔍 Virtual Account Deposit Payload Structure:", {
+  transaction: payload.data?.transaction,
+  customer: payload.data?.customer,
+  fullPayload: payload,
+});
 
-      const bankName =
-        payload.data?.transaction?.bankName ||
-        payload.data?.bank?.name ||
-        "Virtual Account Bank";
+// 🆕 UPDATED: Extract virtual account details from your actual webhook structure
+const bankName =
+  payload.data?.customer?.bankName || // "Paycom (Opay)" from your sample
+  payload.data?.transaction?.aliasAccountType || // "VIRTUAL" from your sample
+  "Virtual Account Bank";
 
-      const accountNumber =
-        payload.data?.transaction?.accountNumber ||
-        payload.data?.aliasAccountReference ||
-        "Virtual Account";
+const accountNumber =
+  payload.data?.transaction?.aliasAccountNumber || // "3580219918" from your sample
+  payload.data?.customer?.accountNumber || // "9132316236" from your sample
+  "Virtual Account";
 
-      const accountName =
-        payload.data?.transaction?.accountName ||
-        payload.data?.customer?.name ||
-        "Your Virtual Account";
-      if (userId) {
-        await sendVirtualAccountDepositEmailNotification(
-          userId,
-          amount,
-          nombaTransactionId || referenceToUse,
-          bankName,
-          accountNumber,
-          accountName
-        );
-      }
+const accountName =
+  payload.data?.transaction?.aliasAccountName || // "DIGITAL/Lohloh Abbalolo" from your sample
+  payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
+  "Your Virtual Account";
+
+const senderName = 
+  payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
+  "Customer";
+
+console.log("🏦 Extracted Virtual Account Details:", {
+  bankName,
+  accountNumber, 
+  accountName,
+  senderName
+});
+
+if (userId) {
+  await sendVirtualAccountDepositEmailNotification(
+    userId,
+    amount,
+    nombaTransactionId || referenceToUse,
+    bankName,
+    accountNumber,
+    accountName,
+    senderName 
+  );
+}
 
       return NextResponse.json({ success: true }, { status: 200 });
     } // end deposit handling

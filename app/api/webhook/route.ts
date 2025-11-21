@@ -3544,7 +3544,7 @@ if (eventType === "payout_failed" || txStatus === "failed") {
     recipientAccount,
     bankName,
     pendingTx.id,
-    errorDetail // 🆕 NOW INCLUDED
+    errorDetail
   );
 
   console.log(

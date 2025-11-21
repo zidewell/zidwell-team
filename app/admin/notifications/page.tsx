@@ -39,9 +39,38 @@ export default function NotificationsCenterPage() {
     channels: ["in_app"],
     target_audience: "all_users",
     scheduled_for: "",
-    is_urgent: false
+    is_urgent: false,
+    specific_users: [] as string[]
   });
+  const [userSearch, setUserSearch] = useState("");
+  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const itemsPerPage = 15;
+
+  // Fetch users for suggestions
+  const { data: usersData, isLoading: isUsersLoading } = useSWR(
+    userSearch ? `/api/admin-apis/notifications/users/search?search=${encodeURIComponent(userSearch)}&limit=100` : null,
+    fetcher
+  );
+
+  useEffect(() => {
+    if (usersData?.users) {
+      console.log("Found users:", usersData.users.length);
+      setUserSuggestions(usersData.users);
+      setIsSearchingUsers(false);
+    }
+  }, [usersData]);
+
+  // Handle user search input with debounce
+  useEffect(() => {
+    if (userSearch) {
+      setIsSearchingUsers(true);
+    } else {
+      setUserSuggestions([]);
+      setIsSearchingUsers(false);
+    }
+  }, [userSearch]);
 
   // Build API URL with all filters for server-side filtering
   const apiUrl = useMemo(() => {
@@ -83,6 +112,17 @@ export default function NotificationsCenterPage() {
     setCurrentPage(1);
   }, [searchTerm, typeFilter, statusFilter, channelFilter, dateRange]);
 
+  // Reset user selection when target audience changes
+  useEffect(() => {
+    if (newNotification.target_audience !== "specific_users") {
+      setSelectedUsers([]);
+      setNewNotification(prev => ({
+        ...prev,
+        specific_users: []
+      }));
+    }
+  }, [newNotification.target_audience]);
+
   // Memoize calculations
   const notifications = useMemo(() => data?.notifications || [], [data]);
   const totalNotifications = useMemo(() => data?.total || 0, [data]);
@@ -117,9 +157,38 @@ export default function NotificationsCenterPage() {
     [allFilteredNotifications]
   );
 
+  // User selection handlers
+  const handleAddUser = (user: any) => {
+    if (!selectedUsers.find(u => u.id === user.id)) {
+      const updatedUsers = [...selectedUsers, user];
+      setSelectedUsers(updatedUsers);
+      setNewNotification(prev => ({
+        ...prev,
+        specific_users: updatedUsers.map(u => u.id)
+      }));
+    }
+    setUserSearch("");
+    setUserSuggestions([]);
+  };
+
+  const handleRemoveUser = (userId: string) => {
+    const updatedUsers = selectedUsers.filter(user => user.id !== userId);
+    setSelectedUsers(updatedUsers);
+    setNewNotification(prev => ({
+      ...prev,
+      specific_users: updatedUsers.map(u => u.id)
+    }));
+  };
+
   // Create new notification
   const handleCreateNotification = async () => {
     try {
+      // Validate specific users selection
+      if (newNotification.target_audience === "specific_users" && selectedUsers.length === 0) {
+        Swal.fire("Error", "Please select at least one user for specific user notification", "error");
+        return;
+      }
+
       const response = await fetch("/api/admin-apis/notifications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -145,8 +214,12 @@ export default function NotificationsCenterPage() {
           channels: ["in_app"],
           target_audience: "all_users",
           scheduled_for: "",
-          is_urgent: false
+          is_urgent: false,
+          specific_users: []
         });
+        setSelectedUsers([]);
+        setUserSearch("");
+        setUserSuggestions([]);
         mutate();
       } else {
         throw new Error(result.error);
@@ -456,6 +529,9 @@ export default function NotificationsCenterPage() {
                       
                       <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
                         <span>To: {notification.target_audience}</span>
+                        {notification.target_audience === "specific_users" && notification.stats?.users_notified && (
+                          <span>Users: {notification.stats.users_notified.length} selected</span>
+                        )}
                         <span>Channels: {renderChannels(notification.channels)}</span>
                         <span>Created: {new Date(notification.created_at).toLocaleString()}</span>
                         {notification.scheduled_for && (
@@ -642,16 +718,103 @@ export default function NotificationsCenterPage() {
                         <SelectItem value="premium_users">Premium Users</SelectItem>
                         <SelectItem value="new_users">New Users</SelectItem>
                         <SelectItem value="inactive_users">Inactive Users</SelectItem>
-                        <SelectItem value="specific_user">Specific User</SelectItem>
+                        <SelectItem value="specific_users">Specific Users</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
+                {/* Specific Users Selection */}
+                {newNotification.target_audience === "specific_users" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Select Users *</label>
+                    <div className="space-y-3">
+                      {/* User Search */}
+                      <div className="relative">
+                        <Input
+                          placeholder="Search users by name or email..."
+                          value={userSearch}
+                          onChange={(e) => setUserSearch(e.target.value)}
+                        />
+                        {(isSearchingUsers || isUsersLoading) && (
+                          <div className="absolute right-3 top-3">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                          </div>
+                        )}
+                        
+                        {userSuggestions.length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                            {userSuggestions.map((user) => (
+                              <div
+                                key={user.id}
+                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                                onClick={() => handleAddUser(user)}
+                              >
+                                <div className="font-medium">
+                                  {user.first_name} {user.last_name}
+                                </div>
+                                <div className="text-sm text-gray-600">{user.email}</div>
+                              </div>
+                            ))}
+                            {userSuggestions.length >= 100 && (
+                              <div className="px-4 py-2 text-center text-xs text-gray-500 bg-gray-50">
+                                Showing first 100 results. Refine your search for more specific results.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Selected Users */}
+                      {selectedUsers.length > 0 && (
+                        <div className="border rounded-md p-3 bg-gray-50">
+                          <div className="text-sm font-medium mb-2">
+                            Selected Users ({selectedUsers.length})
+                          </div>
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {selectedUsers.map((user) => (
+                              <div
+                                key={user.id}
+                                className="flex items-center justify-between p-2 bg-white border rounded"
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium truncate">
+                                    {user.first_name} {user.last_name}
+                                  </div>
+                                  <div className="text-sm text-gray-600 truncate">{user.email}</div>
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleRemoveUser(user.id)}
+                                  className="ml-2 shrink-0"
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedUsers.length === 0 && userSearch && userSuggestions.length === 0 && !isSearchingUsers && (
+                        <div className="text-center py-4 text-gray-500 border rounded-md">
+                          No users found matching "{userSearch}"
+                        </div>
+                      )}
+
+                      {selectedUsers.length === 0 && !userSearch && (
+                        <div className="text-center py-4 text-gray-500 border rounded-md">
+                          Search for users by name or email above
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium mb-2">Channels</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {/* {["in_app", "email", "sms", "push"].map((channel) => ( */}
                     {["in_app", "email"].map((channel) => (
                       <div key={channel} className="flex items-center space-x-2">
                         <input
@@ -697,13 +860,19 @@ export default function NotificationsCenterPage() {
                 <div className="flex justify-end space-x-2 pt-4">
                   <Button 
                     variant="outline" 
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setSelectedUsers([]);
+                      setUserSearch("");
+                      setUserSuggestions([]);
+                    }}
                   >
                     Cancel
                   </Button>
                   <Button 
                     onClick={handleCreateNotification}
-                    disabled={!newNotification.title || !newNotification.message}
+                    disabled={!newNotification.title || !newNotification.message || 
+                      (newNotification.target_audience === "specific_users" && selectedUsers.length === 0)}
                   >
                     Create Notification
                   </Button>

@@ -1,8 +1,8 @@
-// app/api/admin/notifications/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAuditLog, getClientInfo } from '@/lib/audit-log';
 import { requireAdmin } from "@/lib/admin-auth";
+import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -36,11 +36,181 @@ async function getAdminUserInfo(cookieHeader: string) {
   }
 }
 
+
+// Updated sendEmailNotification function with Zidwell branding
+async function sendEmailNotification({
+  to,
+  subject,
+  message,
+  type = 'info'
+}: {
+  to: string;
+  subject: string;
+  message: string;
+  type?: string;
+}) {
+  try {
+    console.log(`📧 Attempting to send email to: ${to}`);
+    
+    const mailOptions = {
+      from: 'info@zidwell.com',
+      to,
+      subject: `🔔 ${subject}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${subject}</title>
+          <style>
+            body { 
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              line-height: 1.6; 
+              color: #333; 
+              margin: 0; 
+              padding: 0; 
+              background-color: #f9fafb;
+            }
+            .container { 
+              max-width: 600px; 
+              margin: 0 auto; 
+              padding: 20px; 
+              background-color: #ffffff;
+            }
+            .header { 
+              background: linear-gradient(135deg, #C29307 0%, #a87e06 100%);
+              padding: 30px 20px; 
+              border-radius: 10px 10px 0 0; 
+              margin-bottom: 20px; 
+              text-align: center;
+              color: white;
+            }
+            .notification-type { 
+              display: inline-block; 
+              padding: 8px 16px; 
+              border-radius: 20px; 
+              font-size: 12px; 
+              font-weight: bold; 
+              margin-bottom: 15px;
+              background: rgba(255, 255, 255, 0.2);
+              backdrop-filter: blur(10px);
+            }
+            .type-info { background: #dbeafe; color: #1e40af; }
+            .type-success { background: #d1fae5; color: #065f46; }
+            .type-warning { background: #fef3c7; color: #92400e; }
+            .type-error { background: #fee2e2; color: #dc2626; }
+            .type-contract { background: #e9d5ff; color: #7e22ce; }
+            .type-wallet { background: #fed7aa; color: #ea580c; }
+            .type-transaction { background: #c7d2fe; color: #4338ca; }
+            .content { 
+              background: white; 
+              padding: 30px; 
+              border-radius: 0 0 10px 10px; 
+              border: 1px solid #e5e7eb; 
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            .message-content {
+              background: #f8fafc;
+              padding: 20px;
+              border-radius: 8px;
+              border-left: 4px solid #C29307;
+              margin: 20px 0;
+              white-space: pre-line;
+            }
+            .footer { 
+              margin-top: 30px; 
+              padding-top: 20px; 
+              border-top: 1px solid #e5e7eb; 
+              color: #6b7280; 
+              font-size: 14px;
+              text-align: center;
+            }
+            .logo { 
+              font-size: 28px; 
+              font-weight: bold; 
+              margin-bottom: 10px;
+              color: white;
+              text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .zidwell-brand {
+              color: #C29307;
+              font-weight: bold;
+            }
+            .support-link {
+              color: #C29307;
+              text-decoration: none;
+              font-weight: 500;
+            }
+            .support-link:hover {
+              text-decoration: underline;
+            }
+            @media only screen and (max-width: 600px) {
+              .container {
+                padding: 10px;
+              }
+              .content {
+                padding: 20px;
+              }
+              .header {
+                padding: 20px 15px;
+              }
+              .logo {
+                font-size: 24px;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="logo">Zidwell</div>
+              <div class="notification-type type-${type}">${type.toUpperCase()} NOTIFICATION</div>
+              <h1 style="margin: 0; font-size: 24px; font-weight: 600;">${subject}</h1>
+            </div>
+            <div class="content">
+              <p style="margin-bottom: 20px; color: #6b7280; font-size: 16px;">Hello,</p>
+              <div class="message-content">
+                ${message.replace(/\n/g, '<br>')}
+              </div>
+              <p style="color: #6b7280; margin-top: 25px;">Thank you for choosing <span class="zidwell-brand">Zidwell</span>.</p>
+            </div>
+            <div class="footer">
+              <p>This is an automated notification from the <span class="zidwell-brand">Zidwell</span> platform.</p>
+              <p>If you have any questions, please contact our <a href="mailto:support@zidwell.com" class="support-link">support team</a>.</p>
+              <p style="margin-top: 20px; font-size: 12px; color: #9ca3af; line-height: 1.4;">
+                &copy; ${new Date().getFullYear()} Zidwell. All rights reserved.<br>
+                Empowering your financial journey
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `Zidwell Notification: ${subject}\n\n${message}\n\nThank you for choosing Zidwell.\n\nThis is an automated notification from the Zidwell platform.\nIf you have any questions, please contact our support team at support@zidwell.com.\n\n© ${new Date().getFullYear()} Zidwell. All rights reserved.`,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    
+    console.log(`✅ Email sent successfully to: ${to}`, result.messageId);
+    return { success: true, messageId: result.messageId };
+  } catch (error) {
+    console.error(`❌ Failed to send email to ${to}:`, error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown email error' 
+    };
+  }
+}
+
+
 async function sendNotificationToUsers({
   title,
   message,
   type,
   target_audience,
+  specific_users = [],
+  channels = ['in_app'],
   admin_notification_id,
   adminUser
 }: {
@@ -48,6 +218,8 @@ async function sendNotificationToUsers({
   message: string;
   type: string;
   target_audience: string;
+  specific_users?: string[];
+  channels?: string[];
   admin_notification_id: string;
   adminUser: any;
 }) {
@@ -55,25 +227,33 @@ async function sendNotificationToUsers({
     console.log('=== START: sendNotificationToUsers ===');
     console.log('Title:', title);
     console.log('Target audience:', target_audience);
+    console.log('Channels:', channels);
+    console.log('Specific users:', specific_users);
     
     let userQuery = supabase
       .from('users')
-      .select('id, email, first_name, last_name');
+      .select('id, email, first_name, last_name, notification_preferences');
 
-    switch (target_audience) {
-      case 'premium_users':
-        userQuery = userQuery.eq('subscription_tier', 'premium');
-        break;
-      case 'new_users':
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        userQuery = userQuery.gte('created_at', thirtyDaysAgo.toISOString());
-        break;
-      case 'inactive_users':
-        const twoWeeksAgo = new Date();
-        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-        userQuery = userQuery.lt('last_login', twoWeeksAgo.toISOString());
-        break;
+    // Handle specific users targeting
+    if (target_audience === 'specific_users' && specific_users.length > 0) {
+      userQuery = userQuery.in('id', specific_users);
+    } else {
+      // Handle other target audiences
+      switch (target_audience) {
+        case 'premium_users':
+          userQuery = userQuery.eq('subscription_tier', 'premium');
+          break;
+        case 'new_users':
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          userQuery = userQuery.gte('created_at', thirtyDaysAgo.toISOString());
+          break;
+        case 'inactive_users':
+          const twoWeeksAgo = new Date();
+          twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+          userQuery = userQuery.lt('last_login', twoWeeksAgo.toISOString());
+          break;
+      }
     }
 
     const { data: users, error: usersError } = await userQuery;
@@ -89,29 +269,84 @@ async function sendNotificationToUsers({
       throw new Error('No users found for the target audience');
     }
 
-    const notifications = users.map(user => ({
-      user_id: user.id,
-      title,
-      message,
-      type,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }));
+    // Track delivery results
+    const deliveryResults = {
+      in_app: { successful: 0, failed: 0 },
+      email: { successful: 0, failed: 0 },
+      total: users.length
+    };
 
-    console.log(`Creating ${notifications.length} notifications...`);
+    // Create in-app notifications
+    if (channels.includes('in_app')) {
+      try {
+        const notifications = users.map(user => ({
+          user_id: user.id,
+          title,
+          message,
+          type,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
 
-    const { data, error: insertError } = await supabase
-      .from('notifications')
-      .insert(notifications)
-      .select();
+        console.log(`Creating ${notifications.length} in-app notifications...`);
 
-    if (insertError) {
-      console.error('Error creating notifications:', insertError);
-      throw insertError;
+        const { data, error: insertError } = await supabase
+          .from('notifications')
+          .insert(notifications)
+          .select();
+
+        if (insertError) {
+          console.error('Error creating in-app notifications:', insertError);
+          deliveryResults.in_app.failed = users.length;
+        } else {
+          console.log(`Successfully created ${data?.length || 0} in-app notifications`);
+          deliveryResults.in_app.successful = data?.length || 0;
+          deliveryResults.in_app.failed = users.length - (data?.length || 0);
+        }
+      } catch (error) {
+        console.error('Error in in-app notification creation:', error);
+        deliveryResults.in_app.failed = users.length;
+      }
     }
 
-    console.log(`Successfully created ${data?.length || 0} notifications`);
+    // Send email notifications
+    if (channels.includes('email')) {
+      console.log(`Sending ${users.length} email notifications...`);
+      
+      const emailPromises = users.map(async (user) => {
+        try {
+          const emailResult = await sendEmailNotification({
+            to: user.email,
+            subject: title,
+            message,
+            type
+          });
+          
+          return {
+            userId: user.id,
+            email: user.email,
+            success: emailResult.success,
+            error: emailResult.error
+          };
+        } catch (error) {
+          return {
+            userId: user.id,
+            email: user.email,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
+      });
 
+      const emailResults = await Promise.all(emailPromises);
+      
+      deliveryResults.email.successful = emailResults.filter(r => r.success).length;
+      deliveryResults.email.failed = emailResults.filter(r => !r.success).length;
+      
+      console.log(`Email results: ${deliveryResults.email.successful} successful, ${deliveryResults.email.failed} failed`);
+    }
+
+    // Update admin notification with delivery stats
     await supabase
       .from('admin_notifications')
       .update({
@@ -119,9 +354,17 @@ async function sendNotificationToUsers({
         sent_at: new Date().toISOString(),
         stats: {
           total_users: users.length,
-          successful: data?.length || 0,
-          failed: 0,
-          users_notified: users.map(u => ({ id: u.id, email: u.email, name: `${u.first_name} ${u.last_name}` }))
+          successful: deliveryResults.in_app.successful + deliveryResults.email.successful,
+          failed: deliveryResults.in_app.failed + deliveryResults.email.failed,
+          in_app_sent: deliveryResults.in_app.successful,
+          in_app_failed: deliveryResults.in_app.failed,
+          email_sent: deliveryResults.email.successful,
+          email_failed: deliveryResults.email.failed,
+          users_notified: users.map(u => ({ 
+            id: u.id, 
+            email: u.email, 
+            name: `${u.first_name} ${u.last_name}` 
+          }))
         }
       })
       .eq('id', admin_notification_id);
@@ -130,8 +373,9 @@ async function sendNotificationToUsers({
     return {
       success: true,
       total: users.length,
-      successful: data?.length || 0,
-      failed: 0
+      successful: deliveryResults.in_app.successful + deliveryResults.email.successful,
+      failed: deliveryResults.in_app.failed + deliveryResults.email.failed,
+      deliveryResults
     };
 
   } catch (error) {
@@ -155,14 +399,13 @@ async function sendNotificationToUsers({
 
 export async function POST(req: NextRequest) {
   try {
-  const adminUser = await requireAdmin(req);
-  if (adminUser instanceof NextResponse) return adminUser;
-  
-  const allowedRoles = ['super_admin', 'operations_admin'];
-  if (!allowedRoles.includes(adminUser?.admin_role)) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-  }
-
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+    
+    const allowedRoles = ['super_admin', 'operations_admin'];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
 
     const clientInfo = getClientInfo(req.headers);
 
@@ -172,12 +415,31 @@ export async function POST(req: NextRequest) {
       message, 
       type = 'info',
       target_audience = 'all_users',
-      is_urgent = false
+      specific_users = [],
+      channels = ['in_app'],
+      is_urgent = false,
+      scheduled_for = null
     } = body;
 
     if (!title || !message) {
       return NextResponse.json(
         { error: "Title and message are required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate specific users selection
+    if (target_audience === 'specific_users' && (!specific_users || specific_users.length === 0)) {
+      return NextResponse.json(
+        { error: "At least one user must be selected for specific user notifications" },
+        { status: 400 }
+      );
+    }
+
+    // Validate channels
+    if (!channels || channels.length === 0) {
+      return NextResponse.json(
+        { error: "At least one channel must be selected" },
         { status: 400 }
       );
     }
@@ -194,25 +456,35 @@ export async function POST(req: NextRequest) {
         messageLength: message.length,
         type,
         targetAudience: target_audience,
+        specificUsersCount: specific_users.length,
+        channels,
         isUrgent: is_urgent,
+        scheduledFor: scheduled_for,
         createdBy: adminUser?.email
       },
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent
     });
 
+    // Prepare notification data - only include fields that exist in your schema
+    const notificationData: any = {
+      title,
+      message,
+      type,
+      target_audience,
+      is_urgent,
+      status: scheduled_for ? 'scheduled' : 'sending',
+      created_at: new Date().toISOString(),
+    };
+
+    // Add optional fields only if they have values
+    if (scheduled_for) {
+      notificationData.scheduled_for = scheduled_for;
+    }
+
     const { data: notification, error: notifError } = await supabase
       .from('admin_notifications')
-      .insert({
-        title,
-        message,
-        type,
-        target_audience,
-        is_urgent,
-        status: 'sending',
-        created_by: adminUser?.id,
-        created_at: new Date().toISOString(),
-      })
+      .insert(notificationData)
       .select()
       .single();
 
@@ -241,11 +513,52 @@ export async function POST(req: NextRequest) {
 
     console.log('Created admin notification with ID:', notification.id);
 
+    // If notification is scheduled, return success without sending immediately
+    if (scheduled_for) {
+      // 🕵️ AUDIT LOG: Track scheduled notification creation
+      await createAuditLog({
+        userId: adminUser?.id,
+        userEmail: adminUser?.email,
+        action: "schedule_notification",
+        resourceType: "Notification",
+        resourceId: notification.id,
+        description: `Scheduled notification: "${title}" for ${new Date(scheduled_for).toLocaleString()}`,
+        metadata: {
+          notificationId: notification.id,
+          title,
+          targetAudience: target_audience,
+          specificUsersCount: specific_users.length,
+          channels,
+          scheduledFor: scheduled_for,
+          scheduledBy: adminUser?.email
+        },
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        notification: {
+          ...notification,
+          status: 'scheduled'
+        },
+        message: 'Notification scheduled successfully',
+        _admin: {
+          performedBy: adminUser?.email,
+          performedAt: new Date().toISOString(),
+          auditLogged: true
+        }
+      });
+    }
+
+    // Send notification immediately if not scheduled
     const sendResult = await sendNotificationToUsers({
       title,
       message,
       type,
       target_audience,
+      specific_users,
+      channels,
       admin_notification_id: notification.id,
       adminUser
     });
@@ -258,14 +571,16 @@ export async function POST(req: NextRequest) {
         action: "send_bulk_notification",
         resourceType: "Notification",
         resourceId: notification.id,
-        description: `Sent bulk notification to ${sendResult.total} users: "${title}"`,
+        description: `Sent bulk notification to ${sendResult.total} users via ${channels.join(', ')}: "${title}"`,
         metadata: {
           notificationId: notification.id,
           title,
           targetAudience: target_audience,
+          channels,
           totalUsers: sendResult.total,
           successful: sendResult.successful,
           failed: sendResult.failed,
+          deliveryResults: sendResult.deliveryResults,
           type,
           isUrgent: is_urgent,
           sentBy: adminUser?.email,
@@ -286,6 +601,7 @@ export async function POST(req: NextRequest) {
           notificationId: notification.id,
           title,
           targetAudience: target_audience,
+          channels,
           error: sendResult.error,
           attemptedBy: adminUser?.email
         },
@@ -340,13 +656,14 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-      const adminUser = await requireAdmin(req);
-  if (adminUser instanceof NextResponse) return adminUser;
-  
-  const allowedRoles = ['super_admin', 'operations_admin', 'support_admin'];
-  if (!allowedRoles.includes(adminUser?.admin_role)) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-  }
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+    
+    const allowedRoles = ['super_admin', 'operations_admin', 'support_admin'];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
+
     const clientInfo = getClientInfo(req.headers);
 
     const { searchParams } = new URL(req.url);
@@ -487,14 +804,13 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-     const adminUser = await requireAdmin(req);
-  if (adminUser instanceof NextResponse) return adminUser;
-  
-  const allowedRoles = ['super_admin', 'operations_admin'];
-  if (!allowedRoles.includes(adminUser?.admin_role)) {
-    return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-  }
-
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+    
+    const allowedRoles = ['super_admin', 'operations_admin'];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+    }
 
     const clientInfo = getClientInfo(req.headers);
 
@@ -612,7 +928,6 @@ export async function DELETE(req: NextRequest) {
         status: existingNotification.status,
         targetAudience: existingNotification.target_audience,
         type: existingNotification.type,
-        createdBy: existingNotification.created_by,
         createdAt: existingNotification.created_at,
         deletedBy: adminUser?.email,
         deletionTime: new Date().toISOString()
@@ -660,7 +975,7 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// PATCH: Update notification (if you need this functionality)
+// PATCH: Update notification
 export async function PATCH(req: Request) {
   try {
     // Get admin user info for audit logging

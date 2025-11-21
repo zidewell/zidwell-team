@@ -182,7 +182,7 @@ const TaxFilingInfoPage = () => {
             <div className="grid md:grid-cols-2 gap-6">
               {reasons.map((text, i) => (
                 <div key={i} className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-[#C29307] rounded-full flex items-center justify-center flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 bg-[#C29307] rounded-full flex items-center justify-center shrink-0 mt-1">
                     <span className="text-white font-bold text-sm">
                       {i + 1}
                     </span>
@@ -206,7 +206,7 @@ const TaxFilingInfoPage = () => {
               {steps.map((step, i) => (
                 <div key={i} className="flex items-start gap-4">
                   <div
-                    className={`w-12 h-12 bg-[#C29307] rounded-full flex items-center justify-center flex-shrink-0`}
+                    className={`w-12 h-12 bg-[#C29307] rounded-full flex items-center justify-center shrink-0`}
                   >
                     {React.isValidElement(step.icon)
                       ? React.cloneElement(

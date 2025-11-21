@@ -11,7 +11,8 @@ const supabase = createClient(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+ context: { params: Promise<{ id: string }> }
+
 ) {
   let adminUser: any = null;
   
@@ -23,8 +24,9 @@ export async function PATCH(
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
-
-    const { id } = params;
+ const params = await context.params;
+    const id = params.id;
+    
     const body = await request.json();
     const { first_name, last_name, email, role, status } = body;
     const clientInfo = getClientInfo(request.headers);
@@ -308,7 +310,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+context: { params: Promise<{ id: string }> }
 ) {
   let adminUser: any = null;
   
@@ -321,7 +323,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
-    const { id } = params;
+     const params = await context.params;
+    const id = params.id;
     const clientInfo = getClientInfo(request.headers);
 
     // Prevent removing your own admin privileges

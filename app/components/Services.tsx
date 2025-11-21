@@ -19,7 +19,7 @@ const Services = () => {
   const services = [
      {
       icon: <Calculator className="h-10 w-10" />,
-      title: "Tax Filing",
+      title: "Tax Manager",
       description: "File your taxes easily with our guided process.",
       color: "from-indigo-500 to-indigo-600",
       link: "/tax-filing",

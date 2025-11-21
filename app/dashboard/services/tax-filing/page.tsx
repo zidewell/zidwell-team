@@ -32,7 +32,7 @@ function page() {
 
                 <div className="">
                   <h1 className="md:text-3xl text-xl font-bold mb-2">
-                    Tax Filing Services
+                   Tax Manager Services
                   </h1>
                   <p className=" text-muted-foreground">
                     Choose your filing option based on your tax history with us

@@ -1791,13 +1791,13 @@ async function sendVirtualAccountDepositEmailNotification(
       return;
     }
 
-    const subject = `Virtual Account Deposit Received - ₦${amount.toLocaleString()}`;
+    const subject = `Account Deposit Received - ₦${amount.toLocaleString()}`;
     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
 
     const emailBody = `
 ${greeting}
 
-Your virtual account deposit was successful!
+Your account deposit was successful!
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
@@ -1826,7 +1826,7 @@ Zidwell Team
           <p>${greeting}</p>
           
           <h3 style="color: #22c55e;">
-            ✅ Virtual Account Deposit Successful
+            ✅ Account Deposit Successful
           </h3>
           
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
@@ -2321,20 +2321,14 @@ export async function POST(req: NextRequest) {
       }
       // -------------------- END SUBSCRIPTION HANDLING --------------------
 
-      // -------------------- MODIFIED INVOICE PAYMENT HANDLING (WITH VIRTUAL ACCOUNT SUPPORT) --------------------
+      // -------------------- INVOICE PAYMENT HANDLING (CARD ONLY) --------------------
       const isInvoicePayment =
         orderReference ||
         payload?.data?.order?.callbackUrl?.includes(
           "/api/invoice-payment-callback"
         );
 
-      // 🆕 ADDED: Virtual Account Deposit for Invoice Payments
-      const isVirtualAccountInvoicePayment = 
-        aliasAccountReference && 
-        payload?.data?.transaction?.type?.toLowerCase().includes("vact") &&
-        payload?.data?.transaction?.description?.toLowerCase().includes("invoice");
-
-      if (isInvoicePayment || isVirtualAccountInvoicePayment) {
+      if (isInvoicePayment) {
         console.log("🧾 Processing INVOICE payment...");
 
         const txStatus =
@@ -2344,14 +2338,12 @@ export async function POST(req: NextRequest) {
           eventType,
           txStatus,
           orderReference,
-          aliasAccountReference,
           event_type: payload.event_type
         });
 
         const isPaymentSuccess =
           eventType === "payment_success" ||
-          payload.event_type === "payment_success" ||
-          txStatus === "success";
+          payload.event_type === "payment_success";
 
         if (!isPaymentSuccess) {
           console.error("❌ Payment not successful - Event Type:", eventType);
@@ -2362,54 +2354,49 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-          // 🆕 ADDED: For virtual account deposits, skip Nomba verification
-          if (isVirtualAccountInvoicePayment) {
-            console.log("🏦 Virtual Account Invoice Payment - Skipping Nomba verification");
-          } else {
-            const token = await getNombaToken();
+          const token = await getNombaToken();
 
-            if (token) {
-              const verifyUrl = `${process.env.NOMBA_URL}/v1/checkout/transaction?orderReference=${orderReference}`;
+          if (token) {
+            const verifyUrl = `${process.env.NOMBA_URL}/v1/checkout/transaction?orderReference=${orderReference}`;
 
-              const verifyResponse = await fetch(verifyUrl, {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                  accountId: process.env.NOMBA_ACCOUNT_ID!,
-                  Authorization: `Bearer ${token}`,
-                },
-              });
+            const verifyResponse = await fetch(verifyUrl, {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                accountId: process.env.NOMBA_ACCOUNT_ID!,
+                Authorization: `Bearer ${token}`,
+              },
+            });
 
-              if (verifyResponse.ok) {
-                const verifyData = await verifyResponse.json();
+            if (verifyResponse.ok) {
+              const verifyData = await verifyResponse.json();
 
-                const transactionStatus =
-                  verifyData.data?.transactionDetails?.statusCode ||
-                  verifyData.data?.status ||
-                  verifyData.status;
+              const transactionStatus =
+                verifyData.data?.transactionDetails?.statusCode ||
+                verifyData.data?.status ||
+                verifyData.status;
 
-                const isVerifiedSuccess =
-                  transactionStatus === "success" ||
-                  transactionStatus === "SUCCESS" ||
-                  transactionStatus === "SUCCESSFUL" ||
-                  verifyData.data?.transactionDetails?.status === "SUCCESSFUL" ||
-                  verifyData.success === true;
+              const isVerifiedSuccess =
+                transactionStatus === "success" ||
+                transactionStatus === "SUCCESS" ||
+                transactionStatus === "SUCCESSFUL" ||
+                verifyData.data?.transactionDetails?.status === "SUCCESSFUL" ||
+                verifyData.success === true;
 
-                if (isVerifiedSuccess) {
-                  console.log("✅ Payment verified as SUCCESS by Nomba API");
-                } else {
-                  console.log(
-                    "⚠️ Nomba verification inconclusive - Status:",
-                    transactionStatus
-                  );
-                }
+              if (isVerifiedSuccess) {
+                console.log("✅ Payment verified as SUCCESS by Nomba API");
               } else {
-                const errorText = await verifyResponse.text();
-                console.log("⚠️ Nomba verification failed:", errorText);
+                console.log(
+                  "⚠️ Nomba verification inconclusive - Status:",
+                  transactionStatus
+                );
               }
             } else {
-              console.log("⚠️ No token available, skipping verification");
+              const errorText = await verifyResponse.text();
+              console.log("⚠️ Nomba verification failed:", errorText);
             }
+          } else {
+            console.log("⚠️ No token available, skipping verification");
           }
         } catch (verifyError: any) {
           console.error(
@@ -2421,27 +2408,19 @@ export async function POST(req: NextRequest) {
         try {
           let invoiceId: string | null = null;
 
-          // 🆕 ADDED: Extract invoice ID from virtual account metadata
-          if (isVirtualAccountInvoicePayment) {
-            invoiceId = payload?.data?.transaction?.merchantTxRef ||
-                        payload?.data?.meta?.invoiceId ||
-                        aliasAccountReference; // Use aliasAccountReference as fallback
-            console.log("🏦 Virtual Account Invoice ID:", invoiceId);
-          } else {
-            invoiceId = payload?.data?.order?.metadata?.invoiceId;
+          invoiceId = payload?.data?.order?.metadata?.invoiceId;
 
-            if (!invoiceId && payload?.data?.order?.callbackUrl) {
-              try {
-                const callbackUrl = new URL(payload.data.order.callbackUrl);
-                invoiceId = callbackUrl.searchParams.get("invoiceId");
-              } catch (urlError) {
-                console.error("❌ Error parsing callback URL:", urlError);
-              }
+          if (!invoiceId && payload?.data?.order?.callbackUrl) {
+            try {
+              const callbackUrl = new URL(payload.data.order.callbackUrl);
+              invoiceId = callbackUrl.searchParams.get("invoiceId");
+            } catch (urlError) {
+              console.error("❌ Error parsing callback URL:", urlError);
             }
+          }
 
-            if (!invoiceId) {
-              invoiceId = orderReference;
-            }
+          if (!invoiceId) {
+            invoiceId = orderReference;
           }
 
           if (!invoiceId) {
@@ -2516,23 +2495,11 @@ export async function POST(req: NextRequest) {
           }
 
           const paidAmount = transactionAmount;
-          
-          // 🆕 ADDED: Virtual account customer info extraction
-          const customerEmail = isVirtualAccountInvoicePayment 
-            ? payload?.data?.customer?.email 
-            : payload?.data?.order?.customerEmail;
-            
-          const customerName = isVirtualAccountInvoicePayment
-            ? payload?.data?.customer?.name
-            : payload?.data?.order?.customerName;
-
-          const paymentMethod = isVirtualAccountInvoicePayment 
-            ? "virtual_account" 
-            : "card_payment";
+          const customerEmail = payload?.data?.order?.customerEmail;
+          const customerName = payload?.data?.order?.customerName;
 
           const newOrderReference =
             orderReference ||
-            aliasAccountReference ||
             `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
           // Create payment record
@@ -2550,7 +2517,7 @@ export async function POST(req: NextRequest) {
                 status: "completed",
                 payment_link: invoice.payment_link,
                 nomba_transaction_id: nombaTransactionId,
-                payment_method: paymentMethod,
+                payment_method: "card_payment",
                 paid_at: new Date().toISOString(),
                 is_reusable: true,
                 payment_attempts: 1,
@@ -2570,9 +2537,7 @@ export async function POST(req: NextRequest) {
 
           // CREATE TRANSACTION RECORD FOR THE INVOICE CREATOR
           try {
-            const transactionDescription = isVirtualAccountInvoicePayment
-              ? `Virtual Account deposit of ₦${paidAmount} for invoice ${invoice.invoice_id}`
-              : `${customerName || "Customer"} paid ₦${paidAmount} for invoice ${invoice.invoice_id}`;
+            const transactionDescription = `${customerName || "Customer"} paid ₦${paidAmount} for invoice ${invoice.invoice_id}`;
 
             const { data: transaction, error: transactionError } =
               await supabase
@@ -2584,14 +2549,14 @@ export async function POST(req: NextRequest) {
                     amount: paidAmount,
                     status: "success",
                     reference: `INV-${invoice.invoice_id}-${
-                      nombaTransactionId || orderReference || aliasAccountReference
+                      nombaTransactionId || orderReference
                     }`,
                     description: transactionDescription,
                     narration: `Payment received for Invoice #${
                       invoice.invoice_id
-                    } from ${customerName || "customer"} via ${paymentMethod}`,
+                    } from ${customerName || "customer"}`,
                     fee: payload?.data?.transaction?.fee || 0,
-                    channel: isVirtualAccountInvoicePayment ? "virtual_account" : "invoice_payment",
+                    channel: "invoice_payment",
                     sender: {
                       name: customerName,
                       email: customerEmail,
@@ -2607,9 +2572,7 @@ export async function POST(req: NextRequest) {
                     external_response: {
                       nomba_transaction_id: nombaTransactionId,
                       order_reference: orderReference,
-                      alias_account_reference: aliasAccountReference,
-                      payment_method: paymentMethod,
-                      is_virtual_account: isVirtualAccountInvoicePayment,
+                      payment_method: "card_payment",
                     },
                   },
                 ])
@@ -2667,8 +2630,8 @@ export async function POST(req: NextRequest) {
 
             const creatorEmail = creatorData?.email;
 
-            // Send email to payer (only for card payments, virtual accounts usually don't have customer email)
-            if (customerEmail && !isVirtualAccountInvoicePayment) {
+            // Send email to payer
+            if (customerEmail) {
               sendPaymentSuccessEmail(
                 customerEmail,
                 invoice.invoice_id,
@@ -2678,8 +2641,6 @@ export async function POST(req: NextRequest) {
               ).catch((error) =>
                 console.error("❌ Payer email failed:", error)
               );
-            } else if (isVirtualAccountInvoicePayment) {
-              console.log("🏦 Virtual Account payment - skipping customer email");
             } else {
               console.log(
                 "⚠️ No customer email available for payment confirmation"
@@ -2694,8 +2655,7 @@ export async function POST(req: NextRequest) {
                 paidAmount,
                 customerName || "Customer",
                 customerEmail || "N/A",
-                invoice,
-                
+                invoice
               ).catch((error) =>
                 console.error("❌ Creator notification failed:", error)
               );
@@ -2720,7 +2680,7 @@ export async function POST(req: NextRequest) {
           );
         }
       }
-      // -------------------- END MODIFIED INVOICE PAYMENT HANDLING --------------------
+      // -------------------- END INVOICE PAYMENT HANDLING --------------------
 
       // Helper function to update invoice totals
       async function updateInvoiceTotals(
@@ -2835,13 +2795,6 @@ export async function POST(req: NextRequest) {
       let txType = isCardPayment ? "card_deposit" : "deposit";
       let channel = isCardPayment ? "card" : "bank";
 
-      // console.log(
-      //   "➡️ Handling deposit/card flow. txType:",
-      //   txType,
-      //   "channel:",
-      //   channel
-      // );
-
       // For VA: aliasAccountReference === userId (you confirmed)
       if (isVirtualAccountDeposit) {
         userId = aliasAccountReference;
@@ -2903,13 +2856,6 @@ export async function POST(req: NextRequest) {
           );
         }
       }
-
-      // console.log(
-      //   "👤 Deposit userId resolved:",
-      //   userId,
-      //   "referenceToUse:",
-      //   referenceToUse
-      // );
 
       // ✅ DEPOSIT FEE CALCULATIONS
       const amount = transactionAmount;
@@ -3064,7 +3010,7 @@ export async function POST(req: NextRequest) {
             txType === "card_deposit"
               ? "Card deposit"
               : txType === "virtual_account_deposit"
-              ? "Virtual Account deposit"
+              ? "Account deposit"
               : "Bank deposit",
           external_response: updatedExternalResponse,
           channel: channel,
@@ -3130,50 +3076,51 @@ export async function POST(req: NextRequest) {
         `✅ Auto-created transaction and credited user ${userId} with ₦${netCredit}`
       );
 
-    console.log("🔍 Virtual Account Deposit Payload Structure:", {
-  transaction: payload.data?.transaction,
-  customer: payload.data?.customer,
-  fullPayload: payload,
-});
+      // VIRTUAL ACCOUNT DEPOSIT EMAIL NOTIFICATION
+      console.log("🔍 Virtual Account Deposit Payload Structure:", {
+        transaction: payload.data?.transaction,
+        customer: payload.data?.customer,
+        fullPayload: payload,
+      });
 
-// 🆕 UPDATED: Extract virtual account details from your actual webhook structure
-const bankName =
-  payload.data?.customer?.bankName || // "Paycom (Opay)" from your sample
-  payload.data?.transaction?.aliasAccountType || // "VIRTUAL" from your sample
-  "Virtual Account Bank";
+      // Extract virtual account details from your actual webhook structure
+      const bankName =
+        payload.data?.customer?.bankName || // "Paycom (Opay)" from your sample
+        payload.data?.transaction?.aliasAccountType || // "VIRTUAL" from your sample
+        "Virtual Account Bank";
 
-const accountNumber =
-  payload.data?.transaction?.aliasAccountNumber || // "3580219918" from your sample
-  payload.data?.customer?.accountNumber || // "9132316236" from your sample
-  "Virtual Account";
+      const accountNumber =
+        payload.data?.transaction?.aliasAccountNumber || // "3580219918" from your sample
+        payload.data?.customer?.accountNumber || // "9132316236" from your sample
+        "Virtual Account";
 
-const accountName =
-  payload.data?.transaction?.aliasAccountName || // "DIGITAL/Lohloh Abbalolo" from your sample
-  payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
-  "Your Virtual Account";
+      const accountName =
+        payload.data?.transaction?.aliasAccountName || // "DIGITAL/Lohloh Abbalolo" from your sample
+        payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
+        "Your Virtual Account";
 
-const senderName = 
-  payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
-  "Customer";
+      const senderName = 
+        payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
+        "Customer";
 
-console.log("🏦 Extracted Virtual Account Details:", {
-  bankName,
-  accountNumber, 
-  accountName,
-  senderName
-});
+      console.log("🏦 Extracted Virtual Account Details:", {
+        bankName,
+        accountNumber, 
+        accountName,
+        senderName
+      });
 
-if (userId) {
-  await sendVirtualAccountDepositEmailNotification(
-    userId,
-    amount,
-    nombaTransactionId || referenceToUse,
-    bankName,
-    accountNumber,
-    accountName,
-    senderName 
-  );
-}
+      if (userId) {
+        await sendVirtualAccountDepositEmailNotification(
+          userId,
+          amount,
+          nombaTransactionId || referenceToUse,
+          bankName,
+          accountNumber,
+          accountName,
+          senderName 
+        );
+      }
 
       return NextResponse.json({ success: true }, { status: 200 });
     } // end deposit handling
@@ -3183,7 +3130,6 @@ if (userId) {
       console.log("➡️ Handling payout/transfer flow");
 
       const refCandidates = [merchantTxRef, nombaTransactionId].filter(Boolean);
-      // console.log("🔎 Searching transaction by candidates:", refCandidates);
 
       const orExprParts = refCandidates
         .map((r) => `merchant_tx_ref.eq.${r}`)
@@ -3219,18 +3165,7 @@ if (userId) {
         );
       }
 
-      // console.log(
-      //   "📦 Found pending transaction:",
-      //   pendingTx.id,
-      //   "status:",
-      //   pendingTx.status,
-      //   "type:",
-      //   pendingTx.type,
-      //   "pendingTx:",
-      //   pendingTx
-      // );
-
-      // 🔥 NEW: Check if this is a P2P transfer or regular withdrawal
+      // Check if this is a P2P transfer or regular withdrawal
       const isP2PTransfer = pendingTx.type === "p2p_transfer";
       const isRegularWithdrawal = pendingTx.type === "withdrawal";
 
@@ -3316,43 +3251,43 @@ if (userId) {
           })
           .eq("id", pendingTx.id);
 
-       // In the WITHDRAWAL SUCCESS section, update the data extraction:
-const withdrawalDetails =
-  pendingTx.external_response?.withdrawal_details || {};
+        // Extract withdrawal details from the actual webhook payload
+        const withdrawalDetails =
+          pendingTx.external_response?.withdrawal_details || {};
 
-// 🆕 UPDATED: Extract withdrawal details from the actual webhook payload
-const recipientName = 
-  payload.data?.customer?.recipientName || // "ibrahim lawal abbalolo" from your sample
-  withdrawalDetails.account_name || 
-  "N/A";
+        const recipientName = 
+          payload.data?.customer?.recipientName || // "ibrahim lawal abbalolo" from your sample
+          withdrawalDetails.account_name || 
+          "N/A";
 
-const recipientAccount = 
-  payload.data?.customer?.accountNumber || // "9132316236" from your sample
-  withdrawalDetails.account_number || 
-  "N/A";
+        const recipientAccount = 
+          payload.data?.customer?.accountNumber || // "9132316236" from your sample
+          withdrawalDetails.account_number || 
+          "N/A";
 
-const bankName = 
-  payload.data?.customer?.bankName || // "Paycom (Opay)" from your sample
-  withdrawalDetails.bank_name || 
-  "N/A";
+        const bankName = 
+          payload.data?.customer?.bankName || // "Paycom (Opay)" from your sample
+          withdrawalDetails.bank_name || 
+          "N/A";
 
-console.log("🏦 Extracted Withdrawal Details:", {
-  recipientName,
-  recipientAccount,
-  bankName
-});
+        console.log("🏦 Extracted Withdrawal Details:", {
+          recipientName,
+          recipientAccount,
+          bankName
+        });
 
-await sendWithdrawalEmailNotification(
-  pendingTx.user_id,
-  "success",
-  txAmount,
-  appFee,
-  totalDeduction,
-  recipientName,
-  recipientAccount,
-  bankName,
-  pendingTx.id
-);
+        await sendWithdrawalEmailNotification(
+          pendingTx.user_id,
+          "success",
+          txAmount,
+          appFee,
+          totalDeduction,
+          recipientName,
+          recipientAccount,
+          bankName,
+          pendingTx.id
+        );
+
         if (updateErr) {
           console.error("❌ Failed to update transaction:", updateErr);
           return NextResponse.json({ error: "Update failed" }, { status: 500 });
@@ -3417,14 +3352,6 @@ await sendWithdrawalEmailNotification(
           }
         }
 
-        // console.log(
-        //   `✅ ${
-        //     isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-        //   } marked success. User ${
-        //     pendingTx.user_id
-        //   } was already charged ₦${totalDeduction} during initiation.`
-        // );
-
         return NextResponse.json(
           {
             success: true,
@@ -3437,127 +3364,128 @@ await sendWithdrawalEmailNotification(
         );
       }
 
-     // ❌ FAILURE CASE — REFUND USER
-if (eventType === "payout_failed" || txStatus === "failed") {
-  console.log(
-    `❌ ${
-      isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-    } failed - refunding user and marking transaction failed`
-  );
+      // ❌ FAILURE CASE — REFUND USER
+      if (eventType === "payout_failed" || txStatus === "failed") {
+        console.log(
+          `❌ ${
+            isP2PTransfer ? "P2P Transfer" : "Withdrawal"
+          } failed - refunding user and marking transaction failed`
+        );
 
-  // 🆕 ADD: Extract error details from the payload
-  const errorDetail = 
-    payload.data?.transaction?.responseMessage ||
-    payload.data?.transaction?.narration ||
-    payload.error?.message ||
-    "Transaction failed";
+        // Extract error details from the payload
+        const errorDetail = 
+          payload.data?.transaction?.responseMessage ||
+          payload.data?.transaction?.narration ||
+          payload.error?.message ||
+          "Transaction failed";
 
-  const updatedExternalResponse = {
-    ...payload,
-    fee_breakdown: {
-      transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
-      nomba_fee: nombaFee,
-      app_fee: appFee,
-      total_fee: totalFees,
-      failed: true,
-    },
-  };
+        const updatedExternalResponse = {
+          ...payload,
+          fee_breakdown: {
+            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+            nomba_fee: nombaFee,
+            app_fee: appFee,
+            total_fee: totalFees,
+            failed: true,
+          },
+        };
 
-  // Update transaction to failed
-  const { error: updateError } = await supabase
-    .from("transactions")
-    .update({
-      status: "failed",
-      external_response: updatedExternalResponse,
-      reference: nombaTransactionId || pendingTx.reference,
-    })
-    .eq("id", pendingTx.id);
+        // Update transaction to failed
+        const { error: updateError } = await supabase
+          .from("transactions")
+          .update({
+            status: "failed",
+            external_response: updatedExternalResponse,
+            reference: nombaTransactionId || pendingTx.reference,
+          })
+          .eq("id", pendingTx.id);
 
-  // 🆕 UPDATED: Extract withdrawal details from the actual webhook payload
-  const withdrawalDetails =
-    pendingTx.external_response?.withdrawal_details || {};
+        // Extract withdrawal details from the actual webhook payload
+        const withdrawalDetails =
+          pendingTx.external_response?.withdrawal_details || {};
 
-  const recipientName = 
-    payload.data?.customer?.recipientName ||
-    withdrawalDetails.account_name || 
-    "N/A";
+        const recipientName = 
+          payload.data?.customer?.recipientName ||
+          withdrawalDetails.account_name || 
+          "N/A";
 
-  const recipientAccount = 
-    payload.data?.customer?.accountNumber ||
-    withdrawalDetails.account_number || 
-    "N/A";
+        const recipientAccount = 
+          payload.data?.customer?.accountNumber ||
+          withdrawalDetails.account_number || 
+          "N/A";
 
-  const bankName = 
-    payload.data?.customer?.bankName ||
-    withdrawalDetails.bank_name || 
-    "N/A";
+        const bankName = 
+          payload.data?.customer?.bankName ||
+          withdrawalDetails.bank_name || 
+          "N/A";
 
-  console.log("🏦 Extracted Withdrawal Details:", {
-    recipientName,
-    recipientAccount,
-    bankName,
-    errorDetail
-  });
+        console.log("🏦 Extracted Withdrawal Details:", {
+          recipientName,
+          recipientAccount,
+          bankName,
+          errorDetail
+        });
 
-  if (updateError) {
-    console.error("❌ Failed to update transaction status:", updateError);
-    return NextResponse.json(
-      { error: "Failed to update transaction" },
-      { status: 500 }
-    );
-  }
+        if (updateError) {
+          console.error("❌ Failed to update transaction status:", updateError);
+          return NextResponse.json(
+            { error: "Failed to update transaction" },
+            { status: 500 }
+          );
+        }
 
-  // Refund wallet via RPC since we deducted earlier
-  console.log("🔄 Refunding user wallet...");
-  const refundReference = `refund_${
-    nombaTransactionId || crypto.randomUUID()
-  }`;
-  const { error: refundErr } = await supabase.rpc(
-    "deduct_wallet_balance",
-    {
-      user_id: pendingTx.user_id,
-      amt: -totalDeduction, // negative = credit back
-      transaction_type: "credit",
-      reference: refundReference,
-      description: `Refund for failed ${
-        isP2PTransfer ? "P2P transfer" : "withdrawal"
-      } of ₦${txAmount}`,
-    }
-  );
+        // Refund wallet via RPC since we deducted earlier
+        console.log("🔄 Refunding user wallet...");
+        const refundReference = `refund_${
+          nombaTransactionId || crypto.randomUUID()
+        }`;
+        const { error: refundErr } = await supabase.rpc(
+          "deduct_wallet_balance",
+          {
+            user_id: pendingTx.user_id,
+            amt: -totalDeduction, // negative = credit back
+            transaction_type: "credit",
+            reference: refundReference,
+            description: `Refund for failed ${
+              isP2PTransfer ? "P2P transfer" : "withdrawal"
+            } of ₦${txAmount}`,
+          }
+        );
 
-  if (refundErr) {
-    console.error("❌ Refund RPC failed:", refundErr.message);
-    return NextResponse.json(
-      { error: "Failed to refund wallet via RPC" },
-      { status: 500 }
-    );
-  }
+        if (refundErr) {
+          console.error("❌ Refund RPC failed:", refundErr.message);
+          return NextResponse.json(
+            { error: "Failed to refund wallet via RPC" },
+            { status: 500 }
+          );
+        }
 
-  // 🆕 ADD: Send failure email with error details
-  await sendWithdrawalEmailNotification(
-    pendingTx.user_id,
-    "failed",
-    txAmount,
-    appFee,
-    totalDeduction,
-    recipientName,
-    recipientAccount,
-    bankName,
-    pendingTx.id,
-    errorDetail
-  );
+        // Send failure email with error details
+        await sendWithdrawalEmailNotification(
+          pendingTx.user_id,
+          "failed",
+          txAmount,
+          appFee,
+          totalDeduction,
+          recipientName,
+          recipientAccount,
+          bankName,
+          pendingTx.id,
+          errorDetail
+        );
 
-  console.log(
-    `✅ Refund completed successfully for user ${pendingTx.user_id}`
-  );
-  return NextResponse.json(
-    {
-      refunded: true,
-      transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
-    },
-    { status: 200 }
-  );
-}
+        console.log(
+          `✅ Refund completed successfully for user ${pendingTx.user_id}`
+        );
+        return NextResponse.json(
+          {
+            refunded: true,
+            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+          },
+          { status: 200 }
+        );
+      }
+
       console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
       return NextResponse.json(
         { message: "Ignored transfer event" },

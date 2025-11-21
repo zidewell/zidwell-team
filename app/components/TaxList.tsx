@@ -28,7 +28,6 @@ const TaxList: React.FC<Props> = ({ taxFiling, loading }) => {
   // const { userData } = useUserContextData();
   // const router = useRouter();
 
-  console.log("taxFiling", taxFiling )
 
   const downloadPdf = async (tax: TaxFiling) => {
     const fullHtml = `

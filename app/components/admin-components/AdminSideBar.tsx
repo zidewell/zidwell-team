@@ -64,7 +64,7 @@ const navSections = [
       { name: "Receipts", href: "/admin/receipts", icon: Receipt },
       { name: "Invoices", href: "/admin/invoices", icon: FileSpreadsheet },
       { name: "Contracts", href: "/admin/contracts", icon: FileText },
-      { name: "Tax Filings", href: "/admin/tax-filings", icon: ClipboardList },
+      { name: "Tax Manager", href: "/admin/tax-filings", icon: ClipboardList },
     ],
   },
   {

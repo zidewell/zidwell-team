@@ -18,7 +18,7 @@ import {
 const services: any = [
   {
     id: 1,
-    title: "Tax Filing",
+    title: "Tax Manager",
     description: "File your tax",
     icon: FileSpreadsheet,
     color: "bg-gray-50 text-gray-600",

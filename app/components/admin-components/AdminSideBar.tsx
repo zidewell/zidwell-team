@@ -23,12 +23,12 @@ import {
   LogOut,
   ChevronDown,
   ChevronRight,
+  ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 import { Button } from "../ui/button";
-
 
 const navSections = [
   {
@@ -140,6 +140,11 @@ export default function AdminSidebar() {
         text: error?.message || "An error occurred during logout.",
       });
     }
+  };
+
+  const handleBackToUserDashboard = () => {
+    setIsMobileMenuOpen(false);
+    router.push("/dashboard");
   };
 
   useEffect(() => {
@@ -273,6 +278,18 @@ export default function AdminSidebar() {
             </Link>
             <span className="text-xs text-gray-500">Management Console</span>
           </div>
+        </div>
+
+        {/* 🔙 Back to User Dashboard Button */}
+        <div className="p-4 border-b border-gray-200 bg-blue-50">
+          <Button
+            onClick={handleBackToUserDashboard}
+  
+            className="w-full cursor-pointer flex items-center justify-center gap-2 border  bg-white text-black  hover:text-white hover:bg-[#C29307]  transition-all duration-200"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back to User Dashboard</span>
+          </Button>
         </div>
 
         {/* 📂 Navigation Section */}

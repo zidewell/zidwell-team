@@ -9,6 +9,7 @@ import {
   User,
   FileText,
   Building,
+  Loader2,
 } from "lucide-react";
 import { useUserContextData } from "../context/userData";
 import { useEffect, useState } from "react";
@@ -16,11 +17,34 @@ import Loader from "./Loader";
 import DashboardSidebar from "./dashboard-sidebar";
 import DashboardHeader from "./dashboard-hearder";
 
+// Define transaction types that should show as positive amounts (incoming money)
+const inflowTypes = [
+  "deposit",
+  "virtual_account_deposit",
+  "card_deposit",
+  "p2p_received",
+  "referral",
+  "referral_reward",
+];
+
+// Define transaction types that should show as negative amounts (outgoing money)
+const outflowTypes = [
+  "withdrawal",
+  "debit",
+  "airtime",
+  "data",
+  "electricity",
+  "cable",
+  "transfer",
+  "p2p_transfer",
+];
+
 export default function TransactionDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const { transactions, userData, loading } = useUserContextData();
   const [transaction, setTransaction] = useState<any>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (params.id && transactions.length > 0) {
@@ -29,18 +53,105 @@ export default function TransactionDetailsPage() {
     }
   }, [params.id, transactions]);
 
-  const handleDownloadReceipt = () => {
+  // Function to determine if transaction amount should be negative
+  const isOutflow = (transactionType: string) => {
+    return outflowTypes.includes(transactionType?.toLowerCase());
+  };
+
+  // Function to format amount with proper sign
+  const formatAmount = (transaction: any) => {
+    const isOutflowTransaction = isOutflow(transaction.type);
+    const amount = Number(transaction.amount);
+
+    return {
+      display: `₦${amount.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+      })}`,
+      isOutflow: isOutflowTransaction,
+      rawAmount: amount,
+      signedDisplay: `${
+        isOutflowTransaction ? "-" : "+"
+      }₦${amount.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+      })}`,
+    };
+  };
+
+  const handleDownloadReceipt = async () => {
     if (!transaction) return;
 
- 
+    setDownloading(true);
+
     const amountInfo = formatAmount(transaction);
 
+    // Extract transaction data based on transaction type
+    const senderInfo = transaction.external_response?.data?.customer;
+    const receiverInfo = transaction.external_response?.data?.transaction;
+    const merchantInfo = transaction.external_response?.data?.merchant;
+    
+    // Determine if it's a withdrawal or deposit
+    const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
+    const isVirtualAccountDeposit = transaction.type?.toLowerCase() === "virtual_account_deposit";
+
+    // For withdrawals: sender is the platform, receiver is the customer
+    // For deposits: sender is the customer, receiver is the platform
+    let senderData, receiverData;
+
+    if (isWithdrawal) {
+      // Withdrawal: Platform sends money to customer
+      senderData = {
+        name: senderInfo?.senderName || "DIGITAL/Lohloh Abbalolo",
+        accountNumber: senderInfo?.accountNumber || "N/A",
+        bankName: senderInfo?.bankName || "N/A",
+        bankCode: senderInfo?.bankCode || "N/A"
+      };
+      
+      receiverData = {
+        name: senderInfo?.recipientName || "N/A",
+        accountNumber: senderInfo?.accountNumber || "N/A", 
+        bankName: senderInfo?.bankName || "N/A",
+        accountType: "External Account"
+      };
+    } else if (isVirtualAccountDeposit) {
+      // Virtual Account Deposit: Customer sends money to platform
+      senderData = {
+        name: senderInfo?.senderName || "N/A",
+        accountNumber: senderInfo?.accountNumber || "N/A",
+        bankName: senderInfo?.bankName || "N/A",
+        bankCode: senderInfo?.bankCode || "N/A"
+      };
+      
+      receiverData = {
+        name: receiverInfo?.aliasAccountName || "DIGITAL/Lohloh Abbalolo",
+        accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
+        accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
+        reference: receiverInfo?.aliasAccountReference || "N/A"
+      };
+    } else {
+      // Other transaction types (fallback)
+      senderData = {
+        name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
+        accountNumber: transaction?.sender?.accountNumber || senderInfo?.accountNumber || "N/A",
+        bankName: transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
+        bankCode: senderInfo?.bankCode || "N/A"
+      };
+      
+      receiverData = {
+        name: transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
+        accountNumber: transaction?.receiver?.accountNumber || receiverInfo?.aliasAccountNumber || "N/A",
+        accountType: receiverInfo?.aliasAccountType || "N/A",
+        reference: receiverInfo?.aliasAccountReference || "N/A"
+      };
+    }
+
     // Create receipt HTML content
-   const receiptHTML = `
+    const receiptHTML = `
   <!DOCTYPE html>
   <html>
     <head>
-      <title>Transaction Receipt - ${transaction.reference || transaction.id}</title>
+      <title>Transaction Receipt - ${
+        transaction.reference || transaction.id
+      }</title>
       <style>
         body {
           font-family: Arial, sans-serif;
@@ -138,7 +249,11 @@ export default function TransactionDetailsPage() {
             Reference: ${transaction.reference || transaction.id}
           </p>
           <p style="color:#9ca3af;margin:0;font-size:12px;">
-            ${new Date(transaction.created_at).toLocaleDateString()} • ${new Date(transaction.created_at).toLocaleTimeString()}
+            ${new Date(
+              transaction.created_at
+            ).toLocaleDateString()} • ${new Date(
+      transaction.created_at
+    ).toLocaleTimeString()}
           </p>
         </div>
 
@@ -152,7 +267,7 @@ export default function TransactionDetailsPage() {
               ? "#2563eb"
               : "#dc2626"
           };">
-            ${amountInfo.display}
+            ${amountInfo.signedDisplay}
           </div>
           <div style="color:#6b7280;font-size:12px;margin-top:4px;">
             ${
@@ -175,7 +290,9 @@ export default function TransactionDetailsPage() {
             </div>
             <div class="detail-row">
               <span class="detail-label">Description</span>
-              <span class="detail-value">${transaction.description || "N/A"}</span>
+              <span class="detail-value">${
+                transaction.description || "N/A"
+              }</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Status</span>
@@ -187,26 +304,58 @@ export default function TransactionDetailsPage() {
                   : "#dc2626"
               }">${transaction.status}</span>
             </div>
+            ${
+              transaction.fee > 0 
+                ? `<div class="detail-row">
+                    <span class="detail-label">Transaction Fee</span>
+                    <span class="detail-value">₦${Number(transaction.fee).toLocaleString("en-NG", {
+                      minimumFractionDigits: 2,
+                    })}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount
+                ? `<div class="detail-row">
+                    <span class="detail-label">Total Deduction</span>
+                    <span class="detail-value">₦${Number(transaction.total_deduction).toLocaleString("en-NG", {
+                      minimumFractionDigits: 2,
+                    })}</span>
+                  </div>`
+                : ""
+            }
           </div>
         </div>
 
         <!-- Sender Information -->
         <div class="section">
-          <div class="section-title">Sender Information</div>
+          <div class="section-title">${isWithdrawal ? "From (Platform)" : "Sender Information"}</div>
           <div class="details-card">
             <div class="detail-row">
               <span class="detail-label">Name</span>
-              <span class="detail-value">${transaction?.sender?.name || "N/A"}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Account Number</span>
-              <span class="detail-value">${transaction?.sender?.accountNumber || "N/A"}</span>
+              <span class="detail-value">${senderData.name}</span>
             </div>
             ${
-              transaction?.sender?.bankName
+              !isWithdrawal 
+                ? `<div class="detail-row">
+                    <span class="detail-label">Account Number</span>
+                    <span class="detail-value">${senderData.accountNumber}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              !isWithdrawal && senderData.bankName
                 ? `<div class="detail-row">
                     <span class="detail-label">Bank Name</span>
-                    <span class="detail-value">${transaction.sender.bankName}</span>
+                    <span class="detail-value">${senderData.bankName}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              !isWithdrawal && senderData.bankCode
+                ? `<div class="detail-row">
+                    <span class="detail-label">Bank Code</span>
+                    <span class="detail-value">${senderData.bankCode}</span>
                   </div>`
                 : ""
             }
@@ -215,26 +364,57 @@ export default function TransactionDetailsPage() {
 
         <!-- Receiver Information -->
         <div class="section">
-          <div class="section-title">Receiver Information</div>
+          <div class="section-title">${isWithdrawal ? "To (Recipient)" : "Receiver Information"}</div>
           <div class="details-card">
             <div class="detail-row">
-              <span class="detail-label">Name</span>
-              <span class="detail-value">${transaction?.receiver?.name || "N/A"}</span>
+              <span class="detail-label">${isWithdrawal ? "Recipient Name" : "Account Name"}</span>
+              <span class="detail-value">${receiverData.name}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Account Number</span>
-              <span class="detail-value">${transaction?.receiver?.accountNumber || "N/A"}</span>
+              <span class="detail-value">${receiverData.accountNumber}</span>
             </div>
             ${
-              transaction?.receiver?.bankName
+              receiverData.accountType
+                ? `<div class="detail-row">
+                    <span class="detail-label">Account Type</span>
+                    <span class="detail-value">${receiverData.accountType}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              receiverData.bankName
                 ? `<div class="detail-row">
                     <span class="detail-label">Bank Name</span>
-                    <span class="detail-value">${transaction.receiver.bankName}</span>
+                    <span class="detail-value">${receiverData.bankName}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              receiverData.reference
+                ? `<div class="detail-row">
+                    <span class="detail-label">Reference</span>
+                    <span class="detail-value">${receiverData.reference}</span>
                   </div>`
                 : ""
             }
           </div>
         </div>
+
+        <!-- Additional Transaction Info -->
+        ${
+          receiverInfo?.narration
+            ? `<div class="section">
+                <div class="section-title">Transaction Narration</div>
+                <div class="details-card">
+                  <div class="detail-row">
+                    <span class="detail-label">Narration</span>
+                    <span class="detail-value">${receiverInfo.narration}</span>
+                  </div>
+                </div>
+              </div>`
+            : ""
+        }
 
         <!-- Footer -->
         <div class="footer">
@@ -246,34 +426,54 @@ export default function TransactionDetailsPage() {
   </html>
 `;
 
+    try {
+      // Call your PDF generation API
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ html: receiptHTML }),
+      });
 
-    // Create a Blob and download the file
-    const blob = new Blob([receiptHTML], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transaction-receipt-${
-      transaction.reference || transaction.id
-    }.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+      if (!response.ok) {
+        throw new Error("Failed to generate PDF");
+      }
 
-  // Function to format amount with proper sign
-  const formatAmount = (tx: any) => {
-    const outflowTypes = ["withdrawal", "debit", "transfer", "p2p_transfer"];
-    const isOutflowTransaction = outflowTypes.includes(tx.type?.toLowerCase());
-    const amount = Number(tx.amount);
+      // Convert the response to a blob
+      const pdfBlob = await response.blob();
 
-    return {
-      display: `₦${amount.toLocaleString("en-NG", {
-        minimumFractionDigits: 2,
-      })}`,
-      isOutflow: isOutflowTransaction,
-      rawAmount: amount,
-    };
+      // Create download link for PDF
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transaction-receipt-${
+        transaction.reference || transaction.id
+      }.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      // Fallback to HTML download if PDF generation fails
+      const blob = new Blob([receiptHTML], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transaction-receipt-${
+        transaction.reference || transaction.id
+      }.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // Optional: Show error message to user
+      alert("PDF generation failed. Downloading as HTML instead.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   if (loading) {
@@ -283,8 +483,6 @@ export default function TransactionDetailsPage() {
       </div>
     );
   }
-
-  // console.log("transaction details", transaction);
 
   if (!transaction) {
     return (
@@ -311,6 +509,62 @@ export default function TransactionDetailsPage() {
   }
 
   const amountInfo = formatAmount(transaction);
+  
+  // Extract transaction data based on transaction type
+  const senderInfo = transaction.external_response?.data?.customer;
+  const receiverInfo = transaction.external_response?.data?.transaction;
+  
+  // Determine if it's a withdrawal or deposit
+  const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
+  const isVirtualAccountDeposit = transaction.type?.toLowerCase() === "virtual_account_deposit";
+
+  // Prepare display data for the UI
+  let displaySenderData, displayReceiverData;
+
+  if (isWithdrawal) {
+    // Withdrawal: Platform sends money to customer - Only show name for platform
+    displaySenderData = {
+      name: senderInfo?.senderName || "DIGITAL/Lohloh Abbalolo",
+      // Don't include account details for platform in withdrawals
+    };
+    
+    displayReceiverData = {
+      name: senderInfo?.recipientName || "N/A",
+      accountNumber: senderInfo?.accountNumber || "N/A", 
+      bankName: senderInfo?.bankName || "N/A",
+      accountType: "External Account"
+    };
+  } else if (isVirtualAccountDeposit) {
+    // Virtual Account Deposit: Customer sends money to platform
+    displaySenderData = {
+      name: senderInfo?.senderName || "N/A",
+      accountNumber: senderInfo?.accountNumber || "N/A",
+      bankName: senderInfo?.bankName || "N/A",
+      bankCode: senderInfo?.bankCode || "N/A"
+    };
+    
+    displayReceiverData = {
+      name: receiverInfo?.aliasAccountName || "DIGITAL/Lohloh Abbalolo",
+      accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
+      accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
+      reference: receiverInfo?.aliasAccountReference || "N/A"
+    };
+  } else {
+    // Other transaction types (fallback)
+    displaySenderData = {
+      name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
+      accountNumber: transaction?.sender?.accountNumber || senderInfo?.accountNumber || "N/A",
+      bankName: transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
+      bankCode: senderInfo?.bankCode || "N/A"
+    };
+    
+    displayReceiverData = {
+      name: transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
+      accountNumber: transaction?.receiver?.accountNumber || receiverInfo?.aliasAccountNumber || "N/A",
+      accountType: receiverInfo?.aliasAccountType || "N/A",
+      reference: receiverInfo?.aliasAccountReference || "N/A"
+    };
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -346,10 +600,15 @@ export default function TransactionDetailsPage() {
               {transaction.status?.toLowerCase() === "success" && (
                 <Button
                   onClick={handleDownloadReceipt}
+                  disabled={downloading}
                   className="flex items-center gap-2 bg-[#C29307] text-white hover:bg-[#a87e06] w-full sm:w-auto justify-center"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Download Receipt</span>
+                  {downloading ? (
+                    <Loader2 className="animate-spin w-4 h-4" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{downloading ? "Downloading..." : "Download Receipt"}</span>
                 </Button>
               )}
             </div>
@@ -369,14 +628,12 @@ export default function TransactionDetailsPage() {
                     <div className="text-center">
                       <div
                         className={`text-2xl sm:text-3xl lg:text-4xl font-bold ${
-                          transaction.status?.toLowerCase() === "success"
-                            ? "text-green-600"
-                            : transaction.status?.toLowerCase() === "pending"
-                            ? "text-blue-600"
-                            : "text-red-600"
+                          amountInfo.isOutflow
+                            ? "text-red-500"
+                            : "text-green-600"
                         }`}
                       >
-                        {amountInfo.display}
+                        {amountInfo.signedDisplay}
                       </div>
 
                       <p className="text-gray-600 mt-2 text-sm sm:text-base capitalize">
@@ -390,84 +647,110 @@ export default function TransactionDetailsPage() {
                   </CardContent>
                 </Card>
 
-                {/* Recipient Account Info */}
+                {/* Sender Information */}
+                {displaySenderData && (
+                  <Card>
+                    <CardHeader className="flex flex-row items-center gap-2 pb-3">
+                      <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                        {isWithdrawal ? "From (Platform)" : "Sender Information"}
+                      </h2>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                        <span className="text-gray-600 text-sm sm:text-base">
+                          Name
+                        </span>
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          {displaySenderData.name || "N/A"}
+                        </span>
+                      </div>
+                      {/* Only show account details for non-withdrawal transactions */}
+                      {!isWithdrawal && (
+                        <>
+                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                            <span className="text-gray-600 text-sm sm:text-base">
+                              Account Number
+                            </span>
+                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                              {displaySenderData.accountNumber || "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                            <span className="text-gray-600 text-sm sm:text-base">
+                              Bank Name
+                            </span>
+                            <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                              {displaySenderData.bankName || "N/A"}
+                            </span>
+                          </div>
+                          {displaySenderData.bankCode && (
+                            <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                              <span className="text-gray-600 text-sm sm:text-base">
+                                Bank Code
+                              </span>
+                              <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                                {displaySenderData.bankCode}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
 
-                {transaction?.receiver && (
-                <Card>
-                  <CardHeader className="flex flex-row items-center gap-2 pb-3">
-                    <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                      Recipient Account Info
-                    </h2>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex  flex-row justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
-                        Account Name
-                      </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                        {transaction?.receiver.name || "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex  flex-row justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
-                        Account Number
-                      </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                        {transaction?.receiver.accountNumber ||
-                          userData?.account_number ||
-                          "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex  flex-row justify-between gap-1 xs:gap-2">
-                      <span className="text-gray-600 text-sm sm:text-base">
-                        Bank name
-                      </span>
-                      <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                        {transaction?.receiver.bankName || "N/A"}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-)}
-                {/* Recipient Information (if available) */}
-                {(transaction?.recipient_name ||
-                  transaction?.recipient_account) && (
+                {/* Receiver Information */}
+                {displayReceiverData && (
                   <Card>
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <Building className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                        Recipient Information
+                        {isWithdrawal ? "To (Recipient)" : "Receiver Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {transaction.recipient_name && (
-                        <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                          <span className="text-gray-600 text-sm sm:text-base">
-                            Recipient Name
-                          </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {transaction.recipient_name}
-                          </span>
-                        </div>
-                      )}
-                      {transaction.recipient_account && (
-                        <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
-                          <span className="text-gray-600 text-sm sm:text-base">
-                            Account Number
-                          </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                            {transaction.recipient_account}
-                          </span>
-                        </div>
-                      )}
-                      {transaction.recipient_bank && (
-                        <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
+                      <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                        <span className="text-gray-600 text-sm sm:text-base">
+                          {isWithdrawal ? "Recipient Name" : "Account Name"}
+                        </span>
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          {displayReceiverData.name || "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                        <span className="text-gray-600 text-sm sm:text-base">
+                          Account Number
+                        </span>
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          {displayReceiverData.accountNumber || "N/A"}
+                        </span>
+                      </div>
+                      <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                        <span className="text-gray-600 text-sm sm:text-base">
+                          {isWithdrawal ? "Account Type" : "Account Type"}
+                        </span>
+                        <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                          {displayReceiverData.accountType || "N/A"}
+                        </span>
+                      </div>
+                      {displayReceiverData.bankName && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">
                             Bank Name
                           </span>
-                          <span className="font-medium text-sm sm:text-base text-right xs:text-left">
-                            {transaction.recipient_bank}
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                            {displayReceiverData.bankName}
+                          </span>
+                        </div>
+                      )}
+                      {displayReceiverData.reference && (
+                        <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                          <span className="text-gray-600 text-sm sm:text-base">
+                            Reference
+                          </span>
+                          <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
+                            {displayReceiverData.reference}
                           </span>
                         </div>
                       )}
@@ -528,8 +811,7 @@ export default function TransactionDetailsPage() {
                       </span>
                     </div>
 
-
-                    {transaction.fee || transaction.fee === 0 && (
+                    {transaction.fee || transaction.fee === 0 ? (
                       <div className="flex items-center justify-between gap-1 xs:gap-2">
                         <span className="text-gray-600 text-sm sm:text-base">
                           Transaction Fee
@@ -541,7 +823,21 @@ export default function TransactionDetailsPage() {
                           })}
                         </span>
                       </div>
-                    )}
+                    ) : null}
+
+                    {transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount ? (
+                      <div className="flex items-center justify-between gap-1 xs:gap-2">
+                        <span className="text-gray-600 text-sm sm:text-base">
+                          Total Deduction
+                        </span>
+                        <span className="font-medium text-sm ">
+                          ₦
+                          {Number(transaction.total_deduction).toLocaleString("en-NG", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
 

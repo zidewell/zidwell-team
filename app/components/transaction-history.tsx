@@ -8,6 +8,7 @@ import {
   X,
   Download,
   Eye,
+  Loader2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader } from "./ui/card";
@@ -52,6 +53,7 @@ const outflowTypes = [
 
 export default function TransactionHistory() {
   const [filter, setFilter] = useState("All transactions");
+  const [downloadingReceipts, setDownloadingReceipts] = useState<Set<string>>(new Set());
   const router = useRouter();
 
   const { userData, loading, transactions, searchTerm, setSearchTerm } =
@@ -75,10 +77,74 @@ export default function TransactionHistory() {
   };
 
   // Function to handle downloading receipt
-  const handleDownloadReceipt = (transaction: any) => {
+  const handleDownloadReceipt = async (transaction: any) => {
+    const transactionId = transaction.id;
+    
+    // Add to downloading set
+    setDownloadingReceipts(prev => new Set(prev).add(transactionId));
+
     const amountInfo = formatAmount(transaction);
 
-    // Create receipt HTML content
+    // Extract transaction data based on transaction type
+    const senderInfo = transaction.external_response?.data?.customer;
+    const receiverInfo = transaction.external_response?.data?.transaction;
+    const merchantInfo = transaction.external_response?.data?.merchant;
+    
+    // Determine if it's a withdrawal or deposit
+    const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
+    const isVirtualAccountDeposit = transaction.type?.toLowerCase() === "virtual_account_deposit";
+
+    // For withdrawals: sender is the platform, receiver is the customer
+    // For deposits: sender is the customer, receiver is the platform
+    let senderData, receiverData;
+
+    if (isWithdrawal) {
+      // Withdrawal: Platform sends money to customer
+      senderData = {
+        name: senderInfo?.senderName || "DIGITAL/Lohloh Abbalolo",
+        accountNumber: senderInfo?.accountNumber || "N/A",
+        bankName: senderInfo?.bankName || "N/A",
+        bankCode: senderInfo?.bankCode || "N/A"
+      };
+      
+      receiverData = {
+        name: senderInfo?.recipientName || "N/A",
+        accountNumber: senderInfo?.accountNumber || "N/A", 
+        bankName: senderInfo?.bankName || "N/A",
+        accountType: "External Account"
+      };
+    } else if (isVirtualAccountDeposit) {
+      // Virtual Account Deposit: Customer sends money to platform
+      senderData = {
+        name: senderInfo?.senderName || "N/A",
+        accountNumber: senderInfo?.accountNumber || "N/A",
+        bankName: senderInfo?.bankName || "N/A",
+        bankCode: senderInfo?.bankCode || "N/A"
+      };
+      
+      receiverData = {
+        name: receiverInfo?.aliasAccountName || "DIGITAL/Lohloh Abbalolo",
+        accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
+        accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
+        reference: receiverInfo?.aliasAccountReference || "N/A"
+      };
+    } else {
+      // Other transaction types (fallback)
+      senderData = {
+        name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
+        accountNumber: transaction?.sender?.accountNumber || senderInfo?.accountNumber || "N/A",
+        bankName: transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
+        bankCode: senderInfo?.bankCode || "N/A"
+      };
+      
+      receiverData = {
+        name: transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
+        accountNumber: transaction?.receiver?.accountNumber || receiverInfo?.aliasAccountNumber || "N/A",
+        accountType: receiverInfo?.aliasAccountType || "N/A",
+        reference: receiverInfo?.aliasAccountReference || "N/A"
+      };
+    }
+
     // Create receipt HTML content
     const receiptHTML = `
   <!DOCTYPE html>
@@ -202,7 +268,7 @@ export default function TransactionHistory() {
               ? "#2563eb"
               : "#dc2626"
           };">
-            ${amountInfo.display}
+            ${amountInfo.signedDisplay}
           </div>
           <div style="color:#6b7280;font-size:12px;margin-top:4px;">
             ${
@@ -239,30 +305,54 @@ export default function TransactionHistory() {
                   : "#dc2626"
               }">${transaction.status}</span>
             </div>
+            ${
+              transaction.fee > 0 
+                ? `<div class="detail-row">
+                    <span class="detail-label">Transaction Fee</span>
+                    <span class="detail-value">₦${Number(transaction.fee).toLocaleString("en-NG", {
+                      minimumFractionDigits: 2,
+                    })}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount
+                ? `<div class="detail-row">
+                    <span class="detail-label">Total Deduction</span>
+                    <span class="detail-value">₦${Number(transaction.total_deduction).toLocaleString("en-NG", {
+                      minimumFractionDigits: 2,
+                    })}</span>
+                  </div>`
+                : ""
+            }
           </div>
         </div>
 
         <!-- Sender Information -->
         <div class="section">
-          <div class="section-title">Sender Information</div>
+          <div class="section-title">${isWithdrawal ? "From (Platform)" : "Sender Information"}</div>
           <div class="details-card">
             <div class="detail-row">
               <span class="detail-label">Name</span>
-              <span class="detail-value">${
-                transaction?.sender?.name || "N/A"
-              }</span>
+              <span class="detail-value">${senderData.name}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Account Number</span>
-              <span class="detail-value">${
-                transaction?.sender?.accountNumber || "N/A"
-              }</span>
+              <span class="detail-value">${senderData.accountNumber}</span>
             </div>
             ${
-              transaction?.sender?.bankName
+              senderData.bankName
                 ? `<div class="detail-row">
                     <span class="detail-label">Bank Name</span>
-                    <span class="detail-value">${transaction.sender.bankName}</span>
+                    <span class="detail-value">${senderData.bankName}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              senderData.bankCode
+                ? `<div class="detail-row">
+                    <span class="detail-label">Bank Code</span>
+                    <span class="detail-value">${senderData.bankCode}</span>
                   </div>`
                 : ""
             }
@@ -271,30 +361,57 @@ export default function TransactionHistory() {
 
         <!-- Receiver Information -->
         <div class="section">
-          <div class="section-title">Receiver Information</div>
+          <div class="section-title">${isWithdrawal ? "To (Recipient)" : "Receiver Information"}</div>
           <div class="details-card">
             <div class="detail-row">
-              <span class="detail-label">Name</span>
-              <span class="detail-value">${
-                transaction?.receiver?.name || "N/A"
-              }</span>
+              <span class="detail-label">${isWithdrawal ? "Recipient Name" : "Account Name"}</span>
+              <span class="detail-value">${receiverData.name}</span>
             </div>
             <div class="detail-row">
               <span class="detail-label">Account Number</span>
-              <span class="detail-value">${
-                transaction?.receiver?.accountNumber || "N/A"
-              }</span>
+              <span class="detail-value">${receiverData.accountNumber}</span>
             </div>
             ${
-              transaction?.receiver?.bankName
+              receiverData.accountType
+                ? `<div class="detail-row">
+                    <span class="detail-label">Account Type</span>
+                    <span class="detail-value">${receiverData.accountType}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              receiverData.bankName
                 ? `<div class="detail-row">
                     <span class="detail-label">Bank Name</span>
-                    <span class="detail-value">${transaction.receiver.bankName}</span>
+                    <span class="detail-value">${receiverData.bankName}</span>
+                  </div>`
+                : ""
+            }
+            ${
+              receiverData.reference
+                ? `<div class="detail-row">
+                    <span class="detail-label">Reference</span>
+                    <span class="detail-value">${receiverData.reference}</span>
                   </div>`
                 : ""
             }
           </div>
         </div>
+
+        <!-- Additional Transaction Info -->
+        ${
+          receiverInfo?.narration
+            ? `<div class="section">
+                <div class="section-title">Transaction Narration</div>
+                <div class="details-card">
+                  <div class="detail-row">
+                    <span class="detail-label">Narration</span>
+                    <span class="detail-value">${receiverInfo.narration}</span>
+                  </div>
+                </div>
+              </div>`
+            : ""
+        }
 
         <!-- Footer -->
         <div class="footer">
@@ -306,19 +423,62 @@ export default function TransactionHistory() {
   </html>
 `;
 
-    // Create a Blob and download the file directly
-    const blob = new Blob([receiptHTML], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `transaction-receipt-${
-      transaction.reference || transaction.id
-    }.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      // Call your PDF generation API
+      const response = await fetch('/api/generate-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ html: receiptHTML }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Convert the response to a blob
+      const pdfBlob = await response.blob();
+      
+      // Create download link for PDF
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transaction-receipt-${
+        transaction.reference || transaction.id
+      }.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      // Fallback to HTML download if PDF generation fails
+      const blob = new Blob([receiptHTML], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transaction-receipt-${
+        transaction.reference || transaction.id
+      }.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      // Optional: Show error message to user
+      alert('PDF generation failed. Downloading as HTML instead.');
+    } finally {
+      // Remove from downloading set
+      setDownloadingReceipts(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(transactionId);
+        return newSet;
+      });
+    }
   };
+
   // Function to format amount with proper sign
   const formatAmount = (transaction: any) => {
     const isOutflowTransaction = isOutflow(transaction.type);
@@ -326,6 +486,9 @@ export default function TransactionHistory() {
 
     return {
       display: `₦${amount.toLocaleString("en-NG", {
+        minimumFractionDigits: 2,
+      })}`,
+      signedDisplay: `${isOutflowTransaction ? "-" : "+"}₦${amount.toLocaleString("en-NG", {
         minimumFractionDigits: 2,
       })}`,
       isOutflow: isOutflowTransaction,
@@ -336,6 +499,11 @@ export default function TransactionHistory() {
   // Check if transaction is eligible for receipt (successful transactions)
   const isEligibleForReceipt = (transaction: any) => {
     return transaction.status?.toLowerCase() === "success";
+  };
+
+  // Check if receipt is currently being downloaded for a transaction
+  const isDownloadingReceipt = (transactionId: string) => {
+    return downloadingReceipts.has(transactionId);
   };
 
   return (
@@ -364,7 +532,7 @@ export default function TransactionHistory() {
                   className="flex items-center gap-2 bg-transparent w-full sm:w-auto justify-between"
                 >
                   <span className="truncate">{filter}</span>
-                  <ChevronDown className="w-4 h-4 flex-shrink-0" />
+                  <ChevronDown className="w-4 h-4 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-[200px]">
@@ -399,6 +567,8 @@ export default function TransactionHistory() {
         ) : (
           filteredTransactions.map((tx) => {
             const amountInfo = formatAmount(tx);
+            const isDownloading = isDownloadingReceipt(tx.id);
+            
             return (
               <div
                 key={tx.id}
@@ -522,10 +692,17 @@ export default function TransactionHistory() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDownloadReceipt(tx)}
+                        disabled={isDownloading}
                         className="flex items-center gap-2 flex-1 sm:flex-none justify-center"
                       >
-                        <Download className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden xs:inline">Download</span>
+                        {isDownloading ? (
+                          <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                        ) : (
+                          <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                        )}
+                        <span className="hidden xs:inline">
+                          {isDownloading ? "Downloading..." : "Download"}
+                        </span>
                       </Button>
                     )}
                   </div>

@@ -82,11 +82,11 @@
 //       html: `
 //         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 //           <p>${greeting}</p>
-          
+
 //           <h3 style="color: #22c55e;">
 //             ✅ Virtual Account Deposit Successful
 //           </h3>
-          
+
 //           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
 //             <h4 style="margin-top: 0;">Transaction Details:</h4>
 //             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
@@ -97,13 +97,13 @@
 //             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
 //             <p><strong>Status:</strong> <span style="color: #22c55e; font-weight: bold;">Success</span></p>
 //           </div>
-          
+
 //           <p style="color: #64748b;">
 //             The funds have been credited to your Zidwell wallet and are ready to use.
 //           </p>
-          
+
 //           <p>Thank you for using Zidwell!</p>
-          
+
 //           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
 //           <p style="color: #64748b; font-size: 14px;">
 //             Best regards,<br>
@@ -223,11 +223,11 @@
 //       html: `
 //         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 //           <p>${greeting}</p>
-          
+
 //           <h3 style="color: ${statusColor};">
 //             ${statusIcon} ${statusText}
 //           </h3>
-          
+
 //           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
 //             <h4 style="margin-top: 0;">Transaction Details:</h4>
 //             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
@@ -249,7 +249,7 @@
 //                 : ""
 //             }
 //           </div>
-          
+
 //           ${
 //             status === "success"
 //               ? `<p style="color: #64748b;">
@@ -258,7 +258,7 @@
 //                 </p>`
 //               : ""
 //           }
-          
+
 //           ${
 //             status === "failed" &&
 //             (errorDetail?.includes("refunded") ||
@@ -266,9 +266,9 @@
 //               ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
 //               : ""
 //           }
-          
+
 //           <p>Thank you for using Zidwell!</p>
-          
+
 //           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
 //           <p style="color: #64748b; font-size: 14px;">
 //             Best regards,<br>
@@ -588,7 +588,6 @@
 //       if (isInvoicePayment) {
 //         // console.log("🧾 Processing INVOICE payment...");
 
-  
 //         const txStatus =
 //           payload?.data?.transaction?.status || payload.event_type; // Use the actual webhook event_type
 
@@ -665,7 +664,6 @@
 //         try {
 //           let invoiceId: string | null = null;
 
-      
 //           invoiceId = payload?.data?.order?.metadata?.invoiceId;
 
 //           if (!invoiceId && payload?.data?.order?.callbackUrl) {
@@ -1109,7 +1107,7 @@
 //           "⚠️ Could not determine userId for deposit. referenceToUse:",
 //           referenceToUse
 //         );
-       
+
 //         if (aliasAccountReference) {
 //           userId = aliasAccountReference;
 //           console.log("   - Using aliasAccountReference as userId:", userId);
@@ -1735,8 +1733,6 @@
 //   }
 // }
 
-
-
 // updated webhook
 // app/api/webhook/route.ts
 import { NextRequest, NextResponse } from "next/server";
@@ -1871,11 +1867,13 @@ async function sendWithdrawalEmailNotification(
   userId: string,
   status: "success" | "failed",
   amount: number,
-  fee: number,
+  nombaFee: number,
+  appFee: number,
   totalDeduction: number,
   recipientName: string,
   recipientAccount: string,
   bankName: string,
+  narration?: string,
   transactionId?: string,
   errorDetail?: string
 ) {
@@ -1889,35 +1887,39 @@ async function sendWithdrawalEmailNotification(
 
     if (error || !user) {
       console.error(
-        "Failed to fetch user for withdrawal email notification:",
+        "Failed to fetch user for Transfer email notification:",
         error
       );
       return;
     }
 
+    const totalFee = nombaFee + appFee;
     const subject =
       status === "success"
-        ? `Withdrawal Successful - ₦${amount.toLocaleString()}`
-        : `Withdrawal Failed - ₦${amount.toLocaleString()}`;
+        ? `Transfer Successful - ₦${amount.toLocaleString()}`
+        : `Transfer Failed - ₦${amount.toLocaleString()}`;
 
     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
 
     const successBody = `
 ${greeting}
 
-Your withdrawal was successful!
+Your transfer was successful!
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
-• Fee: ₦${fee.toLocaleString()}
+• Nomba Fee: ₦${nombaFee.toLocaleString()}
+• App Fee: ₦${appFee.toLocaleString()}
+• Total Fee: ₦${totalFee.toLocaleString()}
 • Total Deducted: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
+• Narration: ${narration || "N/A"}
 • Transaction ID: ${transactionId || "N/A"}
 • Date: ${new Date().toLocaleString()}
 
-The funds should reflect in your bank account shortly.
+The funds should reflect in your beneficiary's bank account shortly.
 
 Thank you for using Zidwell!
 
@@ -1928,15 +1930,18 @@ Zidwell Team
     const failedBody = `
 ${greeting}
 
-Your withdrawal failed.
+Your transfer failed.
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
-• Fee: ₦${fee.toLocaleString()}
+• Nomba Fee: ₦${nombaFee.toLocaleString()}
+• App Fee: ₦${appFee.toLocaleString()}
+• Total Fee: ₦${totalFee.toLocaleString()}
 • Total Deducted: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
+• Narration: ${narration || "N/A"}
 • Transaction ID: ${transactionId || "N/A"}
 • Date: ${new Date().toLocaleString()}
 • Status: ${errorDetail || "Transaction failed"}
@@ -1956,7 +1961,7 @@ Zidwell Team
     const statusColor = status === "success" ? "#22c55e" : "#ef4444";
     const statusIcon = status === "success" ? "✅" : "❌";
     const statusText =
-      status === "success" ? "Withdrawal Successful" : "Withdrawal Failed";
+      status === "success" ? "Transfer Successful" : "Transfer Failed";
 
     await transporter.sendMail({
       from: process.env.EMAIL_FROM || '"Zidwell" <notifications@zidwell.com>',
@@ -1974,11 +1979,14 @@ Zidwell Team
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">Transaction Details:</h4>
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Fee:</strong> ₦${fee.toLocaleString()}</p>
+            <p><strong>Nomba Fee:</strong> ₦${nombaFee.toLocaleString()}</p>
+            <p><strong>App Fee:</strong> ₦${appFee.toLocaleString()}</p>
+            <p><strong>Total Fee:</strong> ₦${totalFee.toLocaleString()}</p>
             <p><strong>Total Deducted:</strong> ₦${totalDeduction.toLocaleString()}</p>
             <p><strong>Recipient Name:</strong> ${recipientName}</p>
             <p><strong>Account Number:</strong> ${recipientAccount}</p>
             <p><strong>Bank:</strong> ${bankName}</p>
+            <p><strong>Narration:</strong> ${narration || "N/A"}</p>
             <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
             <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
@@ -1997,7 +2005,7 @@ Zidwell Team
             status === "success"
               ? `<p style="color: #64748b;">
                   The funds should reflect in your bank account shortly.
-                  If there are any issues, please contact our support team.
+                  If there are any dispute, please contact our support team.
                 </p>`
               : ""
           }
@@ -2338,7 +2346,7 @@ export async function POST(req: NextRequest) {
           eventType,
           txStatus,
           orderReference,
-          event_type: payload.event_type
+          event_type: payload.event_type,
         });
 
         const isPaymentSuccess =
@@ -2468,7 +2476,7 @@ export async function POST(req: NextRequest) {
             invoice_id: invoice.invoice_id,
             total_amount: invoice.total_amount,
             paid_amount: invoice.paid_amount,
-            status: invoice.status
+            status: invoice.status,
           });
 
           // Check for duplicate payments
@@ -2481,7 +2489,9 @@ export async function POST(req: NextRequest) {
             .maybeSingle();
 
           if (existingPayment) {
-            console.log("⚠️ Duplicate payment detected, updating invoice totals only");
+            console.log(
+              "⚠️ Duplicate payment detected, updating invoice totals only"
+            );
             await updateInvoiceTotals(invoice, transactionAmount);
             return NextResponse.json({ success: true }, { status: 200 });
           }
@@ -2537,7 +2547,9 @@ export async function POST(req: NextRequest) {
 
           // CREATE TRANSACTION RECORD FOR THE INVOICE CREATOR
           try {
-            const transactionDescription = `${customerName || "Customer"} paid ₦${paidAmount} for invoice ${invoice.invoice_id}`;
+            const transactionDescription = `${
+              customerName || "Customer"
+            } paid ₦${paidAmount} for invoice ${invoice.invoice_id}`;
 
             const { data: transaction, error: transactionError } =
               await supabase
@@ -2843,7 +2855,7 @@ export async function POST(req: NextRequest) {
           "⚠️ Could not determine userId for deposit. referenceToUse:",
           referenceToUse
         );
-       
+
         if (aliasAccountReference) {
           userId = aliasAccountReference;
           console.log("   - Using aliasAccountReference as userId:", userId);
@@ -3099,15 +3111,15 @@ export async function POST(req: NextRequest) {
         payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
         "Your Virtual Account";
 
-      const senderName = 
+      const senderName =
         payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
         "Customer";
 
       console.log("🏦 Extracted Virtual Account Details:", {
         bankName,
-        accountNumber, 
+        accountNumber,
         accountName,
-        senderName
+        senderName,
       });
 
       if (userId) {
@@ -3118,7 +3130,7 @@ export async function POST(req: NextRequest) {
           bankName,
           accountNumber,
           accountName,
-          senderName 
+          senderName
         );
       }
 
@@ -3251,40 +3263,41 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
 
-        // Extract withdrawal details from the actual webhook payload
         const withdrawalDetails =
           pendingTx.external_response?.withdrawal_details || {};
 
-        const recipientName = 
-          payload.data?.customer?.recipientName || // "ibrahim lawal abbalolo" from your sample
-          withdrawalDetails.account_name || 
+        const recipientName =
+          payload.data?.customer?.recipientName ||
+          withdrawalDetails.account_name ||
           "N/A";
 
-        const recipientAccount = 
-          payload.data?.customer?.accountNumber || // "9132316236" from your sample
-          withdrawalDetails.account_number || 
+        const recipientAccount =
+          payload.data?.customer?.accountNumber ||
+          withdrawalDetails.account_number ||
           "N/A";
 
-        const bankName = 
-          payload.data?.customer?.bankName || // "Paycom (Opay)" from your sample
-          withdrawalDetails.bank_name || 
+        const bankName =
+          payload.data?.customer?.bankName ||
+          withdrawalDetails.bank_name ||
           "N/A";
 
         console.log("🏦 Extracted Withdrawal Details:", {
           recipientName,
           recipientAccount,
-          bankName
+          bankName,
         });
 
         await sendWithdrawalEmailNotification(
           pendingTx.user_id,
           "success",
           txAmount,
+          nombaFee,
           appFee,
           totalDeduction,
           recipientName,
           recipientAccount,
           bankName,
+          pendingTx.narration,
           pendingTx.id
         );
 
@@ -3373,7 +3386,7 @@ export async function POST(req: NextRequest) {
         );
 
         // Extract error details from the payload
-        const errorDetail = 
+        const errorDetail =
           payload.data?.transaction?.responseMessage ||
           payload.data?.transaction?.narration ||
           payload.error?.message ||
@@ -3404,26 +3417,26 @@ export async function POST(req: NextRequest) {
         const withdrawalDetails =
           pendingTx.external_response?.withdrawal_details || {};
 
-        const recipientName = 
+        const recipientName =
           payload.data?.customer?.recipientName ||
-          withdrawalDetails.account_name || 
+          withdrawalDetails.account_name ||
           "N/A";
 
-        const recipientAccount = 
+        const recipientAccount =
           payload.data?.customer?.accountNumber ||
-          withdrawalDetails.account_number || 
+          withdrawalDetails.account_number ||
           "N/A";
 
-        const bankName = 
+        const bankName =
           payload.data?.customer?.bankName ||
-          withdrawalDetails.bank_name || 
+          withdrawalDetails.bank_name ||
           "N/A";
 
         console.log("🏦 Extracted Withdrawal Details:", {
           recipientName,
           recipientAccount,
           bankName,
-          errorDetail
+          errorDetail,
         });
 
         if (updateError) {
@@ -3465,11 +3478,13 @@ export async function POST(req: NextRequest) {
           pendingTx.user_id,
           "failed",
           txAmount,
+          nombaFee,
           appFee,
           totalDeduction,
           recipientName,
           recipientAccount,
           bankName,
+          pendingTx.narration,
           pendingTx.id,
           errorDetail
         );
@@ -3504,8 +3519,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
 
 // export async function POST(req: Request) {
 //   const timestamp = req.headers.get("nomba-timestamp");

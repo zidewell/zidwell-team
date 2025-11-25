@@ -70,11 +70,6 @@ export default function PinPopOver({
     setPin(new Array(inputCount).fill(""));
   };
 
-  // ✅ Get display value - show * for entered digits, empty for no input
-  const getDisplayValue = (digit: string) => {
-    return digit ? "*" : "";
-  };
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -122,11 +117,11 @@ export default function PinPopOver({
                       ref={(el) => {
                         inputsRef.current[i] = el;
                       }}
-                      type="text"
+                      type="password" 
                       inputMode="numeric" 
                       pattern="[0-9]*" 
                       maxLength={1}
-                      value={getDisplayValue(digit)}
+                      value={digit}
                       onChange={(e) => {
                         const val = e.target.value.replace(/\D/g, ""); 
                         handleInput(i, val);

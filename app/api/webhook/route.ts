@@ -3272,10 +3272,17 @@ export async function POST(req: NextRequest) {
           withdrawalDetails.bank_name ||
           "N/A";
 
+        // 🔥 FIX: Extract narration from payload
+        const narration =
+          payload.data?.transaction?.narration || // "my money" from your payload
+          pendingTx.narration || // Fallback to transaction narration
+          "Transfer";
+
         console.log("🏦 Extracted Withdrawal Details:", {
           recipientName,
           recipientAccount,
           bankName,
+          narration, // Add narration to logs
         });
 
         await sendWithdrawalEmailNotification(
@@ -3288,9 +3295,11 @@ export async function POST(req: NextRequest) {
           recipientName,
           recipientAccount,
           bankName,
-          pendingTx.narration,
+          narration, // Pass the extracted narration
           pendingTx.id
         );
+
+        console.log(pendingTx, "pendingTx");
 
         if (updateErr) {
           console.error("❌ Failed to update transaction:", updateErr);
@@ -3379,9 +3388,15 @@ export async function POST(req: NextRequest) {
         // Extract error details from the payload
         const errorDetail =
           payload.data?.transaction?.responseMessage ||
-          payload.data?.transaction?.narration ||
+          payload.data?.transaction?.narration || // This might be the error narration
           payload.error?.message ||
           "Transaction failed";
+
+        // 🔥 FIX: Extract narration from payload (same as success case)
+        const narration =
+          payload.data?.transaction?.narration || // "my money" from your payload
+          pendingTx.narration || // Fallback to transaction narration
+          "Transfer";
 
         const updatedExternalResponse = {
           ...payload,
@@ -3427,6 +3442,7 @@ export async function POST(req: NextRequest) {
           recipientName,
           recipientAccount,
           bankName,
+          narration, // Add narration to logs
           errorDetail,
         });
 
@@ -3475,7 +3491,7 @@ export async function POST(req: NextRequest) {
           recipientName,
           recipientAccount,
           bankName,
-          pendingTx.narration,
+          narration, // Pass the extracted narration
           pendingTx.id,
           errorDetail
         );
@@ -3491,7 +3507,6 @@ export async function POST(req: NextRequest) {
           { status: 200 }
         );
       }
-
       console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
       return NextResponse.json(
         { message: "Ignored transfer event" },

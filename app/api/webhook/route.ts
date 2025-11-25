@@ -1908,10 +1908,7 @@ Your transfer was successful!
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
-• Nomba Fee: ₦${nombaFee.toLocaleString()}
-• App Fee: ₦${appFee.toLocaleString()}
-• Total Fee: ₦${totalFee.toLocaleString()}
-• Total Deducted: ₦${totalDeduction.toLocaleString()}
+• Fee: ₦${totalFee.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
@@ -1934,10 +1931,7 @@ Your transfer failed.
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
-• Nomba Fee: ₦${nombaFee.toLocaleString()}
-• App Fee: ₦${appFee.toLocaleString()}
-• Total Fee: ₦${totalFee.toLocaleString()}
-• Total Deducted: ₦${totalDeduction.toLocaleString()}
+• Fee: ₦${totalFee.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
@@ -1979,10 +1973,7 @@ Zidwell Team
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">Transaction Details:</h4>
             <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Nomba Fee:</strong> ₦${nombaFee.toLocaleString()}</p>
-            <p><strong>App Fee:</strong> ₦${appFee.toLocaleString()}</p>
-            <p><strong>Total Fee:</strong> ₦${totalFee.toLocaleString()}</p>
-            <p><strong>Total Deducted:</strong> ₦${totalDeduction.toLocaleString()}</p>
+            <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
             <p><strong>Recipient Name:</strong> ${recipientName}</p>
             <p><strong>Account Number:</strong> ${recipientAccount}</p>
             <p><strong>Bank:</strong> ${bankName}</p>

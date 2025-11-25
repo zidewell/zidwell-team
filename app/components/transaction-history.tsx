@@ -71,6 +71,21 @@ export default function TransactionHistory() {
     return outflowTypes.includes(transactionType?.toLowerCase());
   };
 
+  // Function to get narration from transaction data
+  const getNarration = (transaction: any) => {
+    // Check multiple possible locations for narration
+    if (transaction.external_response?.data?.transaction?.narration) {
+      return transaction.external_response.data.transaction.narration;
+    }
+    if (transaction.narration) {
+      return transaction.narration;
+    }
+    if (transaction.description) {
+      return transaction.description;
+    }
+    return null;
+  };
+
   // Function to handle viewing transaction details
   const handleViewTransaction = (transaction: any) => {
     router.push(`/dashboard/transactions/${transaction.id}`);
@@ -84,6 +99,7 @@ export default function TransactionHistory() {
     setDownloadingReceipts(prev => new Set(prev).add(transactionId));
 
     const amountInfo = formatAmount(transaction);
+    const narration = getNarration(transaction);
 
     // Extract transaction data based on transaction type
     const senderInfo = transaction.external_response?.data?.customer;
@@ -215,6 +231,18 @@ export default function TransactionHistory() {
           color: #111827;
           font-weight: 500;
         }
+        .narration-section {
+          background: #f0f9ff;
+          border-left: 4px solid #0ea5e9;
+          padding: 12px 16px;
+          margin: 16px 0;
+          border-radius: 4px;
+        }
+        .narration-text {
+          font-style: italic;
+          color: #0369a1;
+          font-weight: 500;
+        }
         .footer {
           text-align: center;
           border-top: 1px solid #e5e7eb;
@@ -280,6 +308,16 @@ export default function TransactionHistory() {
             }
           </div>
         </div>
+
+        <!-- Narration Section -->
+        ${
+          narration
+            ? `<div class="narration-section">
+                <div class="section-title">Transaction Narration</div>
+                <div class="narration-text">"${narration}"</div>
+              </div>`
+            : ""
+        }
 
         <!-- Transaction Details -->
         <div class="section">
@@ -371,14 +409,7 @@ export default function TransactionHistory() {
               <span class="detail-label">Account Number</span>
               <span class="detail-value">${receiverData.accountNumber}</span>
             </div>
-            ${
-              receiverData.accountType
-                ? `<div class="detail-row">
-                    <span class="detail-label">Account Type</span>
-                    <span class="detail-value">${receiverData.accountType}</span>
-                  </div>`
-                : ""
-            }
+           
             ${
               receiverData.bankName
                 ? `<div class="detail-row">
@@ -397,21 +428,6 @@ export default function TransactionHistory() {
             }
           </div>
         </div>
-
-        <!-- Additional Transaction Info -->
-        ${
-          receiverInfo?.narration
-            ? `<div class="section">
-                <div class="section-title">Transaction Narration</div>
-                <div class="details-card">
-                  <div class="detail-row">
-                    <span class="detail-label">Narration</span>
-                    <span class="detail-value">${receiverInfo.narration}</span>
-                  </div>
-                </div>
-              </div>`
-            : ""
-        }
 
         <!-- Footer -->
         <div class="footer">

@@ -415,14 +415,7 @@ export default function TransactionDetailsPage() {
               <span class="detail-label">Account Number</span>
               <span class="detail-value">${receiverData.accountNumber}</span>
             </div>
-            ${
-              receiverData.accountType
-                ? `<div class="detail-row">
-                    <span class="detail-label">Account Type</span>
-                    <span class="detail-value">${receiverData.accountType}</span>
-                  </div>`
-                : ""
-            }
+           
             ${
               receiverData.bankName
                 ? `<div class="detail-row">

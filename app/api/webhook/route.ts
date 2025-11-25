@@ -3278,12 +3278,12 @@ export async function POST(req: NextRequest) {
           pendingTx.narration || // Fallback to transaction narration
           "Transfer";
 
-        console.log("🏦 Extracted Withdrawal Details:", {
-          recipientName,
-          recipientAccount,
-          bankName,
-          narration, // Add narration to logs
-        });
+        // console.log("🏦 Extracted Withdrawal Details:", {
+        //   recipientName,
+        //   recipientAccount,
+        //   bankName,
+        //   narration, // Add narration to logs
+        // });
 
         await sendWithdrawalEmailNotification(
           pendingTx.user_id,
@@ -3295,11 +3295,11 @@ export async function POST(req: NextRequest) {
           recipientName,
           recipientAccount,
           bankName,
-          narration, // Pass the extracted narration
+          narration,
           pendingTx.id
         );
 
-        console.log(pendingTx, "pendingTx");
+  
 
         if (updateErr) {
           console.error("❌ Failed to update transaction:", updateErr);

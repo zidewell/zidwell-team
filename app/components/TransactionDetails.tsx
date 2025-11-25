@@ -10,6 +10,7 @@ import {
   FileText,
   Building,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 import { useUserContextData } from "../context/userData";
 import { useEffect, useState } from "react";
@@ -53,6 +54,8 @@ export default function TransactionDetailsPage() {
     }
   }, [params.id, transactions]);
 
+  console.log(transaction, "transaction")
+
   // Function to determine if transaction amount should be negative
   const isOutflow = (transactionType: string) => {
     return outflowTypes.includes(transactionType?.toLowerCase());
@@ -77,12 +80,28 @@ export default function TransactionDetailsPage() {
     };
   };
 
+  // Function to get narration from transaction data
+  const getNarration = (transaction: any) => {
+    // Check multiple possible locations for narration
+    if (transaction.external_response?.data?.transaction?.narration) {
+      return transaction.external_response.data.transaction.narration;
+    }
+    if (transaction.narration) {
+      return transaction.narration;
+    }
+    if (transaction.description) {
+      return transaction.description;
+    }
+    return null;
+  };
+
   const handleDownloadReceipt = async () => {
     if (!transaction) return;
 
     setDownloading(true);
 
     const amountInfo = formatAmount(transaction);
+    const narration = getNarration(transaction);
 
     // Extract transaction data based on transaction type
     const senderInfo = transaction.external_response?.data?.customer;
@@ -214,6 +233,18 @@ export default function TransactionDetailsPage() {
           color: #111827;
           font-weight: 500;
         }
+        .narration-section {
+          background: #f0f9ff;
+          border-left: 4px solid #0ea5e9;
+          padding: 12px 16px;
+          margin: 16px 0;
+          border-radius: 4px;
+        }
+        .narration-text {
+          font-style: italic;
+          color: #0369a1;
+          font-weight: 500;
+        }
         .footer {
           text-align: center;
           border-top: 1px solid #e5e7eb;
@@ -279,6 +310,16 @@ export default function TransactionDetailsPage() {
             }
           </div>
         </div>
+
+        <!-- Narration Section -->
+        ${
+          narration
+            ? `<div class="narration-section">
+                <div class="section-title">Transaction Narration</div>
+                <div class="narration-text">"${narration}"</div>
+              </div>`
+            : ""
+        }
 
         <!-- Transaction Details -->
         <div class="section">
@@ -401,21 +442,6 @@ export default function TransactionDetailsPage() {
           </div>
         </div>
 
-        <!-- Additional Transaction Info -->
-        ${
-          receiverInfo?.narration
-            ? `<div class="section">
-                <div class="section-title">Transaction Narration</div>
-                <div class="details-card">
-                  <div class="detail-row">
-                    <span class="detail-label">Narration</span>
-                    <span class="detail-value">${receiverInfo.narration}</span>
-                  </div>
-                </div>
-              </div>`
-            : ""
-        }
-
         <!-- Footer -->
         <div class="footer">
           <p>This is an automated receipt. Please keep it for your records.</p>
@@ -509,6 +535,7 @@ export default function TransactionDetailsPage() {
   }
 
   const amountInfo = formatAmount(transaction);
+  const narration = getNarration(transaction);
   
   // Extract transaction data based on transaction type
   const senderInfo = transaction.external_response?.data?.customer;
@@ -623,6 +650,7 @@ export default function TransactionDetailsPage() {
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                       Amount
                     </h2>
+
                   </CardHeader>
                   <CardContent>
                     <div className="text-center">
@@ -646,6 +674,25 @@ export default function TransactionDetailsPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Narration Card */}
+                {narration && (
+                  <Card>
+                    <CardHeader className="flex flex-row items-center gap-2 pb-3">
+                      <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                        Transaction Narration
+                      </h2>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p className="text-blue-800 italic text-sm sm:text-base">
+                          "{narration}"
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* Sender Information */}
                 {displaySenderData && (
@@ -726,14 +773,14 @@ export default function TransactionDetailsPage() {
                           {displayReceiverData.accountNumber || "N/A"}
                         </span>
                       </div>
-                      <div className="flex flex-row justify-between gap-1 xs:gap-2">
+                      {/* <div className="flex flex-row justify-between gap-1 xs:gap-2">
                         <span className="text-gray-600 text-sm sm:text-base">
                           {isWithdrawal ? "Account Type" : "Account Type"}
                         </span>
                         <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
                           {displayReceiverData.accountType || "N/A"}
                         </span>
-                      </div>
+                      </div> */}
                       {displayReceiverData.bankName && (
                         <div className="flex flex-row justify-between gap-1 xs:gap-2">
                           <span className="text-gray-600 text-sm sm:text-base">

@@ -812,6 +812,11 @@ export async function POST(req: NextRequest) {
               customerName || "Customer"
             } paid ₦${paidAmount} for invoice ${invoice.invoice_id}`;
 
+            const platformFee =
+              invoice.fee_option === "customer" ? invoice.fee_amount : 0;
+            const nombaFeeAmount = payload?.data?.transaction?.fee || 0;
+            const totalFee = platformFee + nombaFeeAmount;
+
             const { data: transaction, error: transactionError } =
               await supabase
                 .from("transactions")
@@ -828,7 +833,7 @@ export async function POST(req: NextRequest) {
                     narration: `Payment received for Invoice #${
                       invoice.invoice_id
                     } from ${customerName || "customer"}`,
-                    fee: payload?.data?.transaction?.fee || 0,
+                    fee: totalFee,
                     channel: "invoice_payment",
                     sender: {
                       name: customerName,
@@ -846,6 +851,11 @@ export async function POST(req: NextRequest) {
                       nomba_transaction_id: nombaTransactionId,
                       order_reference: orderReference,
                       payment_method: "card_payment",
+                      fee_breakdown: {
+                        nomba_fee: nombaFeeAmount,
+                        platform_fee: platformFee,
+                        total_fee: totalFee,
+                      },
                     },
                   },
                 ])
@@ -873,14 +883,24 @@ export async function POST(req: NextRequest) {
           // Update invoice totals
           await updateInvoiceTotals(invoice, paidAmount);
 
-          // Credit user's wallet
-          console.log(`💰 Crediting wallet: ${invoice.user_id}`);
+          // ✅ APPLY 3.5% FEE DEDUCTION FOR CUSTOMER-PAID INVOICES
+          const platformFee =
+            invoice.fee_option === "customer" ? invoice.fee_amount : 0;
+          const netAmount = paidAmount - platformFee;
+
+          console.log(`💰 Crediting wallet with fee deduction:`, {
+            user_id: invoice.user_id,
+            paid_amount: paidAmount,
+            fee_option: invoice.fee_option,
+            platform_fee: platformFee,
+            net_amount: netAmount,
+          });
 
           const { error: creditError } = await supabase.rpc(
             "increment_wallet_balance",
             {
               user_id: invoice.user_id,
-              amt: paidAmount,
+              amt: netAmount,
             }
           );
 
@@ -1205,16 +1225,29 @@ export async function POST(req: NextRequest) {
                       );
                       // Fall back to normal deposit flow
                     } else {
-                      // ✅ CRITICAL: Increment invoice owner's wallet
+                      // ✅ APPLY 3.5% FEE DEDUCTION FOR CUSTOMER-PAID INVOICES
+                      const platformFee =
+                        invoice.fee_option === "customer"
+                          ? invoice.fee_amount
+                          : 0;
+                      const netAmount = paidAmount - platformFee;
+
                       console.log(
-                        `💰 Crediting invoice owner's wallet: ${invoice.user_id}`
+                        `💰 Crediting invoice owner's wallet with fee deduction:`,
+                        {
+                          user_id: invoice.user_id,
+                          paid_amount: paidAmount,
+                          fee_option: invoice.fee_option,
+                          platform_fee: platformFee,
+                          net_amount: netAmount,
+                        }
                       );
 
                       const { error: creditError } = await supabase.rpc(
                         "increment_wallet_balance",
                         {
                           user_id: invoice.user_id,
-                          amt: paidAmount,
+                          amt: netAmount,
                         }
                       );
 
@@ -1223,7 +1256,6 @@ export async function POST(req: NextRequest) {
                           "❌ Failed to credit invoice owner's wallet:",
                           creditError
                         );
-                        // Don't fail the entire process if wallet credit fails
                       } else {
                         console.log(
                           `✅ Successfully credited ₦${paidAmount} to invoice owner ${invoice.user_id}`
@@ -1245,7 +1277,7 @@ export async function POST(req: NextRequest) {
                               reference: referenceToUse,
                               description: transactionDescription,
                               narration: `Payment received for Invoice #${invoice.invoice_id} via virtual account`,
-                              fee: nombaFee,
+                              fee: platformFee + nombaFee,
                               channel: "virtual_account",
                               sender: {
                                 name: payload.data?.customer?.senderName,
@@ -1263,7 +1295,7 @@ export async function POST(req: NextRequest) {
                                 invoice_reference: invoiceReference,
                                 fee_breakdown: {
                                   nomba_fee: nombaFee,
-                                  app_fee: 0,
+                                  app_fee: platformFee,
                                   total_fee: nombaFee,
                                 },
                               },

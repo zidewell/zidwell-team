@@ -420,52 +420,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                 : ""
             }
 
-            // ${
-              invoice.allow_multiple_payments
-                ? `
-            // <div class="section">
-            //   <div class="payment-info">
-            //     <h3>Payment Information:</h3>
-            //     ${
-              paymentProgress
-                ? `
-            //     <p><strong>Payment Progress:</strong> ${
-              paymentProgress.paidCount
-            } out of ${paymentProgress.targetQuantity} target payments</p>
-            //     <div class="progress-bar">
-            //       <div class="progress-fill" style="width: ${
-              paymentProgress.progress
-            }%"></div>
-            //     </div>
-            //     <p>${
-              paymentProgress.isComplete
-                ? "🎉 Target reached! This invoice is fully paid."
-                : `Progress: ${Math.round(paymentProgress.progress)}% complete`
-            }</p>
-            //     `
-                : `
-            //     <p>This invoice allows multiple payments.</p>
-            //     ${
-              paidAmount > 0
-                ? `
-            //     <p><strong>Amount Paid:</strong> ₦${Number(
-              paidAmount
-            ).toLocaleString()} of ₦${Number(totalAmount).toLocaleString()}</p>
-            //     <div class="progress-bar">
-            //       <div class="progress-fill" style="width: ${
-              (paidAmount / totalAmount) * 100
-            }%"></div>
-            //     </div>
-            //     `
-                : "<p>No payments received yet.</p>"
-            }
-            //     `
-            }
-            //   </div>
-            // </div>
-            // `
-                : ""
-            }
+           
 
             <div class="section">
               <h3>Invoice Items</h3>

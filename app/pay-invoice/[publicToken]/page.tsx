@@ -48,8 +48,9 @@ export default async function SignPage({
     total: dbItem.total_amount,  
   }));
 
-  // Prepare invoice data for PDF download
+  // Prepare invoice data for PDF download - ADD THE MISSING ID PROPERTY
   const invoiceData = {
+    id: invoice.id, // Add this line - this was missing
     business_name: invoice.business_name,
     business_logo: invoice.business_logo,
     invoice_id: invoice.invoice_id,
@@ -67,10 +68,13 @@ export default async function SignPage({
     subtotal: invoice.subtotal,
     fee_amount: invoice.fee_amount,
     total_amount: invoice.total_amount,
+    paid_amount: invoice.paid_amount, // Add this if it exists in your database
     fee_option: invoice.fee_option,
     status: invoice.status,
     allow_multiple_payments: invoice.allow_multiple_payments,
     unit: invoice.target_quantity,
+    initiator_account_name: invoice.initiator_account_name, // Add if available
+    initiator_account_number: invoice.initiator_account_number, // Add if available
   };
 
   return (

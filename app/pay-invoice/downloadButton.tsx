@@ -11,9 +11,13 @@ interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  item_description?: string;
+  unit_price?: number;
+  total_amount?: number;
 }
 
 interface InvoiceData {
+  id: string;
   business_name: string;
   business_logo?: string;
   invoice_id: string;
@@ -31,15 +35,29 @@ interface InvoiceData {
   subtotal: number;
   fee_amount: number;
   total_amount: number;
+  paid_amount?: number;
   fee_option: string;
   status: string;
   allow_multiple_payments?: boolean;
   unit?: number | "";
+  initiator_account_name?: string;
+  initiator_account_number?: string;
 }
 
 interface DownloadInvoiceButtonProps {
   invoiceData: InvoiceData;
 }
+
+// Helper functions from the original code
+const getPaymentProgress = (invoice: any) => {
+  if (!invoice.paid_amount || !invoice.total_amount) return 0;
+  return (invoice.paid_amount / invoice.total_amount) * 100;
+};
+
+const getPaymentCountText = (invoice: any) => {
+  if (!invoice.payment_count) return "";
+  return invoice.payment_count === 1 ? "1 payment" : `${invoice.payment_count} payments`;
+};
 
 export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceButtonProps) {
   const [loading, setLoading] = useState(false);
@@ -48,7 +66,25 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
     try {
       setLoading(true);
 
-      // Generate HTML content for PDF
+      // Calculate values like in the original function
+      const invoiceItems = Array.isArray(invoiceData.invoice_items)
+        ? invoiceData.invoice_items
+        : [];
+
+      const subtotal = invoiceData.subtotal || invoiceItems.reduce(
+        (sum: number, item: InvoiceItem) =>
+          sum + (item.quantity || 0) * (item.unitPrice || item.unit_price || 0),
+        0
+      );
+
+      const feeAmount = invoiceData.fee_amount || 0;
+      const totalAmount = invoiceData.total_amount || subtotal + feeAmount;
+      const paidAmount = invoiceData.paid_amount || 0;
+
+      const paymentProgress = getPaymentProgress(invoiceData);
+      const paymentCountText = getPaymentCountText(invoiceData);
+
+      // Generate HTML content for PDF - matching the sample exactly
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -86,6 +122,14 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               max-height: 80px;
               max-width: 200px;
               margin-bottom: 15px;
+            }
+            .account-details {
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            }
+            .account-details h2 {
+              color: #C29307;
             }
             h1 {
               color: #C29307;
@@ -159,7 +203,7 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               border-left: 4px solid #C29307;
               margin: 20px 0;
             }
-            .note-box {
+            .payment-info {
               background-color: #e8f4fd;
               padding: 20px;
               border-radius: 8px;
@@ -184,9 +228,17 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               font-weight: bold;
               margin-left: 10px;
             }
-            .due-date {
-              color: #d32f2f;
-              font-weight: bold;
+            .progress-bar {
+              background-color: #e0e0e0;
+              border-radius: 10px;
+              height: 10px;
+              margin: 10px 0;
+              overflow: hidden;
+            }
+            .progress-fill {
+              background-color: #4CAF50;
+              height: 100%;
+              transition: width 0.3s ease;
             }
           </style>
         </head>
@@ -194,17 +246,36 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
           <div class="container">
             <div class="header">
               <div class="business-info">
-                ${invoiceData.business_logo ? `<img src="${invoiceData.business_logo}" alt="${invoiceData.business_name}" class="logo">` : ''}
+                ${
+                  invoiceData.business_logo
+                    ? `<img src="${invoiceData.business_logo}" alt="${invoiceData.business_name}" class="logo">`
+                    : ""
+                }
                 <h2>${invoiceData.business_name}</h2>
                 <p>${invoiceData.from_email}</p>
-                ${invoiceData.bill_to ? `<p>${invoiceData.bill_to}</p>` : ''}
+                ${invoiceData.bill_to ? `<p>${invoiceData.bill_to}</p>` : ""}
+
+                ${
+                  invoiceData.initiator_account_name && invoiceData.initiator_account_number
+                    ? `
+                    <div class="account-details">
+                      <h2>Account Details</h2>
+                      <h3>${invoiceData.initiator_account_name}</h3>
+                      <h3>${invoiceData.initiator_account_number}</h3>
+                    </div>
+                    `
+                    : ""
+                }
               </div>
               <div class="invoice-info">
                 <h1>INVOICE</h1>
                 <p><strong>Invoice #:</strong> ${invoiceData.invoice_id}</p>
-                <p><strong>Issue Date:</strong> ${new Date(invoiceData.issue_date).toLocaleDateString()}</p>
-                <p><strong>Due Date:</strong> <span class="due-date">${new Date(invoiceData.due_date).toLocaleDateString()}</span></p>
-                <p><strong>Status:</strong> ${invoiceData.status} <span class="status-badge">${invoiceData.status.toUpperCase()}</span></p>
+                <p><strong>Issue Date:</strong> ${new Date(
+                  invoiceData.issue_date
+                ).toLocaleDateString()}</p>
+                <p><strong>Status:</strong> ${
+                  invoiceData.status
+                } <span class="status-badge">${invoiceData.status.toUpperCase()}</span></p>
               </div>
             </div>
 
@@ -212,9 +283,19 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               <div class="billing-info">
                 <div class="billing-section">
                   <h3>Bill To:</h3>
-                  <p><strong>${invoiceData.client_name || 'Client Information'}</strong></p>
-                  ${invoiceData.client_email ? `<p>📧 ${invoiceData.client_email}</p>` : ''}
-                  ${invoiceData.client_phone ? `<p>📞 ${invoiceData.client_phone}</p>` : ''}
+                  <p><strong>${
+                    invoiceData.client_name || "Client Information"
+                  }</strong></p>
+                  ${
+                    invoiceData.client_email
+                      ? `<p>📧 ${invoiceData.client_email}</p>`
+                      : ""
+                  }
+                  ${
+                    invoiceData.client_phone
+                      ? `<p>📞 ${invoiceData.client_phone}</p>`
+                      : ""
+                  }
                 </div>
                 <div class="billing-section">
                   <h3>From:</h3>
@@ -224,14 +305,37 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               </div>
             </div>
 
-            ${invoiceData.message ? `
+            ${
+              invoiceData.message
+                ? `
             <div class="section">
               <div class="message-box">
                 <h3>Message from ${invoiceData.from_name}:</h3>
                 <p>${invoiceData.message}</p>
               </div>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
+
+            ${
+              paidAmount > 0
+                ? `
+            <div class="section">
+              <div class="payment-info">
+                <h3>Payment Information</h3>
+                <p><strong>Amount Paid:</strong> ₦${Number(paidAmount).toLocaleString()}</p>
+                <p><strong>Balance Due:</strong> ₦${Number(totalAmount - paidAmount).toLocaleString()}</p>
+                ${paymentCountText ? `<p><strong>Payments:</strong> ${paymentCountText}</p>` : ''}
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width: ${paymentProgress}%"></div>
+                </div>
+                <p>Payment Progress: ${Math.round(paymentProgress)}%</p>
+              </div>
+            </div>
+            `
+                : ""
+            }
 
             <div class="section">
               <h3>Invoice Items</h3>
@@ -245,59 +349,91 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
                   </tr>
                 </thead>
                 <tbody>
-                  ${invoiceData.invoice_items.map(item => `
+                  ${invoiceItems
+                    ?.map(
+                      (item: any) => `
                     <tr>
-                      <td>${item.description}</td>
+                      <td>${item.item_description || item.description}</td>
                       <td>${item.quantity}</td>
-                      <td>₦${Number(item.unitPrice).toLocaleString()}</td>
-                      <td>₦${Number(item.total).toLocaleString()}</td>
+                      <td>₦${Number(
+                        item.unit_price || item.unitPrice
+                      ).toLocaleString()}</td>
+                      <td>₦${Number(
+                        item.total_amount || item.total
+                      ).toLocaleString()}</td>
                     </tr>
-                  `).join('')}
+                  `
+                    )
+                    .join("")}
                 </tbody>
               </table>
             </div>
 
             <div class="totals">
               <div class="total-row">
-                <strong>Subtotal:</strong> ₦${Number(invoiceData.subtotal).toLocaleString()}
+                <strong>Subtotal:</strong> ₦${Number(subtotal).toLocaleString()}
               </div>
-              ${invoiceData.fee_amount > 0 ? `
+              ${
+                feeAmount > 0
+                  ? `
               <div class="total-row">
-                <strong>Processing Fee:</strong> ₦${Number(invoiceData.fee_amount).toLocaleString()}
+                <strong>Processing Fee:</strong> ₦${Number(
+                  feeAmount
+                ).toLocaleString()}
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
+              ${
+                paidAmount > 0
+                  ? `
+              <div class="total-row">
+                <strong>Amount Paid:</strong> ₦${Number(
+                  paidAmount
+                ).toLocaleString()}
+              </div>
+              <div class="total-row">
+                <strong>Balance Due:</strong> ₦${Number(
+                  totalAmount - paidAmount
+                ).toLocaleString()}
+              </div>
+              `
+                  : ""
+              }
               <div class="total-row grand-total">
-                <strong>TOTAL AMOUNT:</strong> ₦${Number(invoiceData.total_amount).toLocaleString()}
+                <strong>TOTAL AMOUNT:</strong> ₦${Number(
+                  totalAmount
+                ).toLocaleString()}
               </div>
-              ${invoiceData.fee_option === 'absorbed' ? `
+              ${
+                invoiceData.fee_option === "absorbed"
+                  ? `
               <div class="total-row" style="font-size: 12px; color: #666;">
                 *Processing fees absorbed by merchant
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
 
-            ${invoiceData.customer_note ? `
+            ${
+              invoiceData.customer_note
+                ? `
             <div class="section">
               <div class="note-box">
                 <h3>Note to Customer:</h3>
                 <p>${invoiceData.customer_note}</p>
               </div>
             </div>
-            ` : ''}
-
-            // ${invoiceData.allow_multiple_payments ? `
-            // <div class="section">
-            //   <div class="message-box">
-            //     <h3>Payment Information:</h3>
-            //     <p>This invoice allows multiple payments. You can make partial payments until the total amount is reached.</p>
-            //     ${invoiceData.unit && invoiceData.unit > 0 ? `<p><strong>Target Quantity:</strong> ${invoiceData.unit} units</p>` : ''}
-            //   </div>
-            // </div>
-            // ` : ''}
+            `
+                : ""
+            }
 
             <div class="footer">
               <p><strong>Thank you for your business!</strong></p>
-              <p>If you have any questions about this invoice, please contact ${invoiceData.from_email}</p>
+              <p>If you have any questions about this invoice, please contact ${
+                invoiceData.from_email
+              }</p>
               <p>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</p>
             </div>
           </div>

@@ -1907,8 +1907,9 @@ ${greeting}
 Your transfer was successful!
 
 💰 Transaction Details:
-• Amount: ₦${amount.toLocaleString()}
+• Amount: ₦${(amount - totalFee).toLocaleString()}
 • Fee: ₦${totalFee.toLocaleString()}
+• Total Deductin: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
@@ -1930,8 +1931,9 @@ ${greeting}
 Your transfer failed.
 
 💰 Transaction Details:
-• Amount: ₦${amount.toLocaleString()}
+• Amount: ₦${(amount - totalFee).toLocaleString()}
 • Fee: ₦${totalFee.toLocaleString()}
+• Total Deduction: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
@@ -1972,8 +1974,9 @@ Zidwell Team
           
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
+            <p><strong>Amount:</strong> ₦${(amount - totalFee).toLocaleString()}</p>
             <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
+            <p><strong>Total Deduction:</strong> ₦${totalDeduction.toLocaleString()}</p>
             <p><strong>Recipient Name:</strong> ${recipientName}</p>
             <p><strong>Account Number:</strong> ${recipientAccount}</p>
             <p><strong>Bank:</strong> ${bankName}</p>
@@ -1995,7 +1998,7 @@ Zidwell Team
           ${
             status === "success"
               ? `<p style="color: #64748b;">
-                  The funds should reflect in your bank account shortly.
+                  1. The funds should reflect in the beneficiary's bank account shortly.
                   If there are any dispute, please contact our support team.
                 </p>`
               : ""
@@ -3274,8 +3277,8 @@ export async function POST(req: NextRequest) {
 
         // 🔥 FIX: Extract narration from payload
         const narration =
-          payload.data?.transaction?.narration || // "my money" from your payload
-          pendingTx.narration || // Fallback to transaction narration
+          payload.data?.transaction?.narration || 
+          pendingTx.narration || 
           "Transfer";
 
         // console.log("🏦 Extracted Withdrawal Details:", {

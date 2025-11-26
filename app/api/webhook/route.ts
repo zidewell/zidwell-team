@@ -1098,7 +1098,7 @@ export async function POST(req: NextRequest) {
         channel = "virtual_account";
         console.log("🏦 Virtual Account deposit detected");
 
-        // -------------------- VIRTUAL ACCOUNT NARRATION LOGIC --------------------
+        // -------------------- VIRTUAL ACCOUNT NARRATION LOGIC -------------------
         if (isVirtualAccountDeposit) {
           console.log(
             "🏦 Processing Virtual Account deposit with narration logic..."

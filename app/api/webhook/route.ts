@@ -1109,7 +1109,7 @@ export async function POST(req: NextRequest) {
           console.log("📝 Extracted narration:", narration);
 
           // Check if narration matches invoice pattern (e.g., "INV-XXXXXX")
-          const invoicePattern = /INV-[A-Z0-9]+/i;
+          const invoicePattern = /INV-[\w-]+/i;
           const invoiceMatch = narration.match(invoicePattern);
 
           if (invoiceMatch) {

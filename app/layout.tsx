@@ -21,7 +21,8 @@ const organizationSchema = {
   "name": "Zidwell",
   "alternateName": "Zidwell Finance Platform",
   "url": "https://zidwell.com",
-  "logo": "https://zidwell.com/images/logo.png",
+    "logo": "https://zidwell.com/logo.png", 
+  "image": "https://zidwell.com/logo.png",
   "description": "All-in-one finance and business management platform for Nigerian SMEs and professionals",
   "address": {
     "@type": "PostalAddress",
@@ -77,25 +78,25 @@ const breadcrumbSchema = {
       "@type": "ListItem",
       "position": 2,
       "name": "Sign Up",
-      "item": "https://zidwell.com/signup"
+      "item": "https://zidwell.com/auth/signup"
     },
     {
       "@type": "ListItem",
       "position": 3,
       "name": "Login",
-      "item": "https://zidwell.com/login"
+      "item": "https://zidwell.com/auth/login"
     },
     {
       "@type": "ListItem",
       "position": 4,
       "name": "Pricing",
-      "item": "https://zidwell.com/pricing"
+      "item": "https://zidwell.com/#pricing"
     },
     {
       "@type": "ListItem",
       "position": 5,
       "name": "Features",
-      "item": "https://zidwell.com/features"
+      "item": "https://zidwell.com/#features"
     }
   ]
 };
@@ -109,6 +110,8 @@ export const metadata: Metadata = {
     "Zidwell helps Nigerian businesses pay electricity bills, buy data, manage finances, file taxes, create contracts & invoices. All-in-one SME financial management platform.",
   keywords: [
     "Zidwell sign up",
+    "Zidwell",
+    "zidwell",
     "Zidwell login", 
     "business bill payment Nigeria",
     "SME financial management",
@@ -229,8 +232,8 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         
         {/* Preload critical resources */}
-        <link rel="preload" href="/images/logo.png" as="image" />
-        <link rel="preload" href="/images/og-image.jpg" as="image" />
+        <link rel="preload" href="/logo.png" as="image" />
+        <link rel="preload" href="/og-image.jpg" as="image" />
         
         {/* Sitemap and RSS feeds */}
        <link rel="sitemap" type="application/xml" href="/sitemap.xml" />

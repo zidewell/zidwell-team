@@ -42,9 +42,8 @@ interface RequestBody {
 }
 
 function generateInvoiceId(): string {
-  const datePart = new Date().getFullYear();
   const randomToken = uuidv4().replace(/-/g, "").substring(0, 12).toUpperCase();
-  return `INV-${datePart}-${randomToken}`;
+  return `INV-${randomToken}`;
 }
 
 function calculateTotals(invoiceItems: InvoiceItem[], feeOption: string) {

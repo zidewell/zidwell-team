@@ -67,12 +67,19 @@ export const KYCStep = ({
           <span className="text-3xl">🔒</span>
         </div>
         <h2 className="text-2xl font-semibold mb-2">
-          Let’s Secure Your Account
+          Let's Secure Your Account
         </h2>
         <p className="text-muted-foreground">
           Please verify your BVN and set a secure 4-digit PIN to unlock all
           features and complete your onboarding.
         </p>
+        
+        {/* ✅ ADDED CBN REGULATIONS TEXT HERE */}
+        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-xs text-amber-800 text-center">
+            <strong>CBN Regulation:</strong> BVN verification is required before we can issue your virtual account number.
+          </p>
+        </div>
       </div>
 
       {/* BVN Field */}

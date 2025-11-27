@@ -14,7 +14,6 @@ import Image from "next/image";
 
 export default function invoicePage() {
   const router = useRouter()
-  const pathname = usePathname();
   return (
     <div className="min-h-screen bg-background fade-in">
       {/* Sidebar */}
@@ -128,7 +127,7 @@ export default function invoicePage() {
             {/* Invoice History */}
             <div className="max-w-4xl mx-auto mt-16">
 
-              {pathname.includes("zidwell.com") ? (
+              {typeof window !== 'undefined' && window.location.hostname.includes("zidwell.com") ? (
                             <Image
                               src={"/coming-soon.png"}
                               alt="coming soon"

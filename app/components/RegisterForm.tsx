@@ -411,7 +411,7 @@ function RegisterForm() {
               />
               <Label htmlFor="terms" className="text-sm">
                 I agree to the{" "}
-                <Link href="/terms" className="text-primary underline">
+                <Link href="/privacy" className="text-primary underline">
                   Terms
                 </Link>{" "}
                 and{" "}

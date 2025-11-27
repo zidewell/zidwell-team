@@ -75,7 +75,9 @@ export default function Page() {
   });
 
   const handleVerify = async (bvn: string) => {
+   
     setLoading(true);
+
     try {
       // 1️⃣ Verify BVN
       const verifyRes = await fetch("/api/verify-bvn", {
@@ -229,7 +231,7 @@ export default function Page() {
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 flex justify-center items-start bg-gradient-to-br from-yellow-50 via-white to-yellow-100 z-50 min-h-screen overflow-y-auto py-5"
+        className="fixed inset-0 flex justify-center items-start bg-linear-to-br from-yellow-50 via-white to-yellow-100 z-50 min-h-screen overflow-y-auto py-5"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -286,7 +288,7 @@ export default function Page() {
                               currentStep > step.id ? "#22c55e" : "#d1d5db",
                           }}
                           transition={{ duration: 0.4, ease: "easeInOut" }}
-                          className="w-[2px]"
+                          className="w-0.5"
                         />
                       )}
                     </div>

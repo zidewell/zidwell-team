@@ -1,13 +1,15 @@
-"use client"
+"use client";
 import DashboardSidebar from "@/app/components/dashboard-sidebar";
 import DashboardHeader from "@/app/components/dashboard-hearder";
 import ContractGen from "@/app/components/ContractGen";
 import { Button } from "@/app/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function page() {
   const router = useRouter();
+  const pathname = usePathname();
   return (
     <div className="min-h-screen bg-gray-50 fade-in">
       <DashboardSidebar />
@@ -37,8 +39,17 @@ export default function page() {
                 </p>
               </div>
             </div>
-
-            <ContractGen />
+            {pathname.includes("zidwell.com") ? (
+              <Image
+                src={"/coming-soon.png"}
+                alt="coming soon"
+                className=" w-full object-contain"
+                width={500}
+                height={500}
+              />
+            ) : (
+              <ContractGen />
+            )}
           </div>
         </main>
       </div>

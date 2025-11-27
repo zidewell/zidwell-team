@@ -8,11 +8,13 @@ import DashboardHeader from "@/app/components/dashboard-hearder";
 
 import { Button } from "@/app/components/ui/button"; 
 import { Card } from "@/app/components/ui/card";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import InvoiceGen from "@/app/components/InvoiceGen";
+import Image from "next/image";
 
 export default function invoicePage() {
   const router = useRouter()
+  const pathname = usePathname();
   return (
     <div className="min-h-screen bg-background fade-in">
       {/* Sidebar */}
@@ -125,7 +127,19 @@ export default function invoicePage() {
 
             {/* Invoice History */}
             <div className="max-w-4xl mx-auto mt-16">
-              <InvoiceGen />
+
+              {pathname.includes("zidwell.com") ? (
+                            <Image
+                              src={"/coming-soon.png"}
+                              alt="coming soon"
+                              className=" w-full object-contain"
+                              width={500}
+                              height={500}
+                            />
+                          ) : (
+                           <InvoiceGen />
+                          )}
+              
             </div>
 
           

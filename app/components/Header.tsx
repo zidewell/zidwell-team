@@ -7,13 +7,7 @@ import { Menu, X } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { useUserContextData } from "../context/userData";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
+
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);

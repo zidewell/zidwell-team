@@ -4,7 +4,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { Button } from "@/app/components/ui/button";
 import { Textarea } from "@/app/components/ui/textarea";
@@ -91,9 +91,20 @@ export default function TicketDetailPage() {
     return <div>Please sign in to view this ticket.</div>;
   }
 
-  if (isLoading) return <div className=" flex justify-center items-center">
-    <Loader/>
-  </div>;
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return <Loader />;
+  }
+;
   if (error) return <div>Error loading ticket</div>;
   if (!ticket) return <div>Ticket not found</div>;
 

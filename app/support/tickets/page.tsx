@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/app/components/ui/badge";
 import { useUserContextData } from "@/app/context/userData";
 import Loader from "@/app/components/Loader";
+import { useEffect, useState } from "react";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -76,12 +77,20 @@ export default function UserTicketsPage() {
     );
   }
 
-  if (isLoading)
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-      <Loader/>
-      </div>
-    );
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return <Loader />;
+  }
+
   if (error)
     return (
       <div className="min-h-screen flex items-center justify-center">

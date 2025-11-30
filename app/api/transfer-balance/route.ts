@@ -37,17 +37,17 @@ async function sendWithdrawalEmailNotification(
 
     const subject =
       status === "success"
-        ? `Withdrawal Successful - ₦${amount.toLocaleString()}`
+        ? `Transfer Successful - ₦${amount.toLocaleString()}`
         : status === "processing" || status === "pending"
-        ? `Withdrawal Processing - ₦${amount.toLocaleString()}`
-        : `Withdrawal Failed - ₦${amount.toLocaleString()}`;
+        ? `Transfer Processing - ₦${amount.toLocaleString()}`
+        : `Transfer Failed - ₦${amount.toLocaleString()}`;
 
     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
 
     const successBody = `
 ${greeting}
 
-Your withdrawal was successful!
+Your Transfer was successful!
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
@@ -70,7 +70,7 @@ Zidwell Team
     const processingBody = `
 ${greeting}
 
-Your withdrawal is being processed. This usually takes a few moments.
+Your Transfer is being processed. This usually takes a few moments.
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
@@ -94,7 +94,7 @@ Zidwell Team
     const failedBody = `
 ${greeting}
 
-Your withdrawal failed.
+Your Transfer failed.
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
@@ -130,8 +130,8 @@ Zidwell Team
       (status === "processing" || status === "pending") ? "🟡" : "❌";
 
     const statusText = 
-      status === "success" ? "Withdrawal Successful" :
-      (status === "processing" || status === "pending") ? "Withdrawal Processing" : "Withdrawal Failed";
+      status === "success" ? "Transfer Successful" :
+      (status === "processing" || status === "pending") ? "Transfer Processing" : "Transfer Failed";
 
     await transporter.sendMail({
       from: process.env.EMAIL_FROM || '"Zidwell" <notifications@zidwell.com>',
@@ -305,7 +305,7 @@ export async function POST(req: Request) {
         fee,
         total_deduction: totalDeduction,
         status: "pending",
-        narration: narration || "Withdrawal",
+        narration: narration || "N/A",
         merchant_tx_ref: merchantTxRef,
       })
       .select("*")
@@ -321,7 +321,7 @@ export async function POST(req: Request) {
       amt: totalDeduction,
       transaction_type: "withdrawal",
       reference: merchantTxRef,
-      description: `Withdrawal of ₦${amount} (fee ₦${fee})`,
+      description: `Transfer of ₦${amount}`,
     });
 
     if (rpcError) {
@@ -370,7 +370,7 @@ export async function POST(req: Request) {
         amt: -totalDeduction, 
         transaction_type: "credit",
         reference: refundReference,
-        description: `Refund for failed withdrawal of ₦${amount} (fee ₦${fee})`,
+        description: `Refund for failed Transfer of ₦${amount} (fee ₦${fee})`,
       });
 
       if (refundErr) {
@@ -412,7 +412,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json(
         {
-          message: "Withdrawal failed, funds refunded successfully.",
+          message: "Transfer failed, funds refunded successfully.",
           reason: data.description || "Transfer not successful",
           refunded: true,
         },
@@ -434,7 +434,7 @@ export async function POST(req: Request) {
 
       
     return NextResponse.json({
-      message: "Withdrawal initiated successfully.",
+      message: "Transfer initiated successfully.",
       transactionId: pendingTx.id,
       merchantTxRef,
       nombaResponse: data,

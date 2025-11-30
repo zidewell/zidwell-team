@@ -392,14 +392,7 @@ export default function TransactionDetailsPage() {
                   </div>`
                 : ""
             }
-            ${
-              !isWithdrawal && senderData.bankCode
-                ? `<div class="detail-row">
-                    <span class="detail-label">Bank Code</span>
-                    <span class="detail-value">${senderData.bankCode}</span>
-                  </div>`
-                : ""
-            }
+          
           </div>
         </div>
 
@@ -544,7 +537,7 @@ export default function TransactionDetailsPage() {
   if (isWithdrawal) {
     // Withdrawal: Platform sends money to customer - Only show name for platform
     displaySenderData = {
-      name: senderInfo?.senderName || "DIGITAL/Lohloh Abbalolo",
+      name: senderInfo?.senderName || "N/A",
       // Don't include account details for platform in withdrawals
     };
     
@@ -564,7 +557,7 @@ export default function TransactionDetailsPage() {
     };
     
     displayReceiverData = {
-      name: receiverInfo?.aliasAccountName || "DIGITAL/Lohloh Abbalolo",
+      name: receiverInfo?.aliasAccountName || "N/A",
       accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
       accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
       reference: receiverInfo?.aliasAccountReference || "N/A"
@@ -724,16 +717,7 @@ export default function TransactionDetailsPage() {
                               {displaySenderData.bankName || "N/A"}
                             </span>
                           </div>
-                          {displaySenderData.bankCode && (
-                            <div className="flex flex-row justify-between gap-1 xs:gap-2">
-                              <span className="text-gray-600 text-sm sm:text-base">
-                                Bank Code
-                              </span>
-                              <span className="font-medium text-sm sm:text-base text-right xs:text-left break-all">
-                                {displaySenderData.bankCode}
-                              </span>
-                            </div>
-                          )}
+                        
                         </>
                       )}
                     </CardContent>

@@ -1,5 +1,5 @@
 import { Download, Eye, Loader2, Send } from "lucide-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -103,13 +103,18 @@ const TaxList: React.FC<Props> = ({ taxFiling, loading }) => {
   //     setSendingId(null); // 🔹 Reset
   //   }
   // };
+  const [pageLoading, setPageLoading] = useState(true);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader />
-      </div>
-    );
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return <Loader />;
   }
   if (taxFiling.length === 0) {
     return (

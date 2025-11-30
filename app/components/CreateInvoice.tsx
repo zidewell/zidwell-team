@@ -25,6 +25,7 @@ import { InvoicePreview } from "./previews/InvoicePreview";
 import { InvoiceItemRow } from "./invoice/InvoiceItemRow";
 import LogoUpload from "./invoice/LogoUpload";
 import { useRouter } from "next/navigation";
+import confetti from 'canvas-confetti';
 
 // Shared types to avoid duplicates
 type InvoiceItem = {
@@ -157,6 +158,45 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
   });
 
   const { userData } = useUserContextData();
+
+  // Confetti function
+  const triggerConfetti = () => {
+    // Main burst
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#C29307', '#ffd700', '#ffed4e', '#ffffff', '#fbbf24'],
+    });
+
+    // Side bursts
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ['#C29307', '#ffd700', '#ffed4e'],
+      });
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ['#C29307', '#ffd700', '#ffed4e'],
+      });
+    }, 150);
+
+    // Additional bursts for more celebration
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 100,
+        origin: { y: 0.8 },
+        colors: ['#C29307', '#ffd700', '#ffed4e'],
+      });
+    }, 300);
+  };
 
   const calculateTotals = () => {
     const subtotal = form.invoice_items.reduce(
@@ -666,6 +706,9 @@ const handleSaveInvoice = async (
   
   if (result.success) {
     if (!isDraft) {
+      // Trigger confetti animation for successful invoice creation
+      triggerConfetti();
+      
       setGeneratedSigningLink(result.signingLink || "");
       setSavedInvoiceId(result.invoiceId || form.invoice_id);
       setShowSuccessModal(true);
@@ -709,7 +752,7 @@ const handleSaveInvoice = async (
         body: JSON.stringify({
           userId: userData?.id,
           pin: pinString,
-          amount: 20,
+          amount: 10,
           description: "Invoice successfully generated",
         }),
       })
@@ -736,14 +779,14 @@ const handleSaveInvoice = async (
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
-          amount: 20,
+          amount: 10,
           description: "Refund for failed invoice generation",
         }),
       });
       Swal.fire({
         icon: "info",
         title: "Refund Processed",
-        text: "₦20 has been refunded to your wallet due to failed invoice sending.",
+        text: "₦10 has been refunded to your wallet due to failed invoice sending.",
       });
     } catch (err) {
       console.error("Refund failed:", err);
@@ -1270,7 +1313,7 @@ const handleSaveInvoice = async (
               </div>
 
               <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Invoice Created Successfully!
+                Invoice Created Successfully! 🎉
               </h3>
               <p className="text-gray-600">
                 Your invoice has been generated and is ready to share.
@@ -1456,7 +1499,7 @@ const handleSaveInvoice = async (
             <div className="mb-4">
               <h1 className="md:text-3xl text-xl font-bold mb-2 flex items-start gap-3">
                 Create Invoice
-                <span className="p-1 bg-gray-100 text-black text-sm font-bold rounded">₦20</span>
+                <span className="p-1 bg-gray-100 text-black text-sm font-bold rounded">₦10</span>
               </h1>
               <p className="text-muted-foreground">
                 Generate a professional invoice and share the link for payments

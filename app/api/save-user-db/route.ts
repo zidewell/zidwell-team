@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { auth_id, email, first_name, last_name, phone, referred_by } =
+    const { auth_id, email, first_name, last_name, phone, referred_by, referral_source } =
       pendingUser;
 
     const generatedReferral = `${first_name.toLowerCase()}-${Date.now().toString(
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
           zidcoin_balance: 20,
           referral_code: generatedReferral,
           referred_by: referred_by || "",
+          referral_source,
           bvn_verification: "verified",
           p_bank_name: bankName || "",
           p_bank_code: bankCode || "",

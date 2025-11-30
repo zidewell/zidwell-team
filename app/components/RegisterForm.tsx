@@ -9,6 +9,13 @@ import Swal from "sweetalert2";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
 
 import { Eye, EyeOff } from "lucide-react";
 import logo from "@/public/logo.png";
@@ -24,8 +31,6 @@ function RegisterForm() {
     if (ref) setReferralCode(ref);
   }, [searchParams]);
 
-  // console.log(referralCode);
-
   const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: "",
@@ -34,6 +39,7 @@ function RegisterForm() {
     password: "",
     confirmPassword: "",
     phone: "",
+    referralSource: "", // New field
   });
   const [showModal, setShowModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -52,28 +58,28 @@ function RegisterForm() {
       setIsMobile(window.innerWidth < 768);
     };
 
-    checkScreenSize(); // Initial check
+    checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
   // Navigation handlers
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
+  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5)); // Changed to 5 steps
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const handleNextStep = () => {
     const errors = validateCurrentStep();
     if (Object.keys(errors).length > 0) {
       setErrors(errors);
-      return; // don’t go to next step if errors exist
+      return;
     }
-    setErrors({}); // clear errors if none
+    setErrors({});
     nextStep();
   };
 
   const validateCurrentStep = (): Record<string, string> => {
     const newErrors: Record<string, string> = {};
-    const { firstName, lastName, email, phone, password, confirmPassword } =
+    const { firstName, lastName, email, phone, password, confirmPassword, referralSource } =
       formData;
 
     if (currentStep === 1) {
@@ -95,6 +101,10 @@ function RegisterForm() {
     }
 
     if (currentStep === 4) {
+      if (!referralSource) newErrors.referralSource = "Please select how you heard about us.";
+    }
+
+    if (currentStep === 5) {
       if (!acceptTerms) newErrors.terms = "You must accept the terms.";
     }
 
@@ -103,9 +113,8 @@ function RegisterForm() {
 
   const stepHeaders: any = {
     1: {
-      title: "Let’s get to know you!",
-      subtitle:
-        "Nigerians everywhere are using Zidwell to run their business… Welcome onboard",
+      title: "Let's get to know you!",
+      subtitle: "Nigerians everywhere are using Zidwell to run their business… Welcome onboard",
     },
     2: {
       title: "A few more details",
@@ -116,8 +125,12 @@ function RegisterForm() {
       subtitle: "Set up your password for a safe experience.",
     },
     4: {
+      title: "How did you find us?",
+      subtitle: "Help us understand how you discovered Zidwell",
+    },
+    5: {
       title: "Final step!",
-      subtitle: "Accept our terms and you’re good to go 🚀",
+      subtitle: "Accept our terms and you're good to go 🚀",
     },
   };
 
@@ -125,9 +138,13 @@ function RegisterForm() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleSelectChange = (value: string) => {
+    setFormData({ ...formData, referralSource: value });
+  };
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    const { firstName, lastName, email, phone, password, confirmPassword } =
+    const { firstName, lastName, email, phone, password, confirmPassword, referralSource } =
       formData;
 
     if (!firstName) newErrors.firstName = "Please enter your first name.";
@@ -139,6 +156,7 @@ function RegisterForm() {
     if (!password) newErrors.password = "Please enter a password.";
     if (password !== confirmPassword)
       newErrors.confirmPassword = "Passwords do not match.";
+    if (!referralSource) newErrors.referralSource = "Please select how you heard about us.";
     if (!acceptTerms) newErrors.terms = "You must accept the terms.";
 
     return newErrors;
@@ -150,6 +168,7 @@ function RegisterForm() {
     last_name: string;
     email: string;
     phone: string;
+    referral_source: string;
     referred_by?: string;
   }) => {
     try {
@@ -162,9 +181,7 @@ function RegisterForm() {
       });
 
       const data = await res.json();
-      // console.log("saveToDatabase response:", data);
       if (!res.ok) {
-      
         throw new Error(data.error || "Something went wrong");
       }
 
@@ -184,7 +201,7 @@ function RegisterForm() {
     }
 
     setLoading(true);
-    const { firstName, lastName, phone, email, password } = formData;
+    const { firstName, lastName, phone, email, password, referralSource } = formData;
 
     try {
       // 1. Sign up user with Supabase Auth
@@ -220,6 +237,7 @@ function RegisterForm() {
         last_name: lastName.trim(),
         email: email.trim(),
         phone: phone.trim(),
+        referral_source: referralSource,
         referred_by: referralCode || undefined,
       };
 
@@ -246,7 +264,7 @@ function RegisterForm() {
 
   return (
     <div
-      className="lg:w-[50%] min-h-screen md:h-full flex justify-center  items-center px-6 md:py-8 fade-in bg-cover bg-center"
+      className="lg:w-[50%] min-h-screen md:h-full flex justify-center items-center px-6 md:py-8 fade-in bg-cover bg-center"
       style={
         isMobile
           ? {
@@ -260,7 +278,7 @@ function RegisterForm() {
       <form
         data-aos="fade-down"
         onSubmit={handleSubmit}
-        className="space-y-2 flex flex-col justify-center  w-full  p-6 md:border rounded-lg md:shadow-md bg-gray-50"
+        className="space-y-2 flex flex-col justify-center w-full p-6 md:border rounded-lg md:shadow-md bg-gray-50"
       >
         <div className="mb-8 text-center">
           {/* Logo and Brand */}
@@ -272,17 +290,17 @@ function RegisterForm() {
               height={32}
               className="w-20 object-contain"
             />
-            {/* <h1 className="font-bold text-lg">Zidwell</h1> */}
           </div>
 
           {/* Step Header */}
           <h2 className="md:text-2xl text-xl font font-semibold">
             {stepHeaders[currentStep].title}
           </h2>
-          <p className=" text-gray-500 mt-1">
+          <p className="text-gray-500 mt-1">
             {stepHeaders[currentStep].subtitle}
           </p>
         </div>
+
         {currentStep === 1 && (
           <>
             <div className="grid md:grid-cols-2 gap-4">
@@ -402,6 +420,32 @@ function RegisterForm() {
 
         {currentStep === 4 && (
           <>
+            <Label htmlFor="referralSource">How did you hear about Zidwell?</Label>
+            <Select onValueChange={handleSelectChange} value={formData.referralSource}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select an option" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A friend">A friend</SelectItem>
+                <SelectItem value="Random google search">Random google search</SelectItem>
+                <SelectItem value="WhatsApp Group">WhatsApp Group</SelectItem>
+                <SelectItem value="An event">An event</SelectItem>
+                <SelectItem value="Instagram">Instagram</SelectItem>
+                <SelectItem value="Facebook">Facebook</SelectItem>
+                <SelectItem value="Linkedin">Linkedin</SelectItem>
+                <SelectItem value="Tiktok">Tiktok</SelectItem>
+                <SelectItem value="Youtube">Youtube</SelectItem>
+                <SelectItem value="Podcast">Podcast</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.referralSource && (
+              <p className="text-sm text-red-500">{errors.referralSource}</p>
+            )}
+          </>
+        )}
+
+        {currentStep === 5 && (
+          <>
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -432,7 +476,7 @@ function RegisterForm() {
               Back
             </Button>
           )}
-          {currentStep < 4 ? (
+          {currentStep < 5 ? ( // Changed to 5
             <Button
               type="button"
               className="bg-[#C29307]"

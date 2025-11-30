@@ -14,6 +14,29 @@ import {
 import { useUserContextData } from "../context/userData";
 import { useEffect, useState } from "react";
 
+// Markdown parser for notification messages
+const parseMarkdown = (text: string) => {
+  if (!text) return '';
+  
+  return text
+    // Headers
+    .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-2 mb-1">$1</h1>')
+    .replace(/^## (.*$)/gim, '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>')
+    // Bold
+    .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
+    // Italic
+    .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
+    // Strikethrough
+    .replace(/~~(.*?)~~/gim, '<s class="line-through">$1</s>')
+    // Links
+    .replace(/\[([^\[]+)\]\(([^\)]+)\)/gim, '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>')
+    // Line breaks
+    .replace(/\n/gim, '<br />')
+    // Image placeholder
+    .replace(/\[Image: (.*?)\]/gim, '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>');
+};
+
 export default function NotificationBell() {
   const {
     userData,
@@ -26,6 +49,7 @@ export default function NotificationBell() {
   } = useUserContextData();
 
   const [isOpen, setIsOpen] = useState(false);
+
   const handleNotificationClick = async (notificationId: string) => {
     if (!notificationId) {
       console.error('Notification ID is required');
@@ -73,6 +97,9 @@ export default function NotificationBell() {
       case 'transaction': return '💸';
       case 'security': return '🔒';
       case 'info': return 'ℹ️';
+      case 'success': return '✅';
+      case 'warning': return '⚠️';
+      case 'error': return '❌';
       default: return '🔔';
     }
   };
@@ -124,7 +151,7 @@ export default function NotificationBell() {
         <div className="max-h-64 overflow-y-auto">
           {notificationsLoading ? (
             <div className="p-4 text-center text-gray-500">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#C29307]  mx-auto mb-2"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#C29307] mx-auto mb-2"></div>
               <p className="text-sm">Loading notifications...</p>
             </div>
           ) : notifications.length === 0 ? (
@@ -161,9 +188,12 @@ export default function NotificationBell() {
                       />
                     )}
                   </div>
-                  <p className="text-xs text-gray-600 line-clamp-2 break-words ml-5">
-                    {notification.message}
-                  </p>
+                  <div 
+                    className="text-xs text-gray-600 line-clamp-2 break-words ml-5 prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ 
+                      __html: parseMarkdown(notification.message) 
+                    }}
+                  />
                   <div className="flex justify-between items-center text-xs text-gray-500 ml-5">
                     <span className="capitalize">{notification.type}</span>
                     <span>{formatTime(notification.created_at)}</span>

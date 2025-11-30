@@ -34,7 +34,8 @@ async function sendVirtualAccountDepositEmailNotification(
   bankName: string,
   accountNumber: string,
   accountName: string,
-  senderName: string
+  senderName: string,
+  narration?: string
 ) {
   try {
     // Fetch user email and name
@@ -66,6 +67,7 @@ Your account deposit was successful!
 • Account Number: ${accountNumber}
 • Account Name: ${accountName}
 • Sender: ${senderName}
+• Narration: ${narration || "N/A"}
 • Transaction ID: ${transactionId}
 • Date: ${new Date().toLocaleString()}
 
@@ -97,6 +99,7 @@ Zidwell Team
             <p><strong>Account Number:</strong> ${accountNumber}</p>
             <p><strong>Account Name:</strong> ${accountName}</p>
             <p><strong>Sender:</strong> ${senderName}</p>
+            <p><strong>Narration:</strong> ${narration || "N/A"}</p>
             <p><strong>Transaction ID:</strong> ${transactionId}</p>
             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
             <p><strong>Status:</strong> <span style="color: #22c55e; font-weight: bold;">Success</span></p>
@@ -265,7 +268,7 @@ Zidwell Team
           ${
             status === "success"
               ? `<p style="color: #64748b;">
-                  1. The funds should reflect in the beneficiary's bank account shortly.
+                  The funds should reflect in the beneficiary's bank account shortly.
                   If there are any dispute, please contact our support team.
                 </p>`
               : ""
@@ -1687,31 +1690,33 @@ export async function POST(req: NextRequest) {
 
       // Extract virtual account details from your actual webhook structure
       const bankName =
-        payload.data?.customer?.bankName || // "Paycom (Opay)" from your sample
-        payload.data?.transaction?.aliasAccountType || // "VIRTUAL" from your sample
+        payload.data?.customer?.bankName || "N/A"
+        payload.data?.transaction?.aliasAccountType || "N/A"
         "Virtual Account Bank";
 
       const accountNumber =
-        payload.data?.transaction?.aliasAccountNumber || // "3580219918" from your sample
-        payload.data?.customer?.accountNumber || // "9132316236" from your sample
+        payload.data?.transaction?.aliasAccountNumber || "N/A"
+        payload.data?.customer?.accountNumber || "N/A"
         "Virtual Account";
 
       const accountName =
-        payload.data?.transaction?.aliasAccountName || // "DIGITAL/Lohloh Abbalolo" from your sample
-        payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
+        payload.data?.transaction?.aliasAccountName || "N/A"
+        payload.data?.customer?.senderName || "N/A"
         "Your Virtual Account";
 
       const senderName =
-        payload.data?.customer?.senderName || // "IBRAHIM ABBALOLO LAWAL" from your sample
+        payload.data?.customer?.senderName || "N/A"
         "Customer";
+
+      const narration = payload.data?.transaction?.narration || "";
 
       console.log("🏦 Extracted Virtual Account Details:", {
         bankName,
         accountNumber,
         accountName,
         senderName,
+        narration, 
       });
-
       if (userId) {
         await sendVirtualAccountDepositEmailNotification(
           userId,
@@ -1720,7 +1725,8 @@ export async function POST(req: NextRequest) {
           bankName,
           accountNumber,
           accountName,
-          senderName
+          senderName,
+          narration // Add this parameter
         );
       }
 

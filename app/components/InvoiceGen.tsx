@@ -169,6 +169,21 @@ export default function InvoiceGen() {
     }
   };
 
+    const [pageLoading, setPageLoading] = useState(true);
+  
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setPageLoading(false);
+      }, 2500);
+  
+      return () => clearTimeout(timer);
+    }, []);
+  
+    if (pageLoading) {
+      return <Loader />;
+    }
+  
+
   if (loading && invoices.length === 0) {
     return <Loader />;
   }

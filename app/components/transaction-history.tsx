@@ -54,10 +54,19 @@ const outflowTypes = [
 export default function TransactionHistory() {
   const [filter, setFilter] = useState("All transactions");
   const [downloadingReceipts, setDownloadingReceipts] = useState<Set<string>>(new Set());
+  const [pageLoading, setPageLoading] = useState(true);
   const router = useRouter();
 
   const { userData, loading, transactions, searchTerm, setSearchTerm } =
     useUserContextData();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const filteredTransactions = transactions.filter((tx) => {
     const matchesFilter =
@@ -522,6 +531,11 @@ export default function TransactionHistory() {
     return downloadingReceipts.has(transactionId);
   };
 
+  // Show page loader while loading
+  if (pageLoading) {
+    return <Loader />;
+  }
+
   return (
     <Card className="bg-white shadow-sm">
       <CardHeader className="pb-4">
@@ -574,7 +588,10 @@ export default function TransactionHistory() {
         {/* ✅ Loading State */}
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <Loader />
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="w-8 h-8 animate-spin text-[#C29307]" />
+              <p className="text-gray-500">Loading transactions...</p>
+            </div>
           </div>
         ) : filteredTransactions.length === 0 ? (
           <div className="text-center py-8 text-gray-500">

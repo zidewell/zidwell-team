@@ -29,6 +29,7 @@ import {
 } from "./ui/select";
 import PinPopOver from "./PinPopOver";
 import TransactionSummary from "./TransactionSummary";
+import confetti from 'canvas-confetti';
 
 interface Bank {
   name: string;
@@ -87,6 +88,45 @@ export default function Transfer() {
   const [selectedSavedAccount, setSelectedSavedAccount] =
     useState<SavedAccount | null>(null);
   const [showSavedAccounts, setShowSavedAccounts] = useState(false);
+
+  // Confetti function
+  const triggerConfetti = () => {
+    // Main burst
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#C29307', '#ffd700', '#ffed4e', '#ffffff', '#fbbf24'],
+    });
+
+    // Side bursts
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ['#C29307', '#ffd700', '#ffed4e'],
+      });
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ['#C29307', '#ffd700', '#ffed4e'],
+      });
+    }, 150);
+
+    // Additional bursts for more celebration
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 100,
+        origin: { y: 0.8 },
+        colors: ['#C29307', '#ffd700', '#ffed4e'],
+      });
+    }, 300);
+  };
 
   // Filter banks dynamically
   const filteredBanks = banks.filter((bank) =>
@@ -373,10 +413,29 @@ export default function Transfer() {
           await saveAccountToProfile();
         }
 
+        // Trigger confetti animation
+        triggerConfetti();
+
         Swal.fire({
           icon: "success",
-          title: "Transfer Successful",
+          title: "Transfer Successful! 🎉",
           text: "Your transaction has been processed successfully.",
+          showConfirmButton: true,
+          confirmButtonColor: "#C29307",
+          timer: 5000,
+          timerProgressBar: true,
+          background: '#fefefe',
+          didOpen: () => {
+            // Additional confetti when the modal opens
+            setTimeout(() => {
+              confetti({
+                particleCount: 50,
+                spread: 60,
+                origin: { y: 0.3 },
+                colors: ['#C29307', '#ffd700']
+              });
+            }, 100);
+          }
         });
 
         // Reset form
@@ -391,6 +450,7 @@ export default function Transfer() {
         setErrors({});
         setSaveAccount(false);
         setSelectedSavedAccount(null);
+        window.location.reload();
       } else {
         Swal.fire({
           icon: "error",

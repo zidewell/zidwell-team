@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import AdminLayout from "@/app/components/admin-components/layout";
@@ -23,6 +23,29 @@ import { Badge } from "@/app/components/ui/badge";
 import { Switch } from "@/app/components/ui/switch";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
+
+// Markdown parser for preview
+const parseMarkdown = (text: string) => {
+  if (!text) return '';
+  
+  return text
+    // Headers
+    .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>')
+    .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-3 mb-2">$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mt-3 mb-1">$1</h3>')
+    // Bold
+    .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
+    // Italic
+    .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
+    // Strikethrough
+    .replace(/~~(.*?)~~/gim, '<s class="line-through">$1</s>')
+    // Links
+    .replace(/\[([^\[]+)\]\(([^\)]+)\)/gim, '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>')
+    // Line breaks
+    .replace(/\n/gim, '<br />')
+    // Image placeholder
+    .replace(/\[Image: (.*?)\]/gim, '<div class="bg-gray-100 border rounded p-2 my-2 text-sm text-gray-600">🖼️ Image: $1</div>');
+};
 
 export default function NotificationsCenterPage() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,7 +69,163 @@ export default function NotificationsCenterPage() {
   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [urlText, setUrlText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const itemsPerPage = 15;
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Formatting functions
+  const applyFormatting = (prefix: string, suffix: string = prefix) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = newNotification.message.substring(start, end);
+    const before = newNotification.message.substring(0, start);
+    const after = newNotification.message.substring(end);
+
+    let newText;
+    if (selectedText) {
+      newText = before + prefix + selectedText + suffix + after;
+    } else {
+      newText = before + prefix + suffix + after;
+    }
+
+    setNewNotification({...newNotification, message: newText});
+
+    // Restore cursor position
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        const newCursorPos = selectedText ? start + prefix.length + selectedText.length + suffix.length : start + prefix.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  };
+
+  const applyHeader = (level: number) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = newNotification.message.substring(start, end);
+    const before = newNotification.message.substring(0, start);
+    const after = newNotification.message.substring(end);
+
+    const headerPrefix = `${'#'.repeat(level)} `;
+    
+    let newText;
+    if (selectedText) {
+      newText = before + headerPrefix + selectedText + after;
+    } else {
+      newText = before + headerPrefix + after;
+    }
+
+    setNewNotification({...newNotification, message: newText});
+
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        const newCursorPos = selectedText ? start + headerPrefix.length + selectedText.length : start + headerPrefix.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const before = newNotification.message.substring(0, start);
+    const after = newNotification.message.substring(start);
+
+    const newText = before + emoji + after;
+    setNewNotification({...newNotification, message: newText});
+    setShowEmojiPicker(false);
+
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+      }
+    }, 0);
+  };
+
+  const insertUrl = () => {
+    if (!urlText || !urlInput) return;
+
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const before = newNotification.message.substring(0, start);
+    const after = newNotification.message.substring(start);
+
+    const urlMarkdown = `[${urlText}](${urlInput})`;
+    const newText = before + urlMarkdown + after;
+    setNewNotification({...newNotification, message: newText});
+
+    setShowUrlInput(false);
+    setUrlText("");
+    setUrlInput("");
+
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(start + urlMarkdown.length, start + urlMarkdown.length);
+      }
+    }, 0);
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // In a real application, you would upload the file to your server
+    // and get back a URL. For now, we'll create a mock URL pattern.
+    const mockImageUrl = `[Image: ${file.name}]`;
+    
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const before = newNotification.message.substring(0, start);
+    const after = newNotification.message.substring(start);
+
+    const newText = before + mockImageUrl + after;
+    setNewNotification({...newNotification, message: newText});
+
+    // Reset the file input
+    event.target.value = '';
+
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(start + mockImageUrl.length, start + mockImageUrl.length);
+      }
+    }, 0);
+  };
 
   // Fetch users for suggestions
   const { data: usersData, isLoading: isUsersLoading } = useSWR(
@@ -183,9 +362,12 @@ export default function NotificationsCenterPage() {
   // Create new notification
   const handleCreateNotification = async () => {
     try {
+      setIsSubmitting(true);
+      
       // Validate specific users selection
       if (newNotification.target_audience === "specific_users" && selectedUsers.length === 0) {
         Swal.fire("Error", "Please select at least one user for specific user notification", "error");
+        setIsSubmitting(false);
         return;
       }
 
@@ -220,12 +402,15 @@ export default function NotificationsCenterPage() {
         setSelectedUsers([]);
         setUserSearch("");
         setUserSuggestions([]);
+        setShowPreview(false);
         mutate();
       } else {
         throw new Error(result.error);
       }
     } catch (err) {
       Swal.fire("Error", "Failed to create notification", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -374,7 +559,10 @@ export default function NotificationsCenterPage() {
             <Button variant="outline" onClick={() => mutate()}>
               🔄 Refresh
             </Button>
-            <Button className="bg-[#C29307] text-white hover:bg-[#a87e06]" onClick={() => setShowCreateModal(true)}>
+            <Button 
+              className="bg-[#C29307] text-white hover:bg-[#a87e06]" 
+              onClick={() => setShowCreateModal(true)}
+            >
               📢 Create Notification
             </Button>
           </div>
@@ -511,7 +699,7 @@ export default function NotificationsCenterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+           <div className="space-y-4">
               {notifications.map((notification: any) => (
                 <div key={notification.id} className="p-4 border rounded-lg">
                   <div className="flex justify-between items-start">
@@ -525,7 +713,14 @@ export default function NotificationsCenterPage() {
                       </div>
                       
                       <h3 className="font-semibold text-lg">{notification.title}</h3>
-                      <p className="text-gray-600 mt-1">{notification.message}</p>
+                      
+                      {/* UPDATED: Use the same parseMarkdown function as NotificationBell */}
+                      <div 
+                        className="text-gray-600 mt-1 prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ 
+                          __html: parseMarkdown(notification.message) 
+                        }}
+                      />
                       
                       <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500">
                         <span>To: {notification.target_audience}</span>
@@ -673,13 +868,214 @@ export default function NotificationsCenterPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-2">Message *</label>
-                  <Textarea
-                    placeholder="Enter your notification message"
-                    value={newNotification.message}
-                    onChange={(e) => setNewNotification({...newNotification, message: e.target.value})}
-                    rows={4}
-                  />
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium">Message *</label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowPreview(!showPreview)}
+                    >
+                      {showPreview ? '✏️ Edit' : '👁️ Preview'}
+                    </Button>
+                  </div>
+                  
+                  {/* Formatting Toolbar - Only show when not in preview mode */}
+                  {!showPreview && (
+                    <>
+                      <div className="flex flex-wrap gap-1 mb-2 p-2 border rounded-md bg-gray-50">
+                        {/* Text Formatting */}
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => applyFormatting("**")}
+                          title="Bold"
+                        >
+                          <strong>B</strong>
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => applyFormatting("*")}
+                          title="Italic"
+                        >
+                          <em>I</em>
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => applyFormatting("~~")}
+                          title="Strikethrough"
+                        >
+                          <s>S</s>
+                        </Button>
+                        
+                        {/* Headers */}
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => applyHeader(1)}
+                          title="Header 1"
+                        >
+                          H1
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => applyHeader(2)}
+                          title="Header 2"
+                        >
+                          H2
+                        </Button>
+                        
+                        {/* URL */}
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setShowUrlInput(!showUrlInput)}
+                          title="Insert Link"
+                        >
+                          🔗
+                        </Button>
+                        
+                        {/* Emojis */}
+                        <div className="relative" ref={emojiPickerRef}>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            title="Insert Emoji"
+                          >
+                            😀
+                          </Button>
+                          {showEmojiPicker && (
+                            <div className="absolute top-full left-0 mt-1 p-2 bg-white border rounded-md shadow-lg z-20 grid grid-cols-6 gap-1 w-48 max-h-48 overflow-y-auto">
+                              {[
+                                '😀', '😃', '😄', '😁', '😆', '😅',
+                                '😂', '🤣', '😊', '😇', '🙂', '🙃',
+                                '😉', '😌', '😍', '🥰', '😘', '😗',
+                                '😙', '😚', '😋', '😛', '😝', '😜',
+                                '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
+                                '🥳', '😏', '😒', '😞', '😔', '😟',
+                                '😕', '🙁', '☹️', '😣', '😖', '😫',
+                                '😩', '🥺', '😢', '😭', '😤', '😠',
+                                '😡', '🤬', '🤯', '😳', '🥵', '🥶',
+                                '😱', '😨', '😰', '😥', '😓', '🤗',
+                                '🤔', '🤭', '🤫', '🤥', '😶', '😐',
+                                '😑', '😬', '🙄', '😯', '😦', '😧',
+                                '😮', '😲', '🥱', '😴', '🤤', '😪',
+                                '😵', '🤐', '🥴', '🤢', '🤮', '🤧',
+                                '😷', '🤒', '🤕', '🤑', '🤠', '😈',
+                                '👿', '👹', '👺', '🤡', '💩', '👻',
+                                '💀', '☠️', '👽', '👾', '🤖', '🎃',
+                                '😺', '😸', '😹', '😻', '😼', '😽',
+                                '🙀', '😿', '😾'
+                              ].map(emoji => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  className="p-1 hover:bg-gray-100 rounded text-lg"
+                                  onClick={() => insertEmoji(emoji)}
+                                  title={`Insert ${emoji}`}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Image Upload */}
+                        {/* <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            id="image-upload"
+                          />
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            size="sm"
+                            title="Upload Image"
+                          >
+                            🖼️
+                          </Button>
+                        </div> */}
+                      </div>
+
+                      {/* URL Input Dialog */}
+                      {showUrlInput && (
+                        <div className="mb-2 p-3 border rounded-md bg-blue-50">
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                            <Input
+                              placeholder="Link text"
+                              value={urlText}
+                              onChange={(e) => setUrlText(e.target.value)}
+                            />
+                            <Input
+                              placeholder="URL"
+                              value={urlInput}
+                              onChange={(e) => setUrlInput(e.target.value)}
+                            />
+                          </div>
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setShowUrlInput(false)}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={insertUrl}
+                            >
+                              Insert Link
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Message Input / Preview */}
+                  {showPreview ? (
+                    <div className="border rounded-md p-4 bg-gray-50 min-h-[140px]">
+                      <h4 className="text-sm font-medium mb-2 text-gray-700">Preview:</h4>
+                      {newNotification.message ? (
+                        <div 
+                          className="prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{ 
+                            __html: parseMarkdown(newNotification.message) 
+                          }} 
+                        />
+                      ) : (
+                        <p className="text-gray-500 italic">No message to preview</p>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <Textarea
+                        ref={textareaRef}
+                        placeholder="Enter your notification message (supports Markdown formatting)"
+                        value={newNotification.message}
+                        onChange={(e) => setNewNotification({...newNotification, message: e.target.value})}
+                        rows={4}
+                      />
+                      <div className="text-xs text-gray-500 mt-1">
+                        Supports basic Markdown: **bold**, *italic*, ~~strikethrough~~, # Header 1, ## Header 2, [link text](url)
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -865,16 +1261,27 @@ export default function NotificationsCenterPage() {
                       setSelectedUsers([]);
                       setUserSearch("");
                       setUserSuggestions([]);
+                      setShowPreview(false);
                     }}
+                    disabled={isSubmitting}
                   >
                     Cancel
                   </Button>
                   <Button 
                     onClick={handleCreateNotification}
                     disabled={!newNotification.title || !newNotification.message || 
-                      (newNotification.target_audience === "specific_users" && selectedUsers.length === 0)}
+                      (newNotification.target_audience === "specific_users" && selectedUsers.length === 0) ||
+                      isSubmitting}
+                    className="bg-[#C29307] text-white hover:bg-[#a87e06]"
                   >
-                    Create Notification
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Creating...
+                      </>
+                    ) : (
+                      'Create Notification'
+                    )}
                   </Button>
                 </div>
               </CardContent>
@@ -885,3 +1292,4 @@ export default function NotificationsCenterPage() {
     </AdminLayout>
   );
 }
+

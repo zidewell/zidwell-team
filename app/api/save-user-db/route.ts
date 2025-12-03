@@ -69,8 +69,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { auth_id, email, first_name, last_name, phone, referred_by, referral_source } =
-      pendingUser;
+    const {
+      auth_id,
+      email,
+      first_name,
+      last_name,
+      phone,
+      referred_by,
+      referral_source,
+    } = pendingUser;
 
     const generatedReferral = `${first_name.toLowerCase()}-${Date.now().toString(
       36
@@ -167,7 +174,7 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          accountName: `${first_name} ${last_name}`, 
+          accountName: `${first_name} ${last_name}`,
           accountRef: auth_id,
           bvn: bvn || undefined,
         }),
@@ -217,7 +224,7 @@ export async function POST(req: NextRequest) {
             : process.env.NEXT_PUBLIC_BASE_URL;
 
         await transporter.sendMail({
-          from: `"Zidwell" <${process.env.EMAIL_USER!}>`,
+          from: `"Zidwell" <${process.env.EMAIL_USER}>`,
           to: email,
           subject: "🎉 Congratulations & Welcome to Zidwell!",
           html: `

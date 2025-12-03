@@ -84,11 +84,12 @@ const nextConfig = {
     SITE_URL: process.env.SITE_URL || 'https://zidwell.com',
     SITE_NAME: 'Zidwell',
   },
+  
 
   // Compiler options
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production', // Remove consoles in prod
-  },
+  // compiler: {
+  //   removeConsole: process.env.NODE_ENV === 'production', // Remove consoles in prod
+  // },
 };
 
 module.exports = nextConfig;

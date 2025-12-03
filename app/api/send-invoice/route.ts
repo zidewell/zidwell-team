@@ -313,7 +313,7 @@ export async function POST(req: Request) {
     const publicToken = uuidv4();
     const signingLink = `${baseUrl}/pay-invoice/${publicToken}`;
 
-    console.log(signingLink, "signingLink")
+    console.log(signingLink, "signingLink");
 
     const { subtotal, feeAmount, totalAmount } = calculateTotals(
       invoice_items,

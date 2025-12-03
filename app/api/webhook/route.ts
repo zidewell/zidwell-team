@@ -80,7 +80,7 @@ Zidwell Team
     `;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Zidwell" <notifications@zidwell.com>',
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
       text: emailBody,
@@ -228,7 +228,7 @@ Zidwell Team
       status === "success" ? "Transfer Successful" : "Transfer Failed";
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Zidwell" <notifications@zidwell.com>',
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
       text: emailBody,
@@ -1689,24 +1689,21 @@ export async function POST(req: NextRequest) {
       });
 
       // Extract virtual account details from your actual webhook structure
-      const bankName =
-        payload.data?.customer?.bankName || "N/A"
-        payload.data?.transaction?.aliasAccountType || "N/A"
-        "Virtual Account Bank";
+      const bankName = payload.data?.customer?.bankName || "N/A";
+      payload.data?.transaction?.aliasAccountType || "N/A";
+      ("Virtual Account Bank");
 
       const accountNumber =
-        payload.data?.transaction?.aliasAccountNumber || "N/A"
-        payload.data?.customer?.accountNumber || "N/A"
-        "Virtual Account";
+        payload.data?.transaction?.aliasAccountNumber || "N/A";
+      payload.data?.customer?.accountNumber || "N/A";
+      ("Virtual Account");
 
-      const accountName =
-        payload.data?.transaction?.aliasAccountName || "N/A"
-        payload.data?.customer?.senderName || "N/A"
-        "Your Virtual Account";
+      const accountName = payload.data?.transaction?.aliasAccountName || "N/A";
+      payload.data?.customer?.senderName || "N/A";
+      ("Your Virtual Account");
 
-      const senderName =
-        payload.data?.customer?.senderName || "N/A"
-        "Customer";
+      const senderName = payload.data?.customer?.senderName || "N/A";
+      ("Customer");
 
       const narration = payload.data?.transaction?.narration || "";
 
@@ -1715,7 +1712,7 @@ export async function POST(req: NextRequest) {
         accountNumber,
         accountName,
         senderName,
-        narration, 
+        narration,
       });
       if (userId) {
         await sendVirtualAccountDepositEmailNotification(

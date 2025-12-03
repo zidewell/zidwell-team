@@ -1,9 +1,9 @@
 import { transporter } from "./node-mailer";
 
- const baseUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.NEXT_PUBLIC_DEV_URL
-        : process.env.NEXT_PUBLIC_BASE_URL;
+const baseUrl =
+  process.env.NODE_ENV === "development"
+    ? process.env.NEXT_PUBLIC_DEV_URL
+    : process.env.NEXT_PUBLIC_BASE_URL;
 
 export async function sendEmailNotification(
   to: string,
@@ -21,15 +21,19 @@ export async function sendEmailNotification(
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log('Email sent:', result.messageId);
+    console.log("Email sent:", result.messageId);
     return { success: true, messageId: result.messageId };
   } catch (error) {
-    console.error('Email sending failed:', error);
+    console.error("Email sending failed:", error);
     return { success: false, error };
   }
 }
 
-function generateEmailTemplate(data: { title: string; message: string; actionUrl?: string }) {
+function generateEmailTemplate(data: {
+  title: string;
+  message: string;
+  actionUrl?: string;
+}) {
   return `
     <!DOCTYPE html>
     <html>
@@ -90,13 +94,17 @@ function generateEmailTemplate(data: { title: string; message: string; actionUrl
         <div class="content">
           <div class="notification-type">App Notification</div>
           <p>${data.message}</p>
-          ${data.actionUrl ? `
+          ${
+            data.actionUrl
+              ? `
             <div style="text-align: center;">
               <a href="${baseUrl}${data.actionUrl}" class="button">
                 View in App
               </a>
             </div>
-          ` : ''}
+          `
+              : ""
+          }
         </div>
         <div class="footer">
           <p>© ${new Date().getFullYear()} Your App. All rights reserved.</p>
@@ -114,10 +122,10 @@ function generateEmailTemplate(data: { title: string; message: string; actionUrl
 export async function verifyEmailTransporter() {
   try {
     await transporter.verify();
-    console.log('✅ Email transporter is ready');
+    console.log("✅ Email transporter is ready");
     return true;
   } catch (error) {
-    console.error('❌ Email transporter failed:', error);
+    console.error("❌ Email transporter failed:", error);
     return false;
   }
 }

@@ -53,7 +53,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
     style: "currency",
     currency: "NGN",
   }).format(total);
-return `
+  return `
 
 <!DOCTYPE html>
 <html lang="en">
@@ -289,11 +289,21 @@ return `
         <!-- Invoice Details -->
         <div class="card">
           <h2>📅 Invoice Details</h2>
-          <div class="info-row"><span>Issue Date:</span><span>${invoice.issue_date || "N/A"}</span></div>
-          <div class="info-row"><span>Due Date:</span><span>${invoice.due_date || "N/A"}</span></div>
-          <div class="info-row"><span>Payment Type:</span><span>${invoice.payment_type || "N/A"}</span></div>
-          <div class="info-row"><span>Fee Option:</span><span>${invoice.fee_option || "N/A"}</span></div>
-          <div class="info-row"><span>Unit Price:</span><span>${invoice.unit_price || "N/A"}</span></div>
+          <div class="info-row"><span>Issue Date:</span><span>${
+            invoice.issue_date || "N/A"
+          }</span></div>
+          <div class="info-row"><span>Due Date:</span><span>${
+            invoice.due_date || "N/A"
+          }</span></div>
+          <div class="info-row"><span>Payment Type:</span><span>${
+            invoice.payment_type || "N/A"
+          }</span></div>
+          <div class="info-row"><span>Fee Option:</span><span>${
+            invoice.fee_option || "N/A"
+          }</span></div>
+          <div class="info-row"><span>Unit Price:</span><span>${
+            invoice.unit_price || "N/A"
+          }</span></div>
         </div>
 
         <!-- Billing Information -->
@@ -313,7 +323,10 @@ return `
       <!-- Customer Message -->
       <div class="message">
         <h3>Message</h3>
-        <p>${invoice.customer_note || "Thanks for your business. Payment due in 14 days."}</p>
+        <p>${
+          invoice.customer_note ||
+          "Thanks for your business. Payment due in 14 days."
+        }</p>
       </div>
 
       <!-- Invoice Items -->
@@ -333,14 +346,20 @@ return `
             </tr>
           </thead>
  <tbody>
-              ${items.map((item: any) => `
+              ${items
+                .map(
+                  (item: any) => `
                 <tr>
                   <td>${item.item}</td>
                   <td>${item.quantity}</td>
                   <td>₦${Number(item.price).toLocaleString("en-NG")}</td>
-                  <td>₦${Number(item.quantity * item.price).toLocaleString("en-NG")}</td>
+                  <td>₦${Number(item.quantity * item.price).toLocaleString(
+                    "en-NG"
+                  )}</td>
                 </tr>
-              `).join("")}
+              `
+                )
+                .join("")}
             </tbody>
 
         </table>
@@ -379,16 +398,12 @@ return `
 </body>
 </html>
 `;
-
-
-
-
 }
 
 async function generatePdfBufferFromHtml(html: string): Promise<Buffer> {
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: "domcontentloaded" }); 
+  await page.setContent(html, { waitUntil: "domcontentloaded" });
   const pdf = await page.pdf({ format: "A4", printBackground: true });
   await browser.close();
   return Buffer.from(pdf);
@@ -398,7 +413,10 @@ export async function POST(request: Request) {
     const { invoiceId, sendPaymentConfirmation } = await request.json();
 
     if (!invoiceId) {
-      return NextResponse.json({ message: "Missing invoiceId" }, { status: 400 });
+      return NextResponse.json(
+        { message: "Missing invoiceId" },
+        { status: 400 }
+      );
     }
 
     const { data: invoice, error } = await supabase
@@ -410,7 +428,10 @@ export async function POST(request: Request) {
     console.log("from signing", invoice);
 
     if (error || !invoice) {
-      return NextResponse.json({ message: "Invoice not found" }, { status: 404 });
+      return NextResponse.json(
+        { message: "Invoice not found" },
+        { status: 404 }
+      );
     }
 
     const logo = getLogoBase64();
@@ -426,7 +447,11 @@ export async function POST(request: Request) {
         <div style="font-family: Arial, sans-serif;">
           <h2 style="color: green;">Payment Confirmed</h2>
           <p>Hello ${invoice.signee_name},</p>
-          <p>Your payment of <b>₦${Number(invoice.total_amount).toLocaleString("en-NG")}<</b> for invoice <b>#${invoice.invoice_id}</b> has been received.</p>
+          <p>Your payment of <b>₦${Number(invoice.total_amount).toLocaleString(
+            "en-NG"
+          )}<</b> for invoice <b>#${
+        invoice.invoice_id
+      }</b> has been received.</p>
           <p>You can now sign your invoice using the link below:</p>
         </div>
       `;
@@ -447,7 +472,10 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { message: "Invoice email sent", sendPaymentConfirmation: !!sendPaymentConfirmation },
+      {
+        message: "Invoice email sent",
+        sendPaymentConfirmation: !!sendPaymentConfirmation,
+      },
       { status: 200 }
     );
   } catch (error) {

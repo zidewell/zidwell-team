@@ -12,13 +12,11 @@ const supabase = createClient(
 // Helper function to extract admin user info from cookies
 async function getAdminUserInfo(cookieHeader: string) {
   try {
-    // Extract access token from cookies
     const accessTokenMatch = cookieHeader.match(/sb-access-token=([^;]+)/);
     if (!accessTokenMatch) return null;
 
     const accessToken = accessTokenMatch[1];
 
-    // Verify the token and get user info
     const {
       data: { user },
       error,
@@ -29,7 +27,6 @@ async function getAdminUserInfo(cookieHeader: string) {
       return null;
     }
 
-    // Get admin user information from USERS table
     const { data: adminUser } = await supabase
       .from("users")
       .select("first_name, last_name, email, admin_role")
@@ -51,12 +48,10 @@ async function getAdminUserInfo(cookieHeader: string) {
 
 // Helper function to get sender display name - PRIORITIZE FIRST NAME
 function getSenderDisplayName(adminUser: any) {
-  // Prioritize first name above all else
   if (adminUser?.first_name) {
     return adminUser.first_name;
   }
 
-  // Extract name from email as fallback
   if (adminUser?.email) {
     const emailName = adminUser.email.split("@")[0];
     return emailName.charAt(0).toUpperCase() + emailName.slice(1);
@@ -65,53 +60,245 @@ function getSenderDisplayName(adminUser: any) {
   return "Zidwell Team";
 }
 
-// Markdown parser function for email and in-app notifications
-const parseMarkdown = (text: string) => {
+// Enhanced markdown parser function for email and in-app notifications with image support
+const parseMarkdown = (text: string, context: 'email' | 'app' = 'app') => {
   if (!text) return "";
 
+  // First, handle images differently for email vs app
+  let processed = text;
+  
+  if (context === 'email') {
+    // For email: Create table-based image layout for better compatibility
+    processed = processed.replace(
+      /<img[^>]*src=["']([^"']+)["'][^>]*>/gim,
+      (match, imageUrl) => {
+        // Check if it's a base64 image (shouldn't be in final email)
+        if (imageUrl.startsWith('data:image')) {
+          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
+                    🖼️ <strong>Image included in notification</strong><br>
+                    <small>(View in the app to see the image)</small>
+                  </div>`;
+        }
+        
+        // For external URLs, create email-friendly image tag with table layout
+        return `
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0; max-width: 100%; width: 100%;">
+            <tr>
+              <td align="center" style="padding: 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; max-width: 100%; width: 100%;">
+                  <tr>
+                    <td align="center" style="padding: 15px;">
+                      <img 
+                        src="${imageUrl}" 
+                        alt="Notification Image" 
+                        style="display: block; max-width: 100%; height: auto; border-radius: 6px; margin: 0 auto; border: 0; outline: none; text-decoration: none;"
+                        width="100%"
+                        border="0"
+                      />
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        `;
+      }
+    );
+
+    // Also handle markdown image syntax for email
+    processed = processed.replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/gim,
+      (match, altText, imageUrl) => {
+        // Check if it's a base64 image
+        if (imageUrl.startsWith('data:image')) {
+          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
+                    🖼️ <strong>${altText || 'Image included in notification'}</strong><br>
+                    <small>(View in the app to see the image)</small>
+                  </div>`;
+        }
+        
+        return `
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0; max-width: 100%; width: 100%;">
+            <tr>
+              <td align="center" style="padding: 0;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; max-width: 100%; width: 100%;">
+                  <tr>
+                    <td align="center" style="padding: 15px;">
+                      <img 
+                        src="${imageUrl}" 
+                        alt="${altText || 'Notification Image'}" 
+                        style="display: block; max-width: 100%; height: auto; border-radius: 6px; margin: 0 auto; border: 0; outline: none; text-decoration: none;"
+                        width="100%"
+                        border="0"
+                      />
+                      ${altText ? `<div style="font-size: 12px; color: #6b7280; margin-top: 10px; font-style: italic; padding: 0 10px;">${altText}</div>` : ''}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        `;
+      }
+    );
+  } else {
+    // For app: Keep original img tags but add proper styling
+    processed = processed.replace(
+      /<img[^>]*src=["']([^"']+)["'][^>]*>/gim,
+      (match, imageUrl) => {
+        // Remove any existing inline styles and add our own
+        return match.replace(
+          /style=["'][^"']*["']/i,
+          'style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;"'
+        ).replace(
+          /<img/i,
+          '<img style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;"'
+        );
+      }
+    );
+
+    // Also handle markdown image syntax for app
+    processed = processed.replace(
+      /!\[([^\]]*)\]\(([^)]+)\)/gim,
+      (match, altText, imageUrl) => {
+        return `<img src="${imageUrl}" alt="${altText || 'Notification Image'}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;" />`;
+      }
+    );
+  }
+
+  // Then handle other markdown
   return (
-    text
+    processed
       // Headers
       .replace(
         /^# (.*$)/gim,
-        '<h1 style="font-size: 24px; font-weight: bold; margin: 25px 0 15px 0; color: #333333;">$1</h1>'
+        context === 'email' 
+          ? '<h1 style="font-size: 24px; font-weight: bold; margin: 25px 0 15px 0; color: #333333; line-height: 1.3;">$1</h1>'
+          : '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>'
       )
       .replace(
         /^## (.*$)/gim,
-        '<h2 style="font-size: 20px; font-weight: bold; margin: 20px 0 12px 0; color: #333333;">$1</h2>'
+        context === 'email'
+          ? '<h2 style="font-size: 20px; font-weight: bold; margin: 20px 0 12px 0; color: #333333; line-height: 1.3;">$1</h2>'
+          : '<h2 class="text-xl font-bold mt-3 mb-2">$1</h2>'
       )
       .replace(
         /^### (.*$)/gim,
-        '<h3 style="font-size: 18px; font-weight: bold; margin: 18px 0 10px 0; color: #333333;">$1</h3>'
+        context === 'email'
+          ? '<h3 style="font-size: 18px; font-weight: bold; margin: 18px 0 10px 0; color: #333333; line-height: 1.3;">$1</h3>'
+          : '<h3 class="text-lg font-bold mt-3 mb-1">$1</h3>'
       )
       // Bold
       .replace(
         /\*\*(.*?)\*\*/gim,
-        '<strong style="font-weight: bold;">$1</strong>'
+        context === 'email'
+          ? '<strong style="font-weight: bold;">$1</strong>'
+          : '<strong class="font-bold">$1</strong>'
       )
       // Italic
-      .replace(/\*(.*?)\*/gim, '<em style="font-style: italic;">$1</em>')
+      .replace(
+        /\*(.*?)\*/gim,
+        context === 'email'
+          ? '<em style="font-style: italic;">$1</em>'
+          : '<em class="italic">$1</em>'
+      )
       // Strikethrough
       .replace(
         /~~(.*?)~~/gim,
-        '<s style="text-decoration: line-through;">$1</s>'
+        context === 'email'
+          ? '<s style="text-decoration: line-through;">$1</s>'
+          : '<s class="line-through">$1</s>'
       )
       // Links
       .replace(
         /\[([^\[]+)\]\(([^\)]+)\)/gim,
-        '<a href="$2" style="color: #C29307; text-decoration: none; font-weight: 500;" target="_blank">$1</a>'
+        context === 'email'
+          ? '<a href="$2" style="color: #C29307; text-decoration: none; font-weight: 500;" target="_blank">$1</a>'
+          : '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>'
       )
       // Line breaks
       .replace(/\n/gim, "<br>")
-      // Image placeholder
+      // Legacy image placeholder support
       .replace(
         /\[Image: (.*?)\]/gim,
-        '<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666;">🖼️ Image: $1</div>'
+        context === 'email'
+          ? '<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666;">🖼️ Image: $1</div>'
+          : '<div class="bg-gray-50 p-4 rounded-lg border-l-4 border-[#C29307] my-4 text-sm text-gray-600">🖼️ Image: $1</div>'
       )
+      // Handle HTML line breaks
+      .replace(/<br\s*\/?>/gim, '<br>')
   );
 };
 
-// Updated sendEmailNotification function with first name as sender
+// Function to extract image URLs from markdown
+function extractImageUrlsFromMarkdown(markdown: string): string[] {
+  const imageUrls: string[] = [];
+  
+  // Match HTML img tags
+  const htmlImgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/g;
+  let match;
+  
+  while ((match = htmlImgRegex.exec(markdown)) !== null) {
+    const url = match[1];
+    if (url && !url.startsWith('#') && !url.startsWith('data:image')) {
+      imageUrls.push(url);
+    }
+  }
+  
+  // Match markdown image syntax
+  const mdImgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  while ((match = mdImgRegex.exec(markdown)) !== null) {
+    const url = match[2];
+    if (url && !url.startsWith('#') && !url.startsWith('data:image')) {
+      imageUrls.push(url);
+    }
+  }
+  
+  return imageUrls;
+}
+
+// Function to delete images from storage
+async function deleteImagesFromStorage(imageUrls: string[]) {
+  try {
+    const imagesToDelete: string[] = [];
+    
+    // Extract file paths from URLs
+    for (const url of imageUrls) {
+      try {
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/');
+        const bucketIndex = pathParts.indexOf('notification-images');
+        
+        if (bucketIndex !== -1 && bucketIndex + 1 < pathParts.length) {
+          const filePath = pathParts.slice(bucketIndex + 1).join('/');
+          imagesToDelete.push(filePath);
+          console.log("Image to delete:", filePath);
+        }
+      } catch (error) {
+        console.error('Error parsing URL:', url, error);
+      }
+    }
+    
+    if (imagesToDelete.length > 0) {
+      console.log(`Deleting ${imagesToDelete.length} images from storage...`);
+      const { error } = await supabase.storage
+        .from('notification-images')
+        .remove(imagesToDelete);
+        
+      if (error) {
+        console.error('Error deleting images:', error);
+      } else {
+        console.log(`Successfully deleted ${imagesToDelete.length} images from storage`);
+      }
+    } else {
+      console.log("No images to delete from storage");
+    }
+  } catch (error) {
+    console.error('Error in deleteImagesFromStorage:', error);
+  }
+}
+
+// Updated sendEmailNotification function with enhanced image support
 async function sendEmailNotification({
   to,
   subject,
@@ -127,13 +314,37 @@ async function sendEmailNotification({
 }) {
   try {
     console.log(`📧 Attempting to send email to: ${to}`);
-
+    console.log("Original message length:", message.length);
+    
+    // Debug: Check for images in the message
+    const imageUrls = extractImageUrlsFromMarkdown(message);
+    console.log(`Found ${imageUrls.length} image URLs in message:`, imageUrls);
+    
+    // Check for base64 images (should not be in final email)
+    const base64Images = message.match(/data:image\/[^;]+;base64,[^"'\s]+/g);
+    if (base64Images && base64Images.length > 0) {
+      console.warn(`⚠️ Warning: Found ${base64Images.length} base64 images in email message!`);
+      console.warn("Base64 images may not display properly in email clients.");
+    }
+    
     const senderName = getSenderDisplayName(adminUser);
     const signatureName =
       senderName !== "Zidwell Team" ? senderName : "Zidwell Team";
 
+    // Parse the message for email with enhanced image handling
+    const emailHtml = parseMarkdown(message, 'email');
+    
+    // Create plain text version
+    const plainText = message
+      .replace(/<[^>]*>/g, '')
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, 'Image: $1')
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/~~(.*?)~~/g, '$1')
+      .replace(/\n{3,}/g, '\n\n');
+
     const mailOptions = {
-      from: `Zidwell" <info@zidwell.com>`,
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
       to,
       subject: `🔔 ${subject}`,
       html: `
@@ -151,6 +362,8 @@ async function sendEmailNotification({
           margin: 0; 
           padding: 0; 
           background-color: #F9F9F9;
+          -webkit-text-size-adjust: 100%;
+          -ms-text-size-adjust: 100%;
         }
         .container { 
           max-width: 600px; 
@@ -160,7 +373,7 @@ async function sendEmailNotification({
         }
         .header { 
           background: linear-gradient(135deg, #C29307 0%, #a87e06 100%);
-          padding: 20px 10px; 
+          padding: 30px 20px; 
           border-radius: 10px 10px 0 0; 
           margin-bottom: 30px; 
           text-align: center;
@@ -174,7 +387,6 @@ async function sendEmailNotification({
           font-weight: bold; 
           margin-bottom: 20px;
           background: rgba(255, 255, 255, 0.2);
-          backdrop-filter: blur(10px);
         }
         .type-info { background: #dbeafe; color: #1e40af; }
         .type-success { background: #d1fae5; color: #065f46; }
@@ -188,7 +400,6 @@ async function sendEmailNotification({
           padding: 40px 30px; 
           border-radius: 0 0 10px 10px; 
           border: 1px solid #e5e7eb; 
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
         .message-content {
           background: #f8fafc;
@@ -198,6 +409,10 @@ async function sendEmailNotification({
           margin: 30px 0;
           font-size: 16px;
           line-height: 1.6;
+        }
+        .message-content img {
+          max-width: 100% !important;
+          height: auto !important;
         }
         .footer { 
           margin-top: 40px; 
@@ -288,6 +503,7 @@ async function sendEmailNotification({
         @media only screen and (max-width: 600px) {
           .container {
             padding: 15px;
+            width: 100% !important;
           }
           .content {
             padding: 30px 20px;
@@ -322,7 +538,7 @@ async function sendEmailNotification({
         <div class="header">
         <div class="logo">It's ${senderName} at Zidwell</div>
          
-          <hr/>
+          <hr style="border: none; height: 1px; background: rgba(255, 255, 255, 0.3); margin: 20px 0;"/>
           <h1 class="headline">${subject}</h1>
         </div>
         
@@ -330,7 +546,7 @@ async function sendEmailNotification({
           <p class="paragraph">Hello,</p>
           
           <div class="message-content">
-            ${parseMarkdown(message)}
+            ${emailHtml}
           </div>
           
           <p class="paragraph">Thank you for choosing <span class="zidwell-brand">Zidwell</span>.</p>
@@ -353,7 +569,7 @@ async function sendEmailNotification({
     </html>
 
   `,
-      text: `Zidwell Notification: ${subject}\n\nFrom: ${senderName}\n\n${message}\n\nThank you for choosing Zidwell.\n\nWith love from ${signatureName}\n\nThis is an automated notification from the Zidwell platform.\nIf you have any questions, please contact our support team at support@zidwell.com.\n\n© ${new Date().getFullYear()} Zidwell. All rights reserved.`,
+      text: plainText,
     };
     const result = await transporter.sendMail(mailOptions);
 
@@ -392,8 +608,16 @@ async function sendNotificationToUsers({
     console.log("Title:", title);
     console.log("Target audience:", target_audience);
     console.log("Channels:", channels);
-    console.log("Specific users:", specific_users);
+    console.log("Specific users:", specific_users.length);
     console.log("Sender:", getSenderDisplayName(adminUser));
+    
+    // Debug: Check message for images
+    console.log("Message length:", message.length);
+    const imageUrls = extractImageUrlsFromMarkdown(message);
+    console.log(`Found ${imageUrls.length} image URLs in message`);
+    imageUrls.forEach((url, i) => {
+      console.log(`  Image ${i + 1}: ${url.substring(0, 100)}...`);
+    });
 
     let userQuery = supabase
       .from("users")
@@ -446,10 +670,13 @@ async function sendNotificationToUsers({
     // Create in-app notifications
     if (channels.includes("in_app")) {
       try {
+        // Parse message for in-app display
+        const inAppMessage = parseMarkdown(message, 'app');
+        
         const notifications = users.map((user) => ({
           user_id: user.id,
           title,
-          message, // Store the raw Markdown message
+          message: inAppMessage, // Store parsed message for in-app display
           type,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -544,6 +771,7 @@ async function sendNotificationToUsers({
             name: `${u.first_name} ${u.last_name}`,
           })),
           sender_name: getSenderDisplayName(adminUser),
+          image_count: imageUrls.length,
         },
       })
       .eq("id", admin_notification_id);
@@ -557,6 +785,7 @@ async function sendNotificationToUsers({
       failed: deliveryResults.in_app.failed + deliveryResults.email.failed,
       deliveryResults,
       sender: getSenderDisplayName(adminUser),
+      image_count: imageUrls.length,
     };
   } catch (error) {
     console.error("=== END: sendNotificationToUsers - ERROR ===", error);
@@ -579,137 +808,224 @@ async function sendNotificationToUsers({
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("=== START: Notification Creation ===");
+    console.log("Request URL:", req.url);
+    console.log("Request method:", req.method);
+    
+    // Check admin authentication
+    console.log("Calling requireAdmin...");
     const adminUser = await requireAdmin(req);
-    if (adminUser instanceof NextResponse) return adminUser;
-
+    
+    if (adminUser instanceof NextResponse) {
+      console.log("❌ requireAdmin returned NextResponse (failed)");
+      console.log("Response status:", adminUser.status);
+      const errorBody = await adminUser.json();
+      console.log("Error response body:", JSON.stringify(errorBody, null, 2));
+      return adminUser;
+    }
+    
+    console.log("✅ Admin authenticated successfully");
+    console.log("Admin user object:", {
+      id: adminUser?.id,
+      email: adminUser?.email,
+      admin_role: adminUser?.admin_role,
+      hasAdminRole: !!adminUser?.admin_role
+    });
+    
     const allowedRoles = ["super_admin", "operations_admin"];
+    console.log("Checking permissions...");
+    console.log("User role:", adminUser?.admin_role);
+    console.log("Allowed roles:", allowedRoles);
+    console.log("Is role allowed?", allowedRoles.includes(adminUser?.admin_role));
+    
     if (!allowedRoles.includes(adminUser?.admin_role)) {
+      console.log("❌ Permission denied!");
+      console.log("User role", adminUser?.admin_role, "is not in allowedRoles");
       return NextResponse.json(
-        { error: "Insufficient permissions" },
+        { 
+          success: false,
+          error: "Insufficient permissions",
+          details: {
+            userRole: adminUser?.admin_role,
+            allowedRoles: allowedRoles,
+            requiredFor: "creating notifications"
+          }
+        },
         { status: 403 }
       );
     }
-
+    
+    console.log("✅ Permission check passed");
+    
+    // Get client info for audit log
     const clientInfo = getClientInfo(req.headers);
-
+    console.log("Client info:", clientInfo);
+    
+    // Parse request body
+    console.log("Parsing request body...");
     const body = await req.json();
-    const {
-      title,
-      message,
-      type = "info",
-      target_audience = "all_users",
-      specific_users = [],
-      channels = ["in_app"],
-      is_urgent = false,
-      scheduled_for = null,
-    } = body;
-
-    if (!title || !message) {
+    console.log("Request body received:", {
+      title: body.title,
+      messageLength: body.message?.length,
+      type: body.type,
+      target_audience: body.target_audience,
+      specific_users_count: body.specific_users?.length || 0,
+      channels: body.channels,
+      is_urgent: body.is_urgent,
+      scheduled_for: body.scheduled_for
+    });
+    
+    // Debug: Check for images in the message
+    const imageUrls = extractImageUrlsFromMarkdown(body.message || '');
+    console.log(`Found ${imageUrls.length} image URLs in message`);
+    imageUrls.forEach((url, i) => {
+      console.log(`  Image ${i + 1}: ${url.substring(0, 100)}...`);
+    });
+    
+    // Check for base64 images
+    const base64Images = (body.message || '').match(/data:image\/[^;]+;base64,[^"'\s]+/g);
+    if (base64Images && base64Images.length > 0) {
+      console.log(`⚠️ Warning: Found ${base64Images.length} base64 images in message`);
+      console.log("Base64 images should have been uploaded already. This may cause issues.");
+    }
+    
+    // Validate required fields
+    if (!body.title || !body.message) {
+      console.log("❌ Validation failed: Missing title or message");
+      console.log("Title:", body.title);
+      console.log("Message:", body.message ? "Present" : "Missing");
       return NextResponse.json(
         { error: "Title and message are required" },
         { status: 400 }
       );
     }
-
+    
+    console.log("✅ Required fields validation passed");
+    
     // Validate specific users selection
-    if (
-      target_audience === "specific_users" &&
-      (!specific_users || specific_users.length === 0)
-    ) {
+    if (body.target_audience === "specific_users" && (!body.specific_users || body.specific_users.length === 0)) {
+      console.log("❌ Validation failed: Specific users required but not provided");
       return NextResponse.json(
         {
-          error:
-            "At least one user must be selected for specific user notifications",
+          error: "At least one user must be selected for specific user notifications",
         },
         { status: 400 }
       );
     }
-
+    
     // Validate channels
-    if (!channels || channels.length === 0) {
+    if (!body.channels || body.channels.length === 0) {
+      console.log("❌ Validation failed: No channels selected");
       return NextResponse.json(
         { error: "At least one channel must be selected" },
         { status: 400 }
       );
     }
-
+    
+    console.log("✅ All validations passed");
+    
     // 🕵️ AUDIT LOG: Track notification creation attempt
+    console.log("Creating audit log...");
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
       action: "create_bulk_notification",
       resourceType: "Notification",
-      description: `Creating bulk notification: "${title}" for ${target_audience}`,
+      description: `Creating bulk notification: "${body.title}" for ${body.target_audience}`,
       metadata: {
-        title,
-        messageLength: message.length,
-        type,
-        targetAudience: target_audience,
-        specificUsersCount: specific_users.length,
-        channels,
-        isUrgent: is_urgent,
-        scheduledFor: scheduled_for,
+        title: body.title,
+        messageLength: body.message.length,
+        type: body.type,
+        targetAudience: body.target_audience,
+        specificUsersCount: body.specific_users?.length || 0,
+        channels: body.channels,
+        isUrgent: body.is_urgent,
+        scheduledFor: body.scheduled_for,
+        imageCount: imageUrls.length,
+        base64ImageCount: base64Images?.length || 0,
         createdBy: adminUser?.email,
         senderName: getSenderDisplayName(adminUser),
       },
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent,
     });
-
+    console.log("✅ Audit log created");
+    
     // Prepare notification data
+    console.log("Preparing notification data...");
     const notificationData: any = {
-      title,
-      message,
-      type,
-      target_audience,
-      specific_users: specific_users.length > 0 ? specific_users : [],
-      channels,
-      is_urgent,
-      status: scheduled_for ? "scheduled" : "sending",
+      title: body.title,
+      message: body.message,
+      type: body.type || "info",
+      target_audience: body.target_audience || "all_users",
+      specific_users: body.specific_users?.length > 0 ? body.specific_users : [],
+      channels: body.channels || ["in_app"],
+      is_urgent: body.is_urgent || false,
+      status: body.scheduled_for ? "scheduled" : "sending",
       created_by: adminUser?.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-
+    
     // Add optional fields only if they have values
-    if (scheduled_for) {
-      notificationData.scheduled_for = scheduled_for;
+    if (body.scheduled_for) {
+      notificationData.scheduled_for = body.scheduled_for;
     }
-
+    
+    console.log("Notification data prepared:", {
+      title: notificationData.title,
+      status: notificationData.status,
+      target_audience: notificationData.target_audience,
+      scheduled_for: notificationData.scheduled_for,
+      image_count: imageUrls.length
+    });
+    
+    // Insert into database
+    console.log("Inserting notification into database...");
     const { data: notification, error: notifError } = await supabase
       .from("admin_notifications")
       .insert(notificationData)
       .select()
       .single();
-
+    
     if (notifError) {
-      console.error("Admin notification creation error:", notifError);
-
+      console.error("❌ Database insertion error:", notifError);
+      console.error("Error details:", {
+        message: notifError.message,
+        code: notifError.code,
+        details: notifError.details,
+        hint: notifError.hint
+      });
+      
       // 🕵️ AUDIT LOG: Track notification creation failure
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
         action: "bulk_notification_failed",
         resourceType: "Notification",
-        description: `Failed to create bulk notification: "${title}" - ${notifError.message}`,
+        description: `Failed to create bulk notification: "${body.title}" - ${notifError.message}`,
         metadata: {
-          title,
-          targetAudience: target_audience,
+          title: body.title,
+          targetAudience: body.target_audience,
           error: notifError.message,
+          errorCode: notifError.code,
+          errorDetails: notifError.details,
           attemptedBy: adminUser?.email,
           senderName: getSenderDisplayName(adminUser),
         },
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
       });
-
+      
       throw notifError;
     }
-
-    console.log("Created admin notification with ID:", notification.id);
-
+    
+    console.log("✅ Notification created in database:", notification.id);
+    
     // If notification is scheduled, return success without sending immediately
-    if (scheduled_for) {
+    if (body.scheduled_for) {
+      console.log("⏰ Notification is scheduled for:", body.scheduled_for);
+      
       // 🕵️ AUDIT LOG: Track scheduled notification creation
       await createAuditLog({
         userId: adminUser?.id,
@@ -717,23 +1033,26 @@ export async function POST(req: NextRequest) {
         action: "schedule_notification",
         resourceType: "Notification",
         resourceId: notification.id,
-        description: `Scheduled notification: "${title}" for ${new Date(
-          scheduled_for
+        description: `Scheduled notification: "${body.title}" for ${new Date(
+          body.scheduled_for
         ).toLocaleString()}`,
         metadata: {
           notificationId: notification.id,
-          title,
-          targetAudience: target_audience,
-          specificUsersCount: specific_users.length,
-          channels,
-          scheduledFor: scheduled_for,
+          title: body.title,
+          targetAudience: body.target_audience,
+          specificUsersCount: body.specific_users?.length || 0,
+          channels: body.channels,
+          scheduledFor: body.scheduled_for,
+          imageCount: imageUrls.length,
           scheduledBy: adminUser?.email,
           senderName: getSenderDisplayName(adminUser),
         },
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
       });
-
+      
+      console.log("✅ Returning success for scheduled notification");
+      
       return NextResponse.json({
         success: true,
         notification: {
@@ -749,21 +1068,32 @@ export async function POST(req: NextRequest) {
         },
       });
     }
-
+    
+    console.log("🚀 Sending notification immediately...");
+    
     // Send notification immediately if not scheduled
     const sendResult = await sendNotificationToUsers({
-      title,
-      message,
-      type,
-      target_audience,
-      specific_users,
-      channels,
+      title: body.title,
+      message: body.message,
+      type: body.type || "info",
+      target_audience: body.target_audience || "all_users",
+      specific_users: body.specific_users || [],
+      channels: body.channels || ["in_app"],
       admin_notification_id: notification.id,
       adminUser,
     });
-
+    
+    console.log("📤 Send result:", {
+      success: sendResult.success,
+      total: sendResult.total,
+      successful: sendResult.successful,
+      failed: sendResult.failed,
+      image_count: sendResult.image_count
+    });
+    
     // 🕵️ AUDIT LOG: Track notification sending result
     if (sendResult.success) {
+      console.log("✅ Notification sent successfully");
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
@@ -772,18 +1102,19 @@ export async function POST(req: NextRequest) {
         resourceId: notification.id,
         description: `Sent bulk notification to ${
           sendResult.total
-        } users via ${channels.join(", ")}: "${title}"`,
+        } users via ${body.channels.join(", ")}: "${body.title}"`,
         metadata: {
           notificationId: notification.id,
-          title,
-          targetAudience: target_audience,
-          channels,
+          title: body.title,
+          targetAudience: body.target_audience,
+          channels: body.channels,
           totalUsers: sendResult.total,
           successful: sendResult.successful,
           failed: sendResult.failed,
+          imageCount: sendResult.image_count,
           deliveryResults: sendResult.deliveryResults,
-          type,
-          isUrgent: is_urgent,
+          type: body.type,
+          isUrgent: body.is_urgent,
           sentBy: adminUser?.email,
           senderName: getSenderDisplayName(adminUser),
           sentAt: new Date().toISOString(),
@@ -792,18 +1123,19 @@ export async function POST(req: NextRequest) {
         userAgent: clientInfo.userAgent,
       });
     } else {
+      console.log("❌ Failed to send notification:", sendResult.error);
       await createAuditLog({
         userId: adminUser?.id,
         userEmail: adminUser?.email,
         action: "bulk_notification_delivery_failed",
         resourceType: "Notification",
         resourceId: notification.id,
-        description: `Failed to deliver bulk notification: "${title}" - ${sendResult.error}`,
+        description: `Failed to deliver bulk notification: "${body.title}" - ${sendResult.error}`,
         metadata: {
           notificationId: notification.id,
-          title,
-          targetAudience: target_audience,
-          channels,
+          title: body.title,
+          targetAudience: body.target_audience,
+          channels: body.channels,
           error: sendResult.error,
           attemptedBy: adminUser?.email,
           senderName: getSenderDisplayName(adminUser),
@@ -812,7 +1144,9 @@ export async function POST(req: NextRequest) {
         userAgent: clientInfo.userAgent,
       });
     }
-
+    
+    console.log("=== END: Notification Creation ===");
+    
     return NextResponse.json({
       success: sendResult.success,
       notification: {
@@ -831,13 +1165,18 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error("Create notification error:", error);
-
+    console.error("=== ERROR: Notification Creation ===");
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("Error full:", error);
+    
     // 🕵️ AUDIT LOG: Track unexpected errors
     const cookieHeader = req.headers.get("cookie") || "";
     const adminUser = await getAdminUserInfo(cookieHeader);
     const clientInfo = getClientInfo(req.headers);
-
+    
+    console.log("Creating error audit log...");
     await createAuditLog({
       userId: adminUser?.id,
       userEmail: adminUser?.email,
@@ -846,14 +1185,20 @@ export async function POST(req: NextRequest) {
       description: `Unexpected error during bulk notification: ${error.message}`,
       metadata: {
         error: error.message,
+        errorType: error.constructor.name,
         stack: error.stack,
         senderName: getSenderDisplayName(adminUser),
       },
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent,
     });
-
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    
+    console.error("=== END ERROR ===");
+    
+    return NextResponse.json({ 
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }
 
@@ -1092,6 +1437,10 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    // Extract image URLs from the message before deleting
+    const imageUrls = extractImageUrlsFromMarkdown(existingNotification.message);
+    
+    // Delete the notification
     const { error } = await supabase
       .from("admin_notifications")
       .delete()
@@ -1121,6 +1470,13 @@ export async function DELETE(req: NextRequest) {
       throw error;
     }
 
+    // Delete associated images from storage (async, don't wait for completion)
+    if (imageUrls.length > 0) {
+      deleteImagesFromStorage(imageUrls).catch(error => {
+        console.error('Failed to delete images:', error);
+      });
+    }
+
     // 🕵️ AUDIT LOG: Track successful notification deletion
     await createAuditLog({
       userId: adminUser?.id,
@@ -1136,6 +1492,7 @@ export async function DELETE(req: NextRequest) {
         targetAudience: existingNotification.target_audience,
         type: existingNotification.type,
         createdAt: existingNotification.created_at,
+        deletedImagesCount: imageUrls.length,
         deletedBy: adminUser?.email,
         deletionTime: new Date().toISOString(),
       },
@@ -1146,6 +1503,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({
       success: true,
       message: "Notification deleted successfully",
+      deletedImagesCount: imageUrls.length,
       _admin: {
         performedBy: adminUser?.email,
         performedAt: new Date().toISOString(),
@@ -1178,7 +1536,6 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// PATCH: Update notification
 export async function PATCH(req: Request) {
   try {
     // Get admin user info for audit logging
@@ -1186,7 +1543,8 @@ export async function PATCH(req: Request) {
     const adminUser = await getAdminUserInfo(cookieHeader);
     const clientInfo = getClientInfo(req.headers);
 
-    const { id, ...updates } = await req.json();
+    const body = await req.json();
+    const { id, ...updates } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -1217,17 +1575,49 @@ export async function PATCH(req: Request) {
       );
     }
 
+    // If message is being updated, check for image changes
+    let imagesToDelete: string[] = [];
+    if (updates.message && updates.message !== currentNotification.message) {
+      // Extract old image URLs
+      const oldImageUrls = extractImageUrlsFromMarkdown(currentNotification.message);
+      const newImageUrls = extractImageUrlsFromMarkdown(updates.message);
+      
+      // Find images that were removed
+      imagesToDelete = oldImageUrls.filter(url => !newImageUrls.includes(url));
+    }
+
+    // Handle scheduled_for updates
+    let status = currentNotification.status;
+    if (updates.scheduled_for !== undefined) {
+      if (updates.scheduled_for) {
+        status = "scheduled";
+      } else if (currentNotification.status === "scheduled") {
+        status = "draft";
+      }
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      ...updates,
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
     const { data: updatedNotification, error } = await supabase
       .from("admin_notifications")
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", id)
       .select()
       .single();
 
     if (error) throw error;
+
+    // Delete orphaned images (async)
+    if (imagesToDelete.length > 0) {
+      deleteImagesFromStorage(imagesToDelete).catch(error => {
+        console.error('Failed to delete orphaned images:', error);
+      });
+    }
 
     // 🕵️ AUDIT LOG: Track notification update
     const changedFields = Object.keys(updates);
@@ -1244,8 +1634,15 @@ export async function PATCH(req: Request) {
         notificationId: id,
         title: currentNotification.title,
         changedFields,
-        previousValues: currentNotification,
-        newValues: updatedNotification,
+        previousValues: {
+          ...currentNotification,
+          message: currentNotification.message.substring(0, 100) + (currentNotification.message.length > 100 ? '...' : ''),
+        },
+        newValues: {
+          ...updatedNotification,
+          message: updatedNotification.message.substring(0, 100) + (updatedNotification.message.length > 100 ? '...' : ''),
+        },
+        deletedImagesCount: imagesToDelete.length,
         updatedBy: adminUser?.email,
       },
       ipAddress: clientInfo.ipAddress,
@@ -1255,6 +1652,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({
       notification: updatedNotification,
       message: "Notification updated successfully",
+      deletedImagesCount: imagesToDelete.length,
       _admin: {
         performedBy: adminUser?.email,
         performedAt: new Date().toISOString(),
@@ -1263,6 +1661,166 @@ export async function PATCH(req: Request) {
     });
   } catch (error: any) {
     console.error("Update notification error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// Add a PUT endpoint for updating and sending immediately
+export async function PUT(req: NextRequest) {
+  try {
+    const adminUser = await requireAdmin(req);
+    if (adminUser instanceof NextResponse) return adminUser;
+
+    const allowedRoles = ["super_admin", "operations_admin"];
+    if (!allowedRoles.includes(adminUser?.admin_role)) {
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
+    const clientInfo = getClientInfo(req.headers);
+
+    const { id, ...updates } = await req.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Notification ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get current notification state
+    const { data: currentNotification, error: fetchError } = await supabase
+      .from("admin_notifications")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (fetchError) {
+      return NextResponse.json(
+        { error: "Notification not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if notification can be sent
+    if (currentNotification.status === "sent") {
+      return NextResponse.json(
+        { error: "Cannot update and send already sent notifications" },
+        { status: 400 }
+      );
+    }
+
+    // If message is being updated, check for image changes
+    let imagesToDelete: string[] = [];
+    if (updates.message && updates.message !== currentNotification.message) {
+      // Extract old image URLs
+      const oldImageUrls = extractImageUrlsFromMarkdown(currentNotification.message);
+      const newImageUrls = extractImageUrlsFromMarkdown(updates.message);
+      
+      // Find images that were removed
+      imagesToDelete = oldImageUrls.filter(url => !newImageUrls.includes(url));
+    }
+
+    // First update the notification
+    const updateData = {
+      ...updates,
+      status: "sending",
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: updatedNotification, error: updateError } = await supabase
+      .from("admin_notifications")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Delete orphaned images (async)
+    if (imagesToDelete.length > 0) {
+      deleteImagesFromStorage(imagesToDelete).catch(error => {
+        console.error('Failed to delete orphaned images:', error);
+      });
+    }
+
+    // Send the notification
+    const sendResult = await sendNotificationToUsers({
+      title: updatedNotification.title,
+      message: updatedNotification.message,
+      type: updatedNotification.type,
+      target_audience: updatedNotification.target_audience,
+      specific_users: updatedNotification.specific_users || [],
+      channels: updatedNotification.channels,
+      admin_notification_id: updatedNotification.id,
+      adminUser,
+    });
+
+    // 🕵️ AUDIT LOG: Track update and send
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "update_and_send_notification",
+      resourceType: "Notification",
+      resourceId: id,
+      description: `Updated and sent notification: "${updatedNotification.title}"`,
+      metadata: {
+        notificationId: id,
+        title: updatedNotification.title,
+        targetAudience: updatedNotification.target_audience,
+        channels: updatedNotification.channels,
+        type: updatedNotification.type,
+        successful: sendResult.successful,
+        failed: sendResult.failed,
+        deletedImagesCount: imagesToDelete.length,
+        sentBy: adminUser?.email,
+        senderName: getSenderDisplayName(adminUser),
+        sentAt: new Date().toISOString(),
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+    });
+
+    return NextResponse.json({
+      success: sendResult.success,
+      notification: updatedNotification,
+      sendResult,
+      deletedImagesCount: imagesToDelete.length,
+      message: sendResult.success
+        ? "Notification updated and sent successfully"
+        : "Failed to send notification after update",
+      _admin: {
+        performedBy: adminUser?.email,
+        senderName: getSenderDisplayName(adminUser),
+        performedAt: new Date().toISOString(),
+        auditLogged: true,
+      },
+    });
+  } catch (error: any) {
+    console.error("Update and send notification error:", error);
+
+    // 🕵️ AUDIT LOG: Track unexpected errors
+    const cookieHeader = req.headers.get("cookie") || "";
+    const adminUser = await getAdminUserInfo(cookieHeader);
+    const clientInfo = getClientInfo(req.headers);
+
+    await createAuditLog({
+      userId: adminUser?.id,
+      userEmail: adminUser?.email,
+      action: "update_and_send_notification_error",
+      resourceType: "Notification",
+      description: `Unexpected error during update and send: ${error.message}`,
+      metadata: {
+        error: error.message,
+        stack: error.stack,
+        senderName: getSenderDisplayName(adminUser),
+      },
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+    });
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -436,7 +436,12 @@ export default function Transfer() {
               });
             }, 100);
           }
-        });
+        }).then((result) => {
+     
+        if (result.isConfirmed) {
+          window.location.reload();
+        }
+      });
 
         // Reset form
         setAmount("");
@@ -450,7 +455,7 @@ export default function Transfer() {
         setErrors({});
         setSaveAccount(false);
         setSelectedSavedAccount(null);
-        window.location.reload();
+        
       } else {
         Swal.fire({
           icon: "error",

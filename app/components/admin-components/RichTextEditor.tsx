@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Bold, Italic, Underline, List, ListOrdered, 
-  Heading1, Heading2, Heading3, Link, Image,
+  Heading1, Heading2, Heading3, Link, Image as ImageIcon,
   AlignLeft, AlignCenter, AlignRight, Undo, Redo,
   Type
 } from 'lucide-react';
@@ -80,124 +80,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     handleInput();
   };
 
- // Update the handleImageUpload function in RichTextEditor
-const handleImageUpload = () => {
-  const input = document.createElement('input');
-  input.setAttribute('type', 'file');
-  input.setAttribute('accept', 'image/*');
-  input.click();
-
-  input.onchange = async () => {
-    const file = input.files?.[0];
-    if (!file || !editorRef.current) return;
-
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      alert(`Invalid file type. Supported: JPEG, PNG, GIF, WebP`);
-      return;
-    }
-
-    // Validate file size (max 2MB for better base64 handling)
-    const maxSize = 2 * 1024 * 1024; // 2MB
-    if (file.size > maxSize) {
-      alert(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum is 2MB for better preview.`);
-      return;
-    }
-
-    try {
-      // Create a unique placeholder ID
-      const placeholderId = `img_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      
-      // Convert image to base64 for preview - compress if needed
-      let base64 = await fileToBase64(file);
-      
-      // Compress image if it's too large for base64
-      if (base64.length > 1000000) { // If larger than 1MB in base64
-        console.log("Compressing image for preview...");
-        base64 = await compressImage(base64, file.type);
-      }
-      
-      // Insert base64 image as a temporary placeholder
-      execCommand(
-        'insertHTML', 
-        `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #C29307;opacity:0.8;" />`
-      );
-
-      // Add to pending images list
-      const newImage = { file, placeholderId };
-      const updatedPendingImages = [...pendingImages, newImage];
-      setPendingImages(updatedPendingImages);
-      
-      // Notify parent component about new images
-      if (onImagesAdded) {
-        onImagesAdded(updatedPendingImages);
-      }
-
-      console.log("Image added successfully:", {
-        filename: file.name,
-        size: file.size,
-        type: file.type,
-        placeholderId,
-        base64Length: base64.length
-      });
-
-    } catch (error) {
-      console.error('Image processing error:', error);
-      alert('Failed to process image. Please try again with a smaller image.');
-    }
-  };
-};
-
-// Add image compression function
-const compressImage = (base64: string, mimeType: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.src = base64;
-    
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        reject(new Error('Could not create canvas context'));
-        return;
-      }
-      
-      // Set maximum dimensions
-      const maxWidth = 800;
-      const maxHeight = 600;
-      let width = img.width;
-      let height = img.height;
-      
-      // Calculate new dimensions while maintaining aspect ratio
-      if (width > height) {
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-      } else {
-        if (height > maxHeight) {
-          width = Math.round((width * maxHeight) / height);
-          height = maxHeight;
-        }
-      }
-      
-      canvas.width = width;
-      canvas.height = height;
-      
-      // Draw image with new dimensions
-      ctx.drawImage(img, 0, 0, width, height);
-      
-      // Get compressed base64
-      const compressedBase64 = canvas.toDataURL(mimeType, 0.7); // 70% quality
-      resolve(compressedBase64);
-    };
-    
-    img.onerror = () => reject(new Error('Failed to load image'));
-  });
-};
-
   // Helper function to convert file to base64
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -208,18 +90,82 @@ const compressImage = (base64: string, mimeType: string): Promise<string> => {
     });
   };
 
+  // Image upload handler
+  const handleImageUpload = () => {
+    const input = document.createElement('input');
+    input.setAttribute('type', 'file');
+    input.setAttribute('accept', 'image/*');
+    input.click();
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file || !editorRef.current) return;
+
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        alert(`Invalid file type. Supported: JPEG, PNG, GIF, WebP`);
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum is 5MB.`);
+        return;
+      }
+
+      try {
+        // Create a unique placeholder ID
+        const placeholderId = `img_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        
+        // Convert image to base64 for preview
+        const base64 = await fileToBase64(file);
+        
+        console.log("Inserting image with placeholder:", placeholderId);
+        
+        // Insert base64 image as a temporary placeholder
+        execCommand(
+          'insertHTML', 
+          `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #C29307;opacity:0.8;" />`
+        );
+
+        // Add to pending images list
+        const newImage = { file, placeholderId };
+        const updatedPendingImages = [...pendingImages, newImage];
+        setPendingImages(updatedPendingImages);
+        
+        // Notify parent component about new images
+        if (onImagesAdded) {
+          onImagesAdded(updatedPendingImages);
+        }
+
+        console.log("Image added successfully:", {
+          filename: file.name,
+          size: file.size,
+          type: file.type,
+          placeholderId
+        });
+
+      } catch (error) {
+        console.error('Image processing error:', error);
+        alert('Failed to process image. Please try again.');
+      }
+    };
+  };
+
   // Function to replace placeholder with actual URL after upload
   const replaceImagePlaceholder = (placeholderId: string, finalUrl: string) => {
     if (!editorRef.current) return;
     
     const editor = editorRef.current;
-    const img = editor.querySelector(`img[data-placeholder-id="${placeholderId}"]`);
+    const img = editor.querySelector(`img[data-placeholder-id="${placeholderId}"]`) as HTMLImageElement;
     
     if (img) {
       img.setAttribute('src', finalUrl);
       img.removeAttribute('data-placeholder-id');
-      img.style.border = '1px solid #e5e7eb';
-      img.style.opacity = '1';
+      // Use setAttribute for style to ensure it works
+      img.setAttribute('style', 'max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:1px solid #e5e7eb;opacity:1;');
       
       // Remove from pending images
       const updatedPendingImages = pendingImages.filter(img => img.placeholderId !== placeholderId);
@@ -286,9 +232,14 @@ const compressImage = (base64: string, mimeType: string): Promise<string> => {
       if (items[i].type.indexOf('image') !== -1) {
         const file = items[i].getAsFile();
         if (file) {
-          // Create a synthetic event to handle image paste
-          const syntheticInput = document.createElement('input');
-          syntheticInput.files = e.clipboardData.files;
+          // Handle image paste by creating a file input
+          const input = document.createElement('input');
+          input.setAttribute('type', 'file');
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          input.files = dataTransfer.files;
+          
+          // Trigger image upload
           handleImageUpload();
           hasImage = true;
           break;
@@ -462,7 +413,7 @@ const compressImage = (base64: string, mimeType: string): Promise<string> => {
           className="p-2 rounded hover:bg-gray-200"
           title="Insert Image"
         >
-          <Image className="w-4 h-4" />
+          <ImageIcon className="w-4 h-4" />
         </button>
 
         <div className="w-px h-6 bg-gray-300 mx-1" />

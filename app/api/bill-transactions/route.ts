@@ -88,31 +88,42 @@ if (typeof setInterval !== 'undefined') {
   setInterval(cleanupExpiredCache, 5 * 60 * 1000);
 }
 
+// Add pagination support to your GET function
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
     const search = searchParams.get("search") || "";
-    const nocache = searchParams.get("nocache"); // Optional: force refresh
+    const nocache = searchParams.get("nocache");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50"); // Increased limit
+    const offset = (page - 1) * limit;
 
     if (!userId) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    let data;
-    
-    if (nocache === "true") {
-      // Force refresh by deleting cache first
-      const cacheKey = `transactions_${userId}_${search.toLowerCase()}`;
-      transactionsCache.delete(cacheKey);
-      console.log("🔄 Force refreshing transactions (nocache=true)");
+    let query = supabase
+      .from("transactions")
+      .select("*", { count: "exact" })
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (search) {
+      query = query.or(`description.ilike.%${search}%,type.ilike.%${search}%,reference.ilike.%${search}%`);
     }
-    
-    data = await getCachedTransactions(userId, search);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
 
     return NextResponse.json({ 
-      transactions: data,
-      cached: !nocache // Indicate if response was cached
+      transactions: data || [],
+      total: count || 0,
+      page,
+      limit,
+      hasMore: (count || 0) > offset + limit
     });
   } catch (error: any) {
     console.error("❌ API Error:", error.message);

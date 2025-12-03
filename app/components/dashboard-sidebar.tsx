@@ -19,10 +19,11 @@ import {
   ChevronDown,
   ChevronRight,
   Settings,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "../context/userData";
-
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -40,6 +41,7 @@ export default function DashboardSidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openTopUp, setOpenTopUp] = useState(false);
   const [openBills, setOpenBills] = useState(false);
+  const [showBalance, setShowBalance] = useState(false);
 
   const pathname = usePathname();
   const { userData, balance } = useUserContextData();
@@ -103,6 +105,17 @@ export default function DashboardSidebar() {
     </div>
   );
 
+  // Function to format balance with hidden state
+  const formatBalance = () => {
+    if (!showBalance) {
+      return "*****";
+    }
+    if (balance != null) {
+      return formatNumber(balance);
+    }
+    return "0.00";
+  };
+
   return (
     <>
       {/* Mobile menu button */}
@@ -143,16 +156,34 @@ export default function DashboardSidebar() {
               </Link>
             </div>
             {userData && userData.firstName ? (
-              <>
+              <div className="space-y-2">
                 <p className="text-gray-400 text-sm">
                   Welcome Back {`${userData.firstName}`}
                 </p>
                 {balance != null && (
-                  <span className="text-gray-400 text-sm">
-                    Wallet Balance {` ${formatNumber(balance)}`}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Wallet Balance</p>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-300 text-sm font-medium">
+                          ₦{formatBalance()}
+                        </span>
+                        <button
+                          onClick={() => setShowBalance(!showBalance)}
+                          className="p-1 hover:bg-gray-800 rounded-md transition-colors duration-200"
+                          aria-label={showBalance ? "Hide balance" : "Show balance"}
+                        >
+                          {showBalance ? (
+                            <Eye className="w-4 h-4 text-gray-400 hover:text-gray-300" />
+                          ) : (
+                            <EyeOff className="w-4 h-4 text-gray-400 hover:text-gray-300" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </>
+              </div>
             ) : null}
           </div>
 
@@ -198,7 +229,6 @@ export default function DashboardSidebar() {
               item={{
                 name: "Simple Agreement",
                 href: "/dashboard/services/simple-agreement",
-                // href: "#",
                 icon: FileText,
               }}
               isActive={pathname === "/dashboard/services/simple-agreement"}
@@ -265,12 +295,7 @@ export default function DashboardSidebar() {
 
             <NavItem
               item={{
-                name: (
-                  <div>
-                    Create Invoice{" "}
-                  
-                  </div>
-                ),
+                name: "Create Invoice",
                 href: "/dashboard/services/create-invoice",
                 icon: FileSpreadsheet,
               }}

@@ -480,8 +480,11 @@ export async function POST(req: NextRequest) {
     const toDate = new Date(to).toISOString().split('T')[0];
     const filename = `bank-statement-${fromDate}-to-${toDate}.pdf`;
 
+    // Convert Buffer to Uint8Array for proper response
+    const pdfArray = new Uint8Array(pdfBuffer);
+    
     // Return PDF as response
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(pdfArray, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",

@@ -68,7 +68,7 @@ export default function TransactionHistory() {
   const [filter, setFilter] = useState("All transactions");
   const [downloadingReceipts, setDownloadingReceipts] = useState<Set<string>>(new Set());
   const [pageLoading, setPageLoading] = useState(true);
-  const [durationFilter, setDurationFilter] = useState("month"); // Default: This month
+  const [durationFilter, setDurationFilter] = useState("all"); // Changed to "all" by default
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
     from: "",
     to: "",
@@ -82,11 +82,29 @@ export default function TransactionHistory() {
     to: "",
   });
   const [showStatementModal, setShowStatementModal] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   
   const router = useRouter();
 
-  const { userData, loading, transactions, searchTerm, setSearchTerm, fetchMoreTransactions } =
-    useUserContextData();
+  const { 
+    userData, 
+    loading, 
+    transactions, 
+    searchTerm, 
+    setSearchTerm, 
+    fetchMoreTransactions,
+    setTransactions 
+  } = useUserContextData();
+
+  // DEBUG: Add logging to see what's happening
+  useEffect(() => {
+    console.log("=== TRANSACTION DEBUG ===");
+    console.log("userData:", userData);
+    console.log("transactions:", transactions);
+    console.log("transactions length:", transactions?.length);
+    console.log("loading:", loading);
+    console.log("searchTerm:", searchTerm);
+  }, [transactions, loading, userData, searchTerm]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -96,8 +114,9 @@ export default function TransactionHistory() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Apply duration filter to transactions
   const applyDurationFilter = useCallback((txs: any[]) => {
+    console.log("Applying duration filter:", durationFilter, "to", txs.length, "transactions");
+    
     if (durationFilter === "all") return txs;
     
     const now = new Date();
@@ -169,11 +188,13 @@ export default function TransactionHistory() {
         return txs;
     }
     
-    if (durationFilter !== "custom" && durationFilter !== "yesterday" && durationFilter !== "last_week" && durationFilter !== "last_month") {
-      return txs.filter(tx => new Date(tx.created_at) >= startDate);
-    }
+    const filtered = txs.filter(tx => {
+      const txDate = new Date(tx.created_at);
+      return txDate >= startDate && txDate <= now;
+    });
     
-    return txs;
+    console.log("Filtered to:", filtered.length, "transactions");
+    return filtered;
   }, [durationFilter, dateRange]);
 
   // Apply status filter and search term
@@ -193,25 +214,43 @@ export default function TransactionHistory() {
 
   // Apply duration filter
   const durationFilteredTransactions = applyDurationFilter(filteredTransactions);
+  
+  // DEBUG: Log filtered results
+  useEffect(() => {
+    console.log("Filtered transactions:", filteredTransactions.length);
+    console.log("Duration filtered:", durationFilteredTransactions.length);
+  }, [filteredTransactions, durationFilteredTransactions]);
 
   // Get currently visible transactions (for Load More)
   const visibleTransactionsList = durationFilteredTransactions.slice(0, visibleTransactions);
 
   // Function to handle Load More
   const handleLoadMore = async () => {
+    if (!hasMore) return;
+    
     setLoadingMore(true);
-    // Fetch more transactions from API
-    await fetchMoreTransactions?.(visibleTransactions + TRANSACTIONS_PER_PAGE);
-    setVisibleTransactions(prev => prev + TRANSACTIONS_PER_PAGE);
-    setLoadingMore(false);
+    try {
+      await fetchMoreTransactions?.(TRANSACTIONS_PER_PAGE);
+      setVisibleTransactions(prev => prev + TRANSACTIONS_PER_PAGE);
+      
+      // Check if we've reached the end
+      if (durationFilteredTransactions.length <= visibleTransactions + TRANSACTIONS_PER_PAGE) {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error("Error loading more transactions:", error);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   // Function to reset filters
   const handleResetFilters = () => {
     setFilter("All transactions");
-    setDurationFilter("month");
+    setDurationFilter("all"); // Changed to "all" to show all transactions
     setDateRange({ from: "", to: "" });
     setVisibleTransactions(TRANSACTIONS_PER_PAGE);
+    setHasMore(true);
     setShowFilters(false);
   };
 
@@ -291,7 +330,7 @@ export default function TransactionHistory() {
 
       // Success notification
       const notification = document.createElement("div");
-      notification.className = "fixed top-4 right-4 bg-[#C29307]  text-white px-4 py-2 rounded-lg shadow-lg z-50";
+      notification.className = "fixed top-4 right-4 bg-[#C29307] text-white px-4 py-2 rounded-lg shadow-lg z-50";
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -338,7 +377,7 @@ export default function TransactionHistory() {
     router.push(`/dashboard/transactions/${transaction.id}`);
   };
 
-  // Function to handle downloading receipt (keep your existing function)
+  // Function to handle downloading receipt
   const handleDownloadReceipt = async (transaction: any) => {
     const transactionId = transaction.id;
     
@@ -408,7 +447,7 @@ export default function TransactionHistory() {
       };
     }
 
-    // Create receipt HTML content (keep your existing receipt HTML)
+    // Create receipt HTML content
     const receiptHTML = `
 <!DOCTYPE html>
 <html>
@@ -792,6 +831,11 @@ export default function TransactionHistory() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h2 className="text-2xl font-bold text-gray-900">
             Transaction History
+            {transactions?.length > 0 && (
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                ({transactions.length} total)
+              </span>
+            )}
           </h2>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full sm:w-auto">
@@ -942,11 +986,21 @@ export default function TransactionHistory() {
           </div>
         ) : durationFilteredTransactions.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            No transactions found.
+            <p className="mb-2">No transactions found.</p>
+            {transactions.length === 0 ? (
+              <p className="text-sm">No transactions have been loaded yet.</p>
+            ) : (
+              <p className="text-sm">
+                Try changing your filters or search term.
+                <br />
+                Raw transactions count: {transactions.length}
+              </p>
+            )}
           </div>
         ) : (
           <>
-            {/* YOUR ORIGINAL TRANSACTION LIST STYLES - KEPT EXACTLY AS BEFORE */}
+          
+            {/* Transaction List */}
             {visibleTransactionsList.map((tx) => {
               const amountInfo = formatAmount(tx);
               const isDownloading = isDownloadingReceipt(tx.id);
@@ -1094,7 +1148,7 @@ export default function TransactionHistory() {
             })}
 
             {/* Load More Button */}
-            {visibleTransactions < durationFilteredTransactions.length && (
+            {visibleTransactions < durationFilteredTransactions.length && hasMore && (
               <div className="text-center mt-6">
                 <Button
                   variant="outline"

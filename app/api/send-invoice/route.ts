@@ -42,7 +42,7 @@ interface RequestBody {
 }
 
 function generateInvoiceId(): string {
-  const randomToken = uuidv4().replace(/-/g, "").substring(0, 12).toUpperCase();
+  const randomToken = uuidv4().replace(/-/g, "").substring(0, 4).toUpperCase();
   return `INV-${randomToken}`;
 }
 
@@ -297,7 +297,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const invoiceId = invoice_id || generateInvoiceId();
+    const invoiceId = invoice_id
     const baseUrl =
       process.env.NODE_ENV === "development"
         ? process.env.NEXT_PUBLIC_DEV_URL

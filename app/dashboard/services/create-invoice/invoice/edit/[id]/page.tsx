@@ -528,7 +528,7 @@ export default function Page() {
                   </div>
                   {form.fee_amount > 0 && (
                     <div className="flex justify-between text-sm mt-1">
-                      <span>Processing Fee ({form.fee_option === 'customer' ? '3.5%' : 'Absorbed'}):</span>
+                      <span>Processing Fee ({form.fee_option === 'customer' ? '2%' : 'Absorbed'}):</span>
                       <span>₦{form.fee_amount.toLocaleString()}</span>
                     </div>
                   )}

@@ -105,7 +105,7 @@ export default function InvoiceSummary({
                   <div className="flex justify-between">
                     <span className="text-gray-500">Fee Option</span>
                     <span className="text-gray-900 capitalize">
-                      {invoiceData.fee_option === "customer" ? "Customer pays 3.5% fee" : "3.5% absorbed by you"}
+                      {invoiceData.fee_option === "customer" ? "Customer pays 2% fee" : "2% absorbed by you"}
                     </span>
                   </div>
                   {invoiceData.payment_type === "multiple" && (
@@ -184,7 +184,7 @@ export default function InvoiceSummary({
                     </div>
                     {invoiceData.fee_option === "customer" && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Processing Fee (3.5%) capped at ₦2000</span>
+                        <span className="text-gray-600">Processing Fee (2%) capped at ₦2000</span>
                         <span className="text-gray-900">₦{totals.feeAmount.toLocaleString()}</span>
                       </div>
                     )}
@@ -246,7 +246,7 @@ export default function InvoiceSummary({
                     <li>The ₦{amount} fee covers invoice generation and payment processing</li>
                     <li>You will receive notifications when payment is made</li>
                     {invoiceData.fee_option === "customer" && (
-                      <li>3.5% processing fee will be added to the client's total</li>
+                      <li>2% processing fee will be added to the client's total</li>
                     )}
                   </ul>
                 </div>

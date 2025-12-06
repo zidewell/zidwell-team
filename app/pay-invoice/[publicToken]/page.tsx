@@ -200,7 +200,7 @@ export default async function SignPage({
             </div>
             {invoice.fee_amount > 0 && (
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Processing Fee ({invoice.fee_option === 'customer' ? '3.5%' : 'Absorbed'})</span>
+                <span>Processing Fee ({invoice.fee_option === 'customer' ? '2%' : 'Absorbed'})</span>
                 <span>₦{invoice.fee_amount.toLocaleString()}</span>
               </div>
             )}

@@ -64,7 +64,7 @@ const convertToInvoicePreview = (form: InvoiceForm) => {
     0
   );
 
-  const feePercentage = 0.03;
+  const feePercentage = 0.02;
   const feeAmount =
     form.fee_option === "customer"
       ? Math.min(subtotal * feePercentage, 2000)
@@ -99,13 +99,12 @@ const convertToInvoicePreview = (form: InvoiceForm) => {
 };
 
 const generateInvoiceId = () => {
-  const datePart = new Date().getFullYear();
   const randomToken = crypto
     .randomUUID()
     .replace(/-/g, "")
-    .substring(0, 12)
+    .substring(0, 4)
     .toUpperCase();
-  return `INV-${datePart}-${randomToken}`;
+  return `INV-${randomToken}`;
 };
 
 interface CreateInvoiceProps {
@@ -204,7 +203,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
       0
     );
 
-    const feePercentage = 0.03;
+    const feePercentage = 0.02    ;
     const feeAmount =
       form.fee_option === "customer"
         ? Math.min(subtotal * feePercentage, 2000)
@@ -1132,7 +1131,7 @@ const handleSaveInvoice = async (
                 feeAmount > 0
                   ? `
               <div class="total-row">
-                <strong>Processing Fee (3%):</strong> ₦${Number(
+                <strong>Processing Fee (2%):</strong> ₦${Number(
                   feeAmount
                 ).toLocaleString()}
               </div>

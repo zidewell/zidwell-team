@@ -112,17 +112,17 @@ export default async function SignPage({
               <h2 className="text-xl font-bold text-foreground">
                 {invoice.business_name}
               </h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              {/* <p className="text-sm text-[#C29307] mt-1">
                 {invoice.from_name}
-              </p>
+              </p> */}
             </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Invoice</div>
-              <div className="text-lg font-bold text-foreground">
+            <div className="text-right ">
+              <div className="text-sm ">Invoice</div>
+              <div className="text-lg font-bold text-[#C29307]">
                 #{invoice.invoice_id}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                Due: {new Date(invoice.due_date).toLocaleDateString()}
+                Due: {new Date(invoice.created_at).toLocaleDateString()}
               </div>
             </div>
           </div>

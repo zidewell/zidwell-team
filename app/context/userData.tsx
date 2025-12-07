@@ -522,7 +522,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           params.set("search", searchTerm);
         }
 
-        console.log('Fetching transactions with params:', params.toString());
+        // console.log('Fetching transactions with params:', params.toString());
         const res = await fetch(`/api/bill-transactions?${params.toString()}`);
         
         if (!res.ok) {
@@ -530,7 +530,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
 
         const data = await res.json();
-        console.log('Transactions API response:', data);
+        // console.log('Transactions API response:', data);
         
         const transactions = data.transactions || [];
         setTransactions(transactions);

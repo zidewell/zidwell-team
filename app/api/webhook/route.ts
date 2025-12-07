@@ -1926,9 +1926,7 @@ export async function POST(req: NextRequest) {
           "N/A";
 
         const narration =
-          payload.data?.transaction?.narration ||
-          pendingTx.narration ||
-          "Transfer";
+          payload.data?.transaction?.narration
 
         // console.log("🏦 Extracted Withdrawal Details:", {
         //   recipientName,

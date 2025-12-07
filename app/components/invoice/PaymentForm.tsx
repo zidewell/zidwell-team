@@ -198,8 +198,9 @@ export default function PaymentForm({
                 type="button"
                 variant="outline"
                 className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#C29307] hover:bg-amber-50"
-                onClick={() => handlePaymentMethodSelect("card")}
-                disabled={isGeneratingPayment}
+                // onClick={() => handlePaymentMethodSelect("card")}
+                // disabled={isGeneratingPayment}
+                disabled
               >
                 <CreditCard className="h-8 w-8" />
                 <div className="text-center">

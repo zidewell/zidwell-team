@@ -50,7 +50,7 @@ export default function invoicePage() {
               </div>
             </div>
 
-            {typeof window !== "undefined" &&
+            {/* {typeof window !== "undefined" &&
             window.location.hostname.includes("zidwell.com") ? (
               <Image
                 src={"/coming-soon.png"}
@@ -60,7 +60,10 @@ export default function invoicePage() {
                 height={500}
               />
             ) : (
-              <>
+             
+            )} */}
+
+             <>
                 {/* CTA Section */}
                 <div className="max-w-4xl mx-auto">
                   <Card className="p-8 md:p-12">
@@ -147,7 +150,6 @@ export default function invoicePage() {
                   <InvoiceGen />
                 </div>
               </>
-            )}
           </div>
         </main>
       </div>

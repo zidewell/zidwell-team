@@ -97,14 +97,14 @@ export default function TransactionHistory() {
   } = useUserContextData();
 
   // DEBUG: Add logging to see what's happening
-  useEffect(() => {
-    console.log("=== TRANSACTION DEBUG ===");
-    console.log("userData:", userData);
-    console.log("transactions:", transactions);
-    console.log("transactions length:", transactions?.length);
-    console.log("loading:", loading);
-    console.log("searchTerm:", searchTerm);
-  }, [transactions, loading, userData, searchTerm]);
+  // useEffect(() => {
+  //   console.log("=== TRANSACTION DEBUG ===");
+  //   console.log("userData:", userData);
+  //   console.log("transactions:", transactions);
+  //   console.log("transactions length:", transactions?.length);
+  //   console.log("loading:", loading);
+  //   console.log("searchTerm:", searchTerm);
+  // }, [transactions, loading, userData, searchTerm]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -115,7 +115,7 @@ export default function TransactionHistory() {
   }, []);
 
   const applyDurationFilter = useCallback((txs: any[]) => {
-    console.log("Applying duration filter:", durationFilter, "to", txs.length, "transactions");
+    // console.log("Applying duration filter:", durationFilter, "to", txs.length, "transactions");
     
     if (durationFilter === "all") return txs;
     
@@ -193,7 +193,7 @@ export default function TransactionHistory() {
       return txDate >= startDate && txDate <= now;
     });
     
-    console.log("Filtered to:", filtered.length, "transactions");
+    // console.log("Filtered to:", filtered.length, "transactions");
     return filtered;
   }, [durationFilter, dateRange]);
 
@@ -215,11 +215,11 @@ export default function TransactionHistory() {
   // Apply duration filter
   const durationFilteredTransactions = applyDurationFilter(filteredTransactions);
   
-  // DEBUG: Log filtered results
-  useEffect(() => {
-    console.log("Filtered transactions:", filteredTransactions.length);
-    console.log("Duration filtered:", durationFilteredTransactions.length);
-  }, [filteredTransactions, durationFilteredTransactions]);
+  // // DEBUG: Log filtered results
+  // useEffect(() => {
+  //   console.log("Filtered transactions:", filteredTransactions.length);
+  //   console.log("Duration filtered:", durationFilteredTransactions.length);
+  // }, [filteredTransactions, durationFilteredTransactions]);
 
   // Get currently visible transactions (for Load More)
   const visibleTransactionsList = durationFilteredTransactions.slice(0, visibleTransactions);
@@ -292,8 +292,8 @@ export default function TransactionHistory() {
         },
       };
 
-      console.log('Generating statement for:', statementDateRange.from, 'to', statementDateRange.to);
-      console.log('Transactions included:', filteredForStatement.length);
+      // console.log('Generating statement for:', statementDateRange.from, 'to', statementDateRange.to);
+      // console.log('Transactions included:', filteredForStatement.length);
 
       // Call API to generate statement PDF
       const response = await fetch('/api/generate-statement', {

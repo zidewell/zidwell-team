@@ -756,7 +756,7 @@ const handleSaveInvoice = async (
         body: JSON.stringify({
           userId: userData?.id,
           pin: pinString,
-          amount: 10,
+          amount: 0,
           description: "Invoice successfully generated",
         }),
       })
@@ -783,14 +783,14 @@ const handleSaveInvoice = async (
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
-          amount: 10,
+          amount: 0,
           description: "Refund for failed invoice generation",
         }),
       });
       Swal.fire({
         icon: "info",
         title: "Refund Processed",
-        text: "₦10 has been refunded to your wallet due to failed invoice sending.",
+        text: "₦0 has been refunded to your wallet due to failed invoice sending.",
       });
     } catch (err) {
       console.error("Refund failed:", err);
@@ -1290,7 +1290,7 @@ const handleSaveInvoice = async (
           userData?.lastName || ""
         }`}
         initiatorEmail={userData?.email || ""}
-        amount={10}
+        amount={0}
         confirmInvoice={showInvoiceSummary}
         onBack={() => setShowInvoiceSummary(false)}
         onConfirm={handleSummaryConfirm}
@@ -1504,7 +1504,7 @@ const handleSaveInvoice = async (
             <div className="mb-4">
               <h1 className="md:text-3xl text-xl font-bold mb-2 flex items-start gap-3">
                 Create Invoice
-                <span className="p-1 bg-gray-100 text-black text-sm font-bold rounded">₦10</span>
+                <span className="p-1 bg-gray-100 text-black text-sm font-bold rounded">Free</span>
               </h1>
               <p className="text-muted-foreground">
                 Generate a professional invoice and share the link for payments

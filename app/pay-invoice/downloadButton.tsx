@@ -42,6 +42,7 @@ interface InvoiceData {
   unit?: number | "";
   initiator_account_name?: string;
   initiator_account_number?: string;
+  initiator_bank_name?: string;
 }
 
 interface DownloadInvoiceButtonProps {
@@ -262,6 +263,7 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
                       <h2>Account Details</h2>
                       <h3>${invoiceData.initiator_account_name}</h3>
                       <h3>${invoiceData.initiator_account_number}</h3>
+                      <h3>${invoiceData.initiator_bank_name}</h3>
                     </div>
                     `
                     : ""

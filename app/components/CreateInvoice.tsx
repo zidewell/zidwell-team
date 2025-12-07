@@ -383,11 +383,15 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
           showDraftsList(result.drafts);
         }
       } else {
-        console.log("No drafts found or API error:", result);
+        // console.log("No drafts found or API error:", result);
       }
     } catch (error) {
       console.error("Failed to load drafts:", error);
     }
+
+
+
+
   };
 
   const loadDraftIntoForm = (draft: any) => {
@@ -589,7 +593,8 @@ const handleSaveInvoice = async (
       is_draft: isDraft,
       clientPhone: form.clientPhone,
       initiator_account_number: details?.bank_details.bank_account_number,
-      initiator_account_name: details?.bank_details.bank_name,
+      initiator_account_name: details?.bank_details.bank_account_name,
+      initiator_bank_name: details?.bank_details.bank_name,
     };
 
 
@@ -1041,6 +1046,7 @@ const handleSaveInvoice = async (
 
                   <h2>Account Details</h2>
 
+                  <h3>${details?.bank_details.bank_account_name}</h3>
                   <h3>${details?.bank_details.bank_account_number}</h3>
                 <h3>${details?.bank_details.bank_name}</h3>
                 </div>
@@ -1284,7 +1290,7 @@ const handleSaveInvoice = async (
           userData?.lastName || ""
         }`}
         initiatorEmail={userData?.email || ""}
-        amount={20}
+        amount={10}
         confirmInvoice={showInvoiceSummary}
         onBack={() => setShowInvoiceSummary(false)}
         onConfirm={handleSummaryConfirm}

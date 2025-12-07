@@ -64,7 +64,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       const currentTime = Date.now();
       const timeSinceLastActivity = currentTime - lastActivityTime;
       
-      console.log(`Time since last activity: ${Math.round(timeSinceLastActivity / 1000)}s`);
+      // console.log(`Time since last activity: ${Math.round(timeSinceLastActivity / 1000)}s`);
       
       // Check if user has been inactive for 15 minutes
       if (!alreadyLoggedOut && timeSinceLastActivity > INACTIVITY_LIMIT) {
@@ -114,7 +114,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       if (!document.hidden) {
         // User returned to the tab, update activity time
         setLastActivityTime(Date.now());
-        console.log("User returned to tab, activity updated");
+        // console.log("User returned to tab, activity updated");
       }
     };
 

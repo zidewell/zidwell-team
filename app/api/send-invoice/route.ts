@@ -38,6 +38,7 @@ interface RequestBody {
   clientPhone?: string;
   initiator_account_number: string;
   initiator_account_name: string;
+   initiator_bank_name: string;
   target_quantity?: number;
 }
 
@@ -260,6 +261,7 @@ export async function POST(req: Request) {
       clientPhone,
       initiator_account_number,
       initiator_account_name,
+       initiator_bank_name,
       target_quantity,
     } = body;
 
@@ -380,6 +382,7 @@ export async function POST(req: Request) {
           public_token: publicToken,
           initiator_account_number,
           initiator_account_name,
+          initiator_bank_name,
         },
       ])
       .select()

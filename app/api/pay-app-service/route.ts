@@ -14,7 +14,10 @@ export async function POST(req: Request) {
 
     amount = Number(amount);
 
-    if (!userId || !amount || amount <= 0 || !pin) {
+    // if (!userId || !amount || amount <= 0 || !pin) {
+    //   return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
+    // }
+    if (!userId || !amount || !pin) {
       return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
     }
 

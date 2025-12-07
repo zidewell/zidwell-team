@@ -17,7 +17,8 @@ export async function POST(req: Request) {
     // if (!userId || !amount || amount <= 0 || !pin) {
     //   return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
     // }
-    if (!userId || !amount || !pin) {
+    if (!userId || !pin) {
+       console.log("here")
       return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
     }
 
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
     }
 
     if (!user.transaction_pin) {
+  
       return NextResponse.json(
         { error: "Transaction PIN not set" },
         { status: 400 }
@@ -75,6 +77,7 @@ export async function POST(req: Request) {
     console.log("🔍 RPC Result:", result);
 
     if (!result || result.status !== "OK") {
+    
       return NextResponse.json(
         { error: result?.status || "Deduction failed" },
         { status: 400 }

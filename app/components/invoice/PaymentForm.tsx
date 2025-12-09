@@ -1,4 +1,3 @@
-// app/components/invoice/PaymentForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,10 +5,10 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { CreditCard, Banknote } from "lucide-react";
-import Swal from "sweetalert2";
+import { useToast } from "@/app/hooks/use-toast"; 
 import { PayWithTransferModal } from "./PayWithTransferModal";
 
-
+// Types
 interface PayerInfo {
   fullName: string;
   email: string;
@@ -23,6 +22,33 @@ interface PaymentFormProps {
   initiatorAccountNumber?: string;
   initiatorBankName?: string;
 }
+
+// Validation utility
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePhone = (phone: string): boolean => {
+  const phoneRegex = /^[0-9]{10,15}$/;
+  return phoneRegex.test(phone.replace(/\D/g, ''));
+};
+
+const validatePayerInfo = (payerInfo: PayerInfo): string | null => {
+  if (!payerInfo.fullName || !payerInfo.email || !payerInfo.phone) {
+    return "Please fill in all your information before proceeding with payment.";
+  }
+
+  if (!validateEmail(payerInfo.email)) {
+    return "Please enter a valid email address.";
+  }
+
+  if (!validatePhone(payerInfo.phone)) {
+    return "Please enter a valid phone number (10-15 digits).";
+  }
+
+  return null;
+};
 
 export default function PaymentForm({ 
   invoiceId, 
@@ -40,6 +66,8 @@ export default function PaymentForm({
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"card" | "transfer" | null>(null);
+  
+  const { toast } = useToast();
 
   const handlePayerInfoChange = (field: keyof PayerInfo, value: string) => {
     setPayerInfo(prev => ({
@@ -48,46 +76,17 @@ export default function PaymentForm({
     }));
   };
 
-  const validatePayerInfo = () => {
-    if (!payerInfo.fullName || !payerInfo.email || !payerInfo.phone) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Missing Information',
-        text: 'Please fill in all your information before proceeding with payment.',
-        confirmButtonColor: '#C29307',
-      });
-      return false;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(payerInfo.email)) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Invalid Email',
-        text: 'Please enter a valid email address.',
-        confirmButtonColor: '#C29307',
-      });
-      return false;
-    }
-
-    // Basic phone validation
-    const phoneRegex = /^[0-9]{10,15}$/;
-    if (!phoneRegex.test(payerInfo.phone.replace(/\D/g, ''))) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Invalid Phone Number',
-        text: 'Please enter a valid phone number (10-15 digits).',
-        confirmButtonColor: '#C29307',
-      });
-      return false;
-    }
-
-    return true;
-  };
-
   const handlePaymentMethodSelect = (method: "card" | "transfer") => {
-    if (!validatePayerInfo()) return;
+    const validationError = validatePayerInfo(payerInfo);
+    
+    if (validationError) {
+      toast({
+        title: "Validation Error",
+        description: validationError,
+        variant: "destructive",
+      });
+      return;
+    }
     
     setSelectedPaymentMethod(method);
     
@@ -116,32 +115,35 @@ export default function PaymentForm({
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
+      
       if (data.success && data.paymentUrl) {
-        await Swal.fire({
-          title: 'Redirecting to Payment',
-          text: 'You are being redirected to the secure payment page...',
-          icon: 'info',
-          timer: 2000,
-          showConfirmButton: false,
-          timerProgressBar: true,
+        toast({
+          title: "Redirecting to Payment",
+          description: "You are being redirected to the secure payment page...",
         });
-        window.location.href = data.paymentUrl;
+
+        // Add a small delay for better UX
+        setTimeout(() => {
+          window.location.href = data.paymentUrl;
+        }, 1500);
       } else {
-        await Swal.fire({
-          title: 'Payment Error',
-          text: data.error || 'Failed to generate payment link. Please try again.',
-          icon: 'error',
-          confirmButtonColor: '#C29307',
+        toast({
+          title: "Payment Error",
+          description: data.error || 'Failed to generate payment link. Please try again.',
+          variant: "destructive",
         });
       }
     } catch (error) {
       console.error('Payment generation error:', error);
-      await Swal.fire({
-        title: 'Connection Error',
-        text: 'An error occurred. Please check your connection and try again.',
-        icon: 'error',
-        confirmButtonColor: '#C29307',
+      toast({
+        title: "Connection Error",
+        description: "An error occurred. Please check your connection and try again.",
+        variant: "destructive",
       });
     } finally {
       setIsGeneratingPayment(false);
@@ -198,9 +200,8 @@ export default function PaymentForm({
                 type="button"
                 variant="outline"
                 className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#C29307] hover:bg-amber-50"
-                // onClick={() => handlePaymentMethodSelect("card")}
-                // disabled={isGeneratingPayment}
-                disabled
+                disabled={true}
+                title="Card payments are currently disabled"
               >
                 <CreditCard className="h-8 w-8" />
                 <div className="text-center">
@@ -214,6 +215,7 @@ export default function PaymentForm({
                 variant="outline"
                 className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#C29307] hover:bg-amber-50"
                 onClick={() => handlePaymentMethodSelect("transfer")}
+                disabled={isGeneratingPayment}
               >
                 <Banknote className="h-8 w-8" />
                 <div className="text-center">

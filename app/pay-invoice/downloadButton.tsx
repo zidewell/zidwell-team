@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Download } from "lucide-react";
-import Swal from "sweetalert2";
+import { useToast } from "../hooks/use-toast"; 
 
+// Types - Make sure these match your other components
 interface InvoiceItem {
   id: string;
   description: string;
@@ -16,6 +17,7 @@ interface InvoiceItem {
   total_amount?: number;
 }
 
+// Fixed InvoiceData interface - matching the one from the main page
 interface InvoiceData {
   id: string;
   business_name: string;
@@ -39,42 +41,49 @@ interface InvoiceData {
   fee_option: string;
   status: string;
   allow_multiple_payments?: boolean;
-  unit?: number | "";
+  unit?: string; // Changed from number | "" to string to match main page
   initiator_account_name?: string;
   initiator_account_number?: string;
   initiator_bank_name?: string;
+  created_at?: string;
+  paid_quantity?: number;
+  target_quantity?: number;
 }
 
 interface DownloadInvoiceButtonProps {
   invoiceData: InvoiceData;
 }
 
-// Helper functions from the original code
-const getPaymentProgress = (invoice: any) => {
+// Helper functions
+const getPaymentProgress = (invoice: InvoiceData): number => {
   if (!invoice.paid_amount || !invoice.total_amount) return 0;
   return (invoice.paid_amount / invoice.total_amount) * 100;
 };
 
-const getPaymentCountText = (invoice: any) => {
+const getPaymentCountText = (invoice: any): string => {
   if (!invoice.payment_count) return "";
   return invoice.payment_count === 1 ? "1 payment" : `${invoice.payment_count} payments`;
 };
 
 export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceButtonProps) {
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   const handleDownloadPDF = async () => {
     try {
       setLoading(true);
 
-      // Calculate values like in the original function
+      // Calculate values with proper type safety
       const invoiceItems = Array.isArray(invoiceData.invoice_items)
         ? invoiceData.invoice_items
         : [];
 
       const subtotal = invoiceData.subtotal || invoiceItems.reduce(
-        (sum: number, item: InvoiceItem) =>
-          sum + (item.quantity || 0) * (item.unitPrice || item.unit_price || 0),
+        (sum: number, item: InvoiceItem) => {
+          const unitPrice = item.unitPrice || item.unit_price || 0;
+          const quantity = item.quantity || 0;
+          return sum + (quantity * unitPrice);
+        },
         0
       );
 
@@ -85,7 +94,17 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
       const paymentProgress = getPaymentProgress(invoiceData);
       const paymentCountText = getPaymentCountText(invoiceData);
 
-      // Generate HTML content for PDF - matching the sample exactly
+      // Format dates safely
+      const formatDate = (dateString: string): string => {
+        try {
+          const date = new Date(dateString);
+          return isNaN(date.getTime()) ? dateString : date.toLocaleDateString();
+        } catch {
+          return dateString;
+        }
+      };
+
+      // Generate HTML content for PDF
       const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -211,6 +230,9 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               border-left: 4px solid #2196F3;
               margin: 20px 0;
             }
+            .invoice-narration {
+              margin-left: 30px;
+            }
             .footer {
               margin-top: 50px;
               text-align: center;
@@ -241,6 +263,12 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               height: 100%;
               transition: width 0.3s ease;
             }
+            .note-box {
+              background-color: #f0f9ff;
+              padding: 20px;
+              border-radius: 8px;
+              border-left: 4px solid #0ea5e9;
+            }
           </style>
         </head>
         <body>
@@ -263,7 +291,7 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
                       <h2>Account Details</h2>
                       <h3>${invoiceData.initiator_account_name}</h3>
                       <h3>${invoiceData.initiator_account_number}</h3>
-                      <h3>${invoiceData.initiator_bank_name}</h3>
+                      <h3>${invoiceData.initiator_bank_name || ""}</h3>
                     </div>
                     `
                     : ""
@@ -272,12 +300,14 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               <div class="invoice-info">
                 <h1>INVOICE</h1>
                 <p><strong>Invoice #:</strong> ${invoiceData.invoice_id}</p>
-                <p><strong>Issue Date:</strong> ${new Date(
-                  invoiceData.issue_date
-                ).toLocaleDateString()}</p>
+                <p><strong>Issue Date:</strong> ${formatDate(invoiceData.issue_date)}</p>
                 <p><strong>Status:</strong> ${
                   invoiceData.status
                 } <span class="status-badge">${invoiceData.status.toUpperCase()}</span></p>
+
+                <small class="invoice-narration">
+                  Ensure this invoice number <strong>${invoiceData.invoice_id}</strong> is used as the narration when you transfer to make payment valid.
+                </small>
               </div>
             </div>
 
@@ -353,15 +383,15 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
                 <tbody>
                   ${invoiceItems
                     ?.map(
-                      (item: any) => `
+                      (item) => `
                     <tr>
-                      <td>${item.item_description || item.description}</td>
-                      <td>${item.quantity}</td>
+                      <td>${item.item_description || item.description || ""}</td>
+                      <td>${item.quantity || 0}</td>
                       <td>₦${Number(
-                        item.unit_price || item.unitPrice
+                        item.unit_price || item.unitPrice || 0
                       ).toLocaleString()}</td>
                       <td>₦${Number(
-                        item.total_amount || item.total
+                        item.total_amount || item.total || 0
                       ).toLocaleString()}</td>
                     </tr>
                   `
@@ -414,6 +444,12 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
                 *Processing fees absorbed by merchant
               </div>
               `
+                  : invoiceData.fee_option === "customer" && feeAmount > 0
+                  ? `
+              <div class="total-row" style="font-size: 12px; color: #666;">
+                *2% processing fee added
+              </div>
+              `
                   : ""
               }
             </div>
@@ -451,11 +487,13 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
         },
         body: JSON.stringify({
           html: htmlContent,
+          filename: `invoice-${invoiceData.invoice_id}.pdf`,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+        const errorText = await response.text();
+        throw new Error(`Failed to generate PDF: ${response.status} - ${errorText}`);
       }
 
       // Create blob and download
@@ -464,7 +502,7 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
       const a = document.createElement('a');
       a.style.display = 'none';
       a.href = url;
-      a.download = `invoice-${invoiceData.invoice_id}.pdf`;
+      a.download = `invoice-${invoiceData.invoice_id}-${Date.now()}.pdf`;
       
       document.body.appendChild(a);
       a.click();
@@ -473,20 +511,17 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      Swal.fire({
-        icon: "success",
-        title: "PDF Downloaded!",
-        text: "Your invoice has been downloaded as PDF",
-        confirmButtonColor: "#C29307",
+      toast({
+        title: "PDF Downloaded Successfully",
+        description: `Invoice ${invoiceData.invoice_id} has been downloaded.`,
       });
 
     } catch (error) {
       console.error('PDF download error:', error);
-      Swal.fire({
-        icon: "error",
+      toast({
         title: "Download Failed",
-        text: "Failed to download PDF. Please try again.",
-        confirmButtonColor: "#C29307",
+        description: error instanceof Error ? error.message : "Failed to download PDF. Please try again.",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -497,7 +532,7 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
     <Button 
       variant="outline" 
       size="lg" 
-      className="w-full"
+      className="w-full border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
       onClick={handleDownloadPDF}
       disabled={loading}
     >

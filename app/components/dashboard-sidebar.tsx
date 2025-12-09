@@ -200,11 +200,19 @@ export default function DashboardSidebar() {
 
             <NavItem
               item={{
-                name: "Fund Account",
+                name: "Fund Wallet",
                 href: "/dashboard/fund-account",
                 icon: Wallet,
               }}
               isActive={pathname === "/dashboard/fund-account"}
+            />
+             <NavItem
+              item={{
+                name: "Create Invoice",
+                href: "/dashboard/services/create-invoice",
+                icon: FileSpreadsheet,
+              }}
+              isActive={pathname === "/dashboard/services/create-invoice"}
             />
             <NavItem
               item={{
@@ -293,14 +301,7 @@ export default function DashboardSidebar() {
               />
             </Dropdown>
 
-            <NavItem
-              item={{
-                name: "Create Invoice",
-                href: "/dashboard/services/create-invoice",
-                icon: FileSpreadsheet,
-              }}
-              isActive={pathname === "/dashboard/services/create-invoice"}
-            />
+           
           </div>
 
           {/* Preferences */}

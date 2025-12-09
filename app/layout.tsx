@@ -233,8 +233,8 @@ export default function RootLayout({
         
         {/* Preload critical resources */}
         <link rel="preload" href="/logo.png" as="image" />
-        <link rel="preload" href="/og-image.jpg" as="image" />
-        
+        {/* <link rel="preload" href="/og-image.jpg" as="image" />
+         */}
         {/* Sitemap and RSS feeds */}
        <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
         <link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" />

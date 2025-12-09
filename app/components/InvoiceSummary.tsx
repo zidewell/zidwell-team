@@ -41,6 +41,12 @@ interface InvoiceSummaryProps {
   confirmInvoice: boolean;
   onBack: () => void;
   onConfirm: () => void;
+  freeInvoiceInfo?: {
+    freeInvoicesLeft: number;
+    totalInvoicesCreated: number;
+    hasFreeInvoices: boolean;
+    isChecking: boolean;
+  };
 }
 
 export default function InvoiceSummary({
@@ -52,7 +58,12 @@ export default function InvoiceSummary({
   confirmInvoice,
   onBack,
   onConfirm,
+  freeInvoiceInfo,
 }: InvoiceSummaryProps) {
+  // Calculate invoice fee based on free invoice status
+  const invoiceFee = freeInvoiceInfo?.hasFreeInvoices ? 0 : 100;
+  const showFreeInvoiceInfo = freeInvoiceInfo && !freeInvoiceInfo.isChecking;
+
   return (
     <AnimatePresence>
       {confirmInvoice && (
@@ -75,15 +86,70 @@ export default function InvoiceSummary({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-2xl w-full mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-             
+              {/* Free Invoice Banner */}
+              {showFreeInvoiceInfo && (
+                <div className={`p-4 rounded-lg border ${
+                  freeInvoiceInfo.hasFreeInvoices 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      {freeInvoiceInfo.hasFreeInvoices ? (
+                        <>
+                          <span className="text-green-600 mr-3 text-2xl">🎉</span>
+                          <div>
+                            <p className="font-semibold text-green-800">Free Invoice Available</p>
+                            <p className="text-sm text-green-600">
+                              You have {freeInvoiceInfo.freeInvoicesLeft} free invoices remaining
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-yellow-600 mr-3 text-2xl">💰</span>
+                          <div>
+                            <p className="font-semibold text-yellow-800">Invoice Creation Fee</p>
+                            <p className="text-sm text-yellow-600">
+                              You've used all 10 free invoices
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-2xl font-bold ${
+                        freeInvoiceInfo.hasFreeInvoices ? 'text-green-600' : 'text-yellow-600'
+                      }`}>
+                        {freeInvoiceInfo.hasFreeInvoices ? 'FREE' : '₦100'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {freeInvoiceInfo.totalInvoicesCreated} invoices created
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Header */}
               <div className="flex flex-col items-center border-b pb-4">
-                <div className="text-gray-500 text-sm">Invoice Generation Fee</div>
-                <div className="text-3xl font-bold text-gray-900">
-                  ₦{typeof amount === 'number' ? amount.toLocaleString() : amount}
+                <div className="text-gray-500 text-sm">Invoice Generation</div>
+                <div className={`text-3xl font-bold ${
+                  freeInvoiceInfo?.hasFreeInvoices ? 'text-green-600' : 'text-gray-900'
+                }`}>
+                  {freeInvoiceInfo?.hasFreeInvoices ? 'FREE' : '₦100'}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
                   {invoiceData.payment_type === "multiple" ? "Multiple Buyers Invoice" : "Single Buyer Invoice"}
+                  {showFreeInvoiceInfo && (
+                    <span className={`block mt-1 ${
+                      freeInvoiceInfo.hasFreeInvoices ? 'text-green-600' : 'text-yellow-600'
+                    }`}>
+                      {freeInvoiceInfo.hasFreeInvoices 
+                        ? `(${freeInvoiceInfo.freeInvoicesLeft} free invoices left)`
+                        : '(After 10 free invoices)'}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -101,7 +167,6 @@ export default function InvoiceSummary({
                     <span className="text-gray-500">Issue Date</span>
                     <span className="text-gray-900">{invoiceData.issue_date}</span>
                   </div>
-                
                   <div className="flex justify-between">
                     <span className="text-gray-500">Fee Option</span>
                     <span className="text-gray-900 capitalize">
@@ -223,10 +288,16 @@ export default function InvoiceSummary({
               )}
 
               {/* Important Notes */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700 flex items-start gap-3">
+              <div className={`rounded-lg p-4 text-sm flex items-start gap-3 ${
+                freeInvoiceInfo?.hasFreeInvoices 
+                  ? 'bg-green-50 border border-green-200 text-green-700' 
+                  : 'bg-blue-50 border border-blue-200 text-blue-700'
+              }`}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mt-0.5 text-blue-500 shrink-0"
+                  className={`h-5 w-5 mt-0.5 shrink-0 ${
+                    freeInvoiceInfo?.hasFreeInvoices ? 'text-green-500' : 'text-blue-500'
+                  }`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -243,7 +314,15 @@ export default function InvoiceSummary({
                   <ul className="list-disc list-inside space-y-1 text-xs">
                     <li>This invoice will be sent to the client's email</li>
                     <li>Client can pay via multiple payment methods</li>
-                    <li>The ₦{amount} fee covers invoice generation and payment processing</li>
+                    {freeInvoiceInfo?.hasFreeInvoices ? (
+                      <>
+                        <li>This invoice is <strong>FREE</strong> (using free credit)</li>
+                        <li>You have {freeInvoiceInfo.freeInvoicesLeft - 1} free invoices remaining after this</li>
+                        <li>After free invoices, each invoice costs ₦100</li>
+                      </>
+                    ) : (
+                      <li>The ₦100 fee covers invoice generation and payment processing</li>
+                    )}
                     <li>You will receive notifications when payment is made</li>
                     {invoiceData.fee_option === "customer" && (
                       <li>2% processing fee will be added to the client's total</li>
@@ -263,9 +342,15 @@ export default function InvoiceSummary({
                 </Button>
                 <Button
                   onClick={onConfirm}
-                  className="bg-[#C29307] text-white hover:bg-[#b38606] px-8"
+                  className={`px-8 ${
+                    freeInvoiceInfo?.hasFreeInvoices
+                      ? 'bg-green-600 hover:bg-green-700 text-white'
+                      : 'bg-[#C29307] hover:bg-[#b38606] text-white'
+                  }`}
                 >
-                  Generate Invoice
+                  {freeInvoiceInfo?.hasFreeInvoices
+                    ? `Create Free Invoice (${freeInvoiceInfo.freeInvoicesLeft - 1} left)`
+                    : 'Pay ₦100 & Create Invoice'}
                 </Button>
               </div>
             </div>

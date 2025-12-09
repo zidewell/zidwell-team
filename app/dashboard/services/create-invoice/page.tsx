@@ -63,93 +63,93 @@ export default function invoicePage() {
              
             )} */}
 
-             <>
-                {/* CTA Section */}
-                <div className="max-w-4xl mx-auto">
-                  <Card className="p-8 md:p-12">
-                    <div className="grid md:grid-cols-2 gap-8">
-                      <div className="space-y-4">
-                        <div className="h-12 w-12 rounded-lg bg-[#C29307]/10 flex items-center justify-center mb-4">
-                          <FileText className="h-6 w-6 text-[#C29307]" />
-                        </div>
-
-                        <h3 className="text-2xl font-bold text-foreground">
-                          Create Invoice
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Generate professional invoices with itemized billing,
-                          automatic calculations, and instant payment links.
-                        </p>
-
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                          <li className="flex items-center">
-                            <div className="h-1.5 w-1.5 rounded-full bg-[#C29307] mr-2" />
-                            Live preview as you create
-                          </li>
-                          <li className="flex items-center">
-                            <div className="h-1.5 w-1.5 rounded-full bg-[#C29307] mr-2" />
-                            Custom business branding
-                          </li>
-                          <li className="flex items-center">
-                            <div className="h-1.5 w-1.5 rounded-full bg-[#C29307] mr-2" />
-                            Shareable payment links
-                          </li>
-                          <li className="flex items-center">
-                            <div className="h-1.5 w-1.5 rounded-full bg-[#C29307] mr-2" />
-                            PDF download option
-                          </li>
-                        </ul>
-
-                        <Link href="/dashboard/services/create-invoice/create">
-                          <Button
-                            className="bg-[#C29307] hover:bg-[#b38606] text-white"
-                            size="lg"
-                          >
-                            Create Invoice
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                          </Button>
-                        </Link>
+            <>
+              {/* CTA Section */}
+              <div className="max-w-4xl mx-auto">
+                <Card className="p-8 md:p-12">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <div className="h-12 w-12 rounded-lg bg-[#C29307]/10 flex items-center justify-center mb-4">
+                        <FileText className="h-6 w-6 text-[#C29307]" />
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="bg-muted/50 rounded-lg p-6 border border-border">
-                          <h4 className="font-semibold text-foreground mb-3">
-                            How it works
-                          </h4>
+                      <h3 className="text-2xl font-bold text-foreground">
+                        Create Invoice
+                      </h3>
+                      <p className="text-muted-foreground">
+                        Generate professional invoices with itemized billing,
+                        automatic calculations, and instant payment links.
+                      </p>
 
-                          <ol className="space-y-3 text-sm text-muted-foreground">
-                            {[
-                              "Fill in your business details and add invoice items",
-                              "Generate invoice and copy the payment link",
-                              "Share via WhatsApp or email with your client",
-                              "Client pays securely and you get instant notification",
-                            ].map((text, i) => (
-                              <li key={i} className="flex gap-3">
-                                <span className="shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-[#C29307] text-white text-xs font-bold">
-                                  {i + 1}
-                                </span>
-                                <span>{text}</span>
-                              </li>
-                            ))}
-                          </ol>
-                        </div>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-center">
+                          <div className="h-1.5 w-1.5 rounded-full bg-[#C29307] mr-2" />
+                          Live preview as you create
+                        </li>
+                        <li className="flex items-center">
+                          <div className="h-1.5 w-1.5 rounded-full bg-[#C29307] mr-2" />
+                          Custom business branding
+                        </li>
+                        <li className="flex items-center">
+                          <div className="h-1.5 w-1.5 rounded-full bg-[#C29307] mr-2" />
+                          Shareable payment links
+                        </li>
+                        <li className="flex items-center">
+                          <div className="h-1.5 w-1.5 rounded-full bg-[#C29307] mr-2" />
+                          PDF download option
+                        </li>
+                      </ul>
 
-                        <div className="bg-[#C29307]/10 rounded-lg p-4 border border-[#C29307]/20">
-                          <p className="text-sm text-foreground">
-                            <span className="font-semibold">Platform Fee:</span>{" "}
-                            Only 3% per transaction, capped at ₦2,000
-                          </p>
-                        </div>
+                      <Link href="/dashboard/services/create-invoice/create">
+                        <Button
+                          className="bg-[#C29307] hover:bg-[#b38606] text-white"
+                          size="lg"
+                        >
+                          Create Invoice
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="bg-muted/50 rounded-lg p-6 border border-border">
+                        <h4 className="font-semibold text-foreground mb-3">
+                          How it works
+                        </h4>
+
+                        <ol className="space-y-3 text-sm text-muted-foreground">
+                          {[
+                            "Fill in your business details and add invoice items",
+                            "Generate invoice and copy the payment link",
+                            "Share via WhatsApp or email with your client",
+                            "Client pays securely and you get instant notification",
+                          ].map((text, i) => (
+                            <li key={i} className="flex gap-3">
+                              <span className="shrink-0 flex items-center justify-center h-6 w-6 rounded-full bg-[#C29307] text-white text-xs font-bold">
+                                {i + 1}
+                              </span>
+                              <span>{text}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+
+                      <div className="bg-[#C29307]/10 rounded-lg p-4 border border-[#C29307]/20">
+                        <p className="text-sm text-foreground">
+                          <span className="font-semibold">Platform fee:</span> Only 2% per
+                          transaction, capped at ₦2,000, transferable to the customer.
+                        </p>
                       </div>
                     </div>
-                  </Card>
-                </div>
+                  </div>
+                </Card>
+              </div>
 
-                {/* Invoice History */}
-                <div className="max-w-4xl mx-auto mt-16">
-                  <InvoiceGen />
-                </div>
-              </>
+              {/* Invoice History */}
+              <div className="max-w-4xl mx-auto mt-16">
+                <InvoiceGen />
+              </div>
+            </>
           </div>
         </main>
       </div>

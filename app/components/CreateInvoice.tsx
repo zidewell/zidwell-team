@@ -523,7 +523,7 @@ const generateInvoiceId = () => {
     .replace(/-/g, "")
     .substring(0, 4)
     .toUpperCase();
-  return `INV-${randomToken}`;
+  return `INV_${randomToken}`;
 };
 
 // Update the showCustomNotification function type definition

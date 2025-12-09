@@ -45,7 +45,7 @@ interface RequestBody {
 
 function generateInvoiceId(): string {
   const randomToken = uuidv4().replace(/-/g, "").substring(0, 4).toUpperCase();
-  return `INV-${randomToken}`;
+  return `INV_${randomToken}`;
 }
 
 function calculateSubtotal(invoiceItems: InvoiceItem[]): number {

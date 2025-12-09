@@ -12,11 +12,12 @@ const supabase = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, initiatorName, signeeEmail, contractText, contractTitle, initiatorEmail, status } =
+    const { userId, initiatorName, receiverEmail, receiverName,signeePhone, contractText, contractTitle, initiatorEmail, status } =
       body;
 
     if (
-      !signeeEmail ||
+      !receiverEmail ||
+      !receiverName ||
       !contractText ||
       !contractTitle ||
       !initiatorEmail ||
@@ -42,7 +43,9 @@ export async function POST(req: Request) {
     // ⬇️ Store in Supabase
     const { error } = await supabase.from("contracts").insert({
       token,
-      signee_email: signeeEmail,
+      signee_email: receiverEmail,
+      signee_name: receiverName,
+      signee_phone: signeePhone,
       initiator_email: initiatorEmail,
       initiator_name: initiatorName,
       contract_text: contractText,
@@ -65,7 +68,7 @@ export async function POST(req: Request) {
 
     await transporter.sendMail({
       from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
-      to: signeeEmail,
+      to: receiverEmail,
       subject: "You’ve been invited to sign a contract",
       html: `
         <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; font-size: 15px;">

@@ -303,7 +303,7 @@ const Page = () => {
           />
 
           {/* Contract Summary Modal */}
-          <ContractSummary
+          {/* <ContractSummary
             contractTitle={contractTitle}
             contractContent={contractContent}
             initiatorName={`${userData?.firstName || ''} ${userData?.lastName || ''}`}
@@ -317,7 +317,7 @@ const Page = () => {
             onConfirm={handleSummaryConfirm}
             contractType="Custom Contract"
             dateCreated={new Date().toLocaleDateString()}
-          />
+          /> */}
 
           {/* Improved Header for Mobile */}
           <div className="border-b bg-card">

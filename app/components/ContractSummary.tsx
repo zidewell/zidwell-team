@@ -8,9 +8,8 @@ interface ContractSummaryProps {
   contractContent: string;
   initiatorName: string;
   initiatorEmail: string;
-  signeeName: string;
-  signeeEmail: string;
-  status: string;
+  receiverName: string;
+  receiverEmail: string;
   amount: number;
   confirmContract: boolean;
   onBack: () => void;
@@ -24,9 +23,8 @@ export default function ContractSummary({
   contractContent,
   initiatorName,
   initiatorEmail,
-  signeeName,
-  signeeEmail,
-  status,
+  receiverName,
+  receiverEmail,
   amount,
   confirmContract,
   onBack,
@@ -127,11 +125,11 @@ export default function ContractSummary({
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                     <div>
                       <span className="text-gray-500 block text-xs">Name</span>
-                      <span className="text-gray-900 font-medium">{signeeName || "Not specified"}</span>
+                      <span className="text-gray-900 font-medium">{receiverName || "Not specified"}</span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
-                      <span className="text-gray-900">{signeeEmail}</span>
+                      <span className="text-gray-900">{receiverEmail}</span>
                     </div>
                   </div>
                 </div>

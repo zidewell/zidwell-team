@@ -308,10 +308,15 @@ async function sendInvoiceCreatorNotificationWithFees(
   platformFee: number,
   customerName: string,
   customerEmail: string,
-  invoice: any
+  invoice: any,
+  nombaFee?: number
 ) {
   try {
     const subject = `💰 New Payment Received for Invoice ${invoiceId} - ₦${totalAmount.toLocaleString()}`;
+
+    // Calculate total fees if nombaFee is provided
+    const processingFee = nombaFee || 0;
+    const totalFees = platformFee + processingFee;
 
     const emailBody = `
 Hi,
@@ -326,6 +331,8 @@ Great news! You've received a new payment for your invoice.
 💰 Payment Breakdown:
 • Total Payment Received: ₦${totalAmount.toLocaleString()}
 • Platform Service Fee (2%): ₦${platformFee.toLocaleString()}
+• Payment Processing Fee: ₦${processingFee.toLocaleString()}
+• Total Fees: ₦${totalFees.toLocaleString()}
 • Amount Credited to Your Wallet: ₦${userAmount.toLocaleString()}
 • Payment Method: Virtual Account Transfer
 
@@ -361,6 +368,8 @@ Zidwell Team
             <h3 style="margin-top: 0;">💰 Payment Breakdown</h3>
             <p><strong>Total Payment Received:</strong> ₦${totalAmount.toLocaleString()}</p>
             <p><strong>Platform Service Fee (2%):</strong> ₦${platformFee.toLocaleString()}</p>
+            <p><strong>Payment Processing Fee:</strong> ₦${processingFee.toLocaleString()}</p>
+            <p><strong>Total Fees:</strong> ₦${totalFees.toLocaleString()}</p>
             <p><strong>Amount Credited to Your Wallet:</strong> <span style="color: #22c55e; font-weight: bold;">₦${userAmount.toLocaleString()}</span></p>
             <p><strong>Payment Method:</strong> Virtual Account Transfer</p>
           </div>
@@ -383,7 +392,7 @@ Zidwell Team
     });
 
     console.log(
-      `📧 Invoice creator notification sent to ${creatorEmail} with fee details`
+      `📧 Invoice creator notification sent to ${creatorEmail} with fee details (Total: ₦${totalAmount}, Fees: ₦${totalFees}, Net: ₦${userAmount})`
     );
   } catch (emailError) {
     console.error(
@@ -1421,26 +1430,24 @@ export async function POST(req: NextRequest) {
                 await updateInvoiceTotals(invoice, transactionAmount);
                 return NextResponse.json({ success: true }, { status: 200 });
               } else {
-                // 🔥 PROCESS INVOICE PAYMENT WITH 2% PLATFORM REVENUE
-                const totalAmount = transactionAmount; // Total received (₦102 in your example)
+                // 🔥 PROCESS INVOICE PAYMENT WITH 2% PLATFORM REVENUE + NOMBA FEE
+                const totalAmount = transactionAmount; // Total received
                 const platformFeePercentage = 0.02; // 2% platform revenue
                 const platformFee = totalAmount * platformFeePercentage; // 2% of total
 
                 // Round to nearest naira
                 const platformFeeRounded = Math.round(platformFee);
-                const userAmount = totalAmount - platformFeeRounded; // What user actually gets
+                const userAmount = totalAmount - platformFeeRounded - nombaFee;
 
                 console.log(`💰 Revenue calculation for ₦${totalAmount}:`, {
                   total_received: totalAmount,
                   platform_fee_percentage: `${platformFeePercentage * 100}%`,
                   platform_fee_calculated: platformFee.toFixed(2),
                   platform_fee_rounded: platformFeeRounded,
+                  nomba_fee: nombaFee,
                   user_amount: userAmount,
-                  calculation: `₦${totalAmount} - ${
-                    platformFeePercentage * 100
-                  }% = ₦${userAmount}`,
+                  calculation: `₦${totalAmount} - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount}`,
                 });
-
                 // Create payment record
                 const { data: paymentRecord, error: paymentError } =
                   await supabase
@@ -1465,14 +1472,15 @@ export async function POST(req: NextRequest) {
                           "N/A",
                         amount: totalAmount,
                         paid_amount: totalAmount,
-                        platform_fee: platformFeeRounded, 
-                        user_received: userAmount, 
+                        fee: platformFeeRounded + nombaFee,
+                        user_received: userAmount,
                         status: "completed",
                         payment_link: invoice.payment_link,
                         nomba_transaction_id: nombaTransactionId,
                         payment_method: "virtual_account",
                         bank_name: payload.data?.customer?.bankName || "N/A",
-                        bank_account: payload.data?.customer?.accountNumber || "N/A",
+                        bank_account:
+                          payload.data?.customer?.accountNumber || "N/A",
                         narration: narration,
                         paid_at: new Date().toISOString(),
                         is_reusable: false,
@@ -1495,13 +1503,15 @@ export async function POST(req: NextRequest) {
                 } else {
                   // 🔥 CREDIT USER'S WALLET WITH AMOUNT AFTER PLATFORM FEE (userAmount)
                   console.log(
-                    `💰 Crediting invoice owner's wallet with 2% platform fee deduction:`,
+                    `💰 Crediting invoice owner's wallet with 2% platform fee + Nomba fee deduction:`,
                     {
                       user_id: invoice.user_id,
                       total_received: totalAmount,
                       platform_revenue: platformFeeRounded,
+                      nomba_fee: nombaFee,
+                      total_fees: platformFeeRounded + nombaFee,
                       user_credit_amount: userAmount,
-                      percentage: "2% platform fee",
+                      calculation: `₦${totalAmount} - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount}`,
                     }
                   );
 
@@ -1520,7 +1530,7 @@ export async function POST(req: NextRequest) {
                     );
                   } else {
                     console.log(
-                      `✅ Successfully credited ₦${userAmount} to invoice owner ${invoice.user_id} (₦${platformFeeRounded} 2% platform revenue retained)`
+                      `✅ Successfully credited ₦${userAmount} to invoice owner ${invoice.user_id} (₦${platformFeeRounded} 2% platform + ₦${nombaFee} Nomba fee deducted)`
                     );
                   }
 
@@ -1566,8 +1576,9 @@ export async function POST(req: NextRequest) {
                               user_received: userAmount,
                               platform_revenue: platformFeeRounded,
                               platform_percentage: "2%",
-                              total_fees: platformFeeRounded, // Only platform fee
-                              calculation: `₦${totalAmount} total - ₦${platformFeeRounded} (2% platform) = ₦${userAmount} to user`, // Remove Nomba from calculation
+                              nomba_fee: nombaFee,
+                              total_fees: platformFeeRounded + nombaFee,
+                              calculation: `₦${totalAmount} total - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount} to user`,
                             },
                           },
                         },
@@ -1621,7 +1632,8 @@ export async function POST(req: NextRequest) {
                         platformFeeRounded,
                         payload.data?.customer?.senderName || "Customer",
                         payerEmail || "N/A",
-                        invoice
+                        invoice,
+                        nombaFee 
                       );
                     }
 

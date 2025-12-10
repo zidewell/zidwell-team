@@ -441,6 +441,8 @@ export default function Transfer() {
         if (result.isConfirmed) {
           window.location.reload();
         }
+
+         window.location.reload();
       });
 
         // Reset form

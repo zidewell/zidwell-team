@@ -1472,7 +1472,8 @@ export async function POST(req: NextRequest) {
                           "N/A",
                         amount: totalAmount,
                         paid_amount: totalAmount,
-                        fee: platformFeeRounded + nombaFee,
+                        fee_amount: platformFeeRounded + nombaFee,
+                        platform_fee: platformFeeRounded,
                         user_received: userAmount,
                         status: "completed",
                         payment_link: invoice.payment_link,
@@ -1633,7 +1634,7 @@ export async function POST(req: NextRequest) {
                         payload.data?.customer?.senderName || "Customer",
                         payerEmail || "N/A",
                         invoice,
-                        nombaFee 
+                        nombaFee
                       );
                     }
 

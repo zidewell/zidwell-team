@@ -132,7 +132,6 @@ export default async function InvoicePage({
       target_quantity: invoice.target_quantity,
     };
 
-    console.log("Invoice Data:", invoiceData);
     return (
       <ToastProvider>
         <div className="min-h-screen bg-background">

@@ -312,7 +312,7 @@ async function sendInvoiceCreatorNotificationWithFees(
 ) {
   try {
     const subject = `💰 New Payment Received for Invoice ${invoiceId} - ₦${totalAmount.toLocaleString()}`;
-    
+
     const emailBody = `
 Hi,
 
@@ -352,7 +352,9 @@ Zidwell Team
             <h3 style="margin-top: 0;">📋 Invoice Details</h3>
             <p><strong>Invoice ID:</strong> ${invoiceId}</p>
             <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Customer Email:</strong> ${customerEmail || "Not provided"}</p>
+            <p><strong>Customer Email:</strong> ${
+              customerEmail || "Not provided"
+            }</p>
           </div>
           
           <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #3b82f6;">
@@ -380,9 +382,14 @@ Zidwell Team
       `,
     });
 
-    console.log(`📧 Invoice creator notification sent to ${creatorEmail} with fee details`);
+    console.log(
+      `📧 Invoice creator notification sent to ${creatorEmail} with fee details`
+    );
   } catch (emailError) {
-    console.error("❌ Failed to send invoice creator notification with fees:", emailError);
+    console.error(
+      "❌ Failed to send invoice creator notification with fees:",
+      emailError
+    );
     throw emailError;
   }
 }
@@ -397,7 +404,7 @@ async function processInvoicePaymentForDifferentUser(
   payload: any
 ) {
   console.log("💰 Processing cross-user invoice payment...");
-  
+
   try {
     // Create payment record for the invoice
     const { error: paymentError } = await supabase
@@ -408,7 +415,8 @@ async function processInvoicePaymentForDifferentUser(
           user_id: invoice.user_id, // Invoice owner
           order_reference: transactionId,
           payer_email: payload.data?.customer?.senderEmail || "N/A",
-          payer_name: payload.data?.customer?.senderName || "Virtual Account User",
+          payer_name:
+            payload.data?.customer?.senderName || "Virtual Account User",
           amount: amount,
           paid_amount: amount,
           status: "completed",
@@ -421,12 +429,16 @@ async function processInvoicePaymentForDifferentUser(
       ]);
 
     if (paymentError) {
-      console.error("❌ Failed to create cross-user payment record:", paymentError);
+      console.error(
+        "❌ Failed to create cross-user payment record:",
+        paymentError
+      );
       return;
     }
 
     // Apply 2% fee deduction and credit invoice owner
-    const platformFee = invoice.fee_option === "customer" ? invoice.fee_amount : 0;
+    const platformFee =
+      invoice.fee_option === "customer" ? invoice.fee_amount : 0;
     const netAmount = amount - platformFee;
 
     // Credit invoice owner
@@ -439,8 +451,9 @@ async function processInvoicePaymentForDifferentUser(
     // Note: updateInvoiceTotals function is already defined in your code
     // We need to call it, but we can't reference it here if it's defined inside another function
     // Let's create a local version or reuse the existing one
-    console.log(`✅ Cross-user invoice payment processed. Credited ${invoice.user_id} with ₦${netAmount} (₦${platformFee} 2% fee deducted)`);
-    
+    console.log(
+      `✅ Cross-user invoice payment processed. Credited ${invoice.user_id} with ₦${netAmount} (₦${platformFee} 2% fee deducted)`
+    );
   } catch (error) {
     console.error("❌ Error in cross-user payment processing:", error);
   }
@@ -1247,7 +1260,9 @@ export async function POST(req: NextRequest) {
         console.log("🏦 Virtual Account deposit detected");
 
         // -------------------- UPDATED VIRTUAL ACCOUNT NARRATION LOGIC -------------------
-        console.log("🏦 Processing Virtual Account deposit with enhanced narration logic...");
+        console.log(
+          "🏦 Processing Virtual Account deposit with enhanced narration logic..."
+        );
 
         // Extract ALL possible fields from your payload structure
         const narration = payload.data?.transaction?.narration || "";
@@ -1259,7 +1274,7 @@ export async function POST(req: NextRequest) {
           merchantTxRef,
           orderReference,
           aliasAccountReference,
-          nombaTransactionId
+          nombaTransactionId,
         });
 
         // Check MULTIPLE locations for invoice reference
@@ -1278,294 +1293,389 @@ export async function POST(req: NextRequest) {
 
         if (narrationMatch) {
           invoiceReference = narrationMatch[0].toUpperCase();
-          console.log("📝 Found invoice reference in NARRATION:", invoiceReference);
+          console.log(
+            "📝 Found invoice reference in NARRATION:",
+            invoiceReference
+          );
         } else if (merchantMatch) {
           invoiceReference = merchantMatch[0].toUpperCase();
-          console.log("📝 Found invoice reference in MERCHANT_TX_REF:", invoiceReference);
+          console.log(
+            "📝 Found invoice reference in MERCHANT_TX_REF:",
+            invoiceReference
+          );
         } else if (orderMatch) {
           invoiceReference = orderMatch[0].toUpperCase();
-          console.log("📝 Found invoice reference in ORDER_REFERENCE:", invoiceReference);
-        }
-
-       // If we found an invoice reference, process as invoice payment
-if (invoiceReference) {
-  console.log("🧾 Processing as invoice payment:", invoiceReference);
-
-  try {
-    // Find invoice by reference (invoice_id) - your INV-XXXX or INV_XXXX format
-    const { data: invoice, error: invoiceError } = await supabase
-      .from("invoices")
-      .select("*")
-      .eq("invoice_id", invoiceReference.toUpperCase().replace('_', '-')) // Convert INV_D17F to INV-D17F
-      .single();
-
-    if (invoiceError || !invoice) {
-      console.log("❌ Invoice not found with reference:", invoiceReference);
-      // Fall back to normal deposit flow
-      console.log("🔄 Falling back to normal virtual account deposit...");
-    } else {
-      console.log("✅ Found invoice for narration:", {
-        invoice_id: invoice.invoice_id,
-        total_amount: invoice.total_amount,
-        user_id: invoice.user_id,
-        allow_multiple_payments: invoice.allow_multiple_payments,
-        target_quantity: invoice.target_quantity,
-        paid_quantity: invoice.paid_quantity,
-        status: invoice.status,
-        fee_option: invoice.fee_option
-      });
-
-      // 🔥 IMPORTANT: Verify invoice belongs to THIS user (aliasAccountReference is userId)
-      if (invoice.user_id !== aliasAccountReference) {
-        console.log("❌ Invoice does not belong to this user. Invoice user:", invoice.user_id, "Deposit user:", aliasAccountReference);
-        console.log("🔄 Invoice belongs to different user - processing as normal deposit to user's wallet");
-        
-        // This is a payment TO someone else's invoice - credit the invoice owner directly
-        await processInvoicePaymentForDifferentUser(
-          invoice, 
-          aliasAccountReference, 
-          transactionAmount, 
-          nombaTransactionId, 
-          narration,
-          payload
-        );
-        return NextResponse.json({ success: true }, { status: 200 });
-      }
-
-      // 🔥 MULTIPLE PAYMENTS CHECK - Allow multiple payments for the same invoice
-      if (invoice.allow_multiple_payments) {
-        console.log("🔄 Multiple payments enabled - processing payment");
-        // Continue to process the payment
-      } else {
-        // For single payment invoices, check if already paid
-        if (invoice.status === "paid") {
-          console.log("⚠️ Invoice already paid, processing as normal deposit");
-          // Continue with normal deposit flow (skip invoice processing)
-        }
-      }
-
-      // Check for duplicate payments (same transaction ID)
-      const { data: existingPayment, error: checkError } = await supabase
-        .from("invoice_payments")
-        .select("*")
-        .eq("nomba_transaction_id", nombaTransactionId)
-        .maybeSingle();
-
-      if (existingPayment) {
-        console.log("⚠️ Duplicate invoice payment detected, updating invoice totals only");
-        await updateInvoiceTotals(invoice, transactionAmount);
-        return NextResponse.json({ success: true }, { status: 200 });
-      } else {
-        // 🔥 PROCESS INVOICE PAYMENT WITH 2% PLATFORM REVENUE
-        const totalAmount = transactionAmount; // Total received (₦102 in your example)
-        const platformFeePercentage = 0.02; // 2% platform revenue
-        const platformFee = totalAmount * platformFeePercentage; // 2% of total
-        
-        // Round to nearest naira
-        const platformFeeRounded = Math.round(platformFee);
-        const userAmount = totalAmount - platformFeeRounded; // What user actually gets
-        
-        console.log(`💰 Revenue calculation for ₦${totalAmount}:`, {
-          total_received: totalAmount,
-          platform_fee_percentage: `${platformFeePercentage * 100}%`,
-          platform_fee_calculated: platformFee.toFixed(2),
-          platform_fee_rounded: platformFeeRounded,
-          user_amount: userAmount,
-          calculation: `₦${totalAmount} - ${platformFeePercentage * 100}% = ₦${userAmount}`
-        });
-
-        // Create payment record
-        const { data: paymentRecord, error: paymentError } = await supabase
-          .from("invoice_payments")
-          .insert([
-            {
-              invoice_id: invoice.id,
-              user_id: invoice.user_id,
-              order_reference: nombaTransactionId || `VA-${Date.now()}`,
-              payer_email: payload.data?.customer?.senderEmail || invoice.client_email || "N/A",
-              payer_name: payload.data?.customer?.senderName || invoice.client_name || "Virtual Account User",
-              payer_phone: payload.data?.customer?.senderPhone || invoice.client_phone || "N/A",
-              amount: totalAmount,
-              paid_amount: totalAmount,
-              platform_fee: platformFeeRounded, // Store platform fee
-              user_received: userAmount, // Store what user actually gets
-              status: "completed",
-              payment_link: invoice.payment_link,
-              nomba_transaction_id: nombaTransactionId,
-              payment_method: "virtual_account",
-              bank_name: payload.data?.customer?.bankName || "N/A",
-              bank_account: payload.data?.customer?.accountNumber || "N/A",
-              narration: narration,
-              paid_at: new Date().toISOString(),
-              is_reusable: false,
-              payment_attempts: 1,
-              created_at: new Date().toISOString(),
-            },
-          ])
-          .select()
-          .single();
-
-        if (paymentError) {
-          console.error("❌ Failed to create invoice payment record:", paymentError);
-          // Fall back to normal deposit flow
-          console.log("🔄 Falling back to normal deposit due to payment record error");
-        } else {
-          // 🔥 CREDIT USER'S WALLET WITH AMOUNT AFTER PLATFORM FEE (userAmount)
-          console.log(`💰 Crediting invoice owner's wallet with 2% platform fee deduction:`, {
-            user_id: invoice.user_id,
-            total_received: totalAmount,
-            platform_revenue: platformFeeRounded,
-            user_credit_amount: userAmount,
-            percentage: "2% platform fee"
-          });
-
-          const { error: creditError } = await supabase.rpc(
-            "increment_wallet_balance",
-            {
-              user_id: invoice.user_id,
-              amt: userAmount,
-            }
+          console.log(
+            "📝 Found invoice reference in ORDER_REFERENCE:",
+            invoiceReference
           );
+        }
 
-          if (creditError) {
-            console.error("❌ Failed to credit invoice owner's wallet:", creditError);
-          } else {
-            console.log(`✅ Successfully credited ₦${userAmount} to invoice owner ${invoice.user_id} (₦${platformFeeRounded} 2% platform revenue retained)`);
-          }
+        // If we found an invoice reference, process as invoice payment
+        if (invoiceReference) {
+          console.log("🧾 Processing as invoice payment:", invoiceReference);
 
-          // Create transaction record for invoice payment
-          const transactionDescription = `Virtual account payment of ₦${totalAmount} for invoice ${invoice.invoice_id}`;
-
-          const { data: transaction, error: transactionError } = await supabase
-            .from("transactions")
-            .insert([
-              {
-                user_id: invoice.user_id,
-                type: "virtual_account_deposit",
-                amount: userAmount, // The amount user actually receives
-                status: "success",
-                reference: nombaTransactionId || `VA-${Date.now()}`,
-                description: transactionDescription,
-                narration: `Payment received for Invoice #${invoice.invoice_id} via virtual account`,
-                fee: platformFeeRounded + nombaFee, // Total fees (your revenue + Nomba's fee)
-                total_deduction: totalAmount, // Total amount deducted from payer
-                channel: "virtual_account",
-                sender: {
-                  name: payload.data?.customer?.senderName || "Virtual Account User",
-                  bank: payload.data?.customer?.bankName || "N/A",
-                  account_number: payload.data?.customer?.accountNumber || "N/A",
-                  type: "customer",
-                },
-                receiver: {
-                  name: invoice.from_name,
-                  email: invoice.from_email,
-                  business: invoice.business_name,
-                  type: "merchant",
-                },
-                external_response: {
-                  ...payload,
-                  invoice_payment: true,
-                  invoice_reference: invoiceReference,
-                  fee_breakdown: {
-                    total_payment: totalAmount,
-                    user_received: userAmount,
-                    platform_revenue: platformFeeRounded,
-                    platform_percentage: "2%",
-                    nomba_fee: nombaFee,
-                    total_fees: platformFeeRounded + nombaFee,
-                    calculation: `₦${totalAmount} total - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount} to user`
-                  },
-                },
-              },
-            ])
-            .select()
-            .single();
-
-          if (transactionError) {
-            console.error("❌ Failed to create transaction record:", transactionError);
-          }
-
-          // ✅ UPDATE INVOICE TOTALS with total amount paid
-          await updateInvoiceTotals(invoice, totalAmount);
-
-          // Send notifications
           try {
-            // Get invoice creator's email
-            const { data: creatorData } = await supabase
-              .from("users")
-              .select("email, first_name")
-              .eq("id", invoice.user_id)
+            console.log(
+              "🔍 Searching for invoice with reference:",
+              invoiceReference
+            );
+
+            // First, try exact match
+            let { data: invoice, error: invoiceError } = await supabase
+              .from("invoices")
+              .select("*")
+              .eq("invoice_id", invoiceReference)
               .single();
 
-            const creatorEmail = creatorData?.email;
+            if (invoiceError) {
+              console.log("❌ Exact match failed, trying case-insensitive...");
 
-            // Send email to payer if we have their email
-            const payerEmail = payload.data?.customer?.senderEmail;
-            if (payerEmail && payerEmail !== "N/A") {
-              sendPaymentSuccessEmail(
-                payerEmail,
-                invoice.invoice_id,
-                totalAmount,
-                payload.data?.customer?.senderName || "Customer",
-                invoice
-              ).catch((error) =>
-                console.error("❌ Payer email failed:", error)
-              );
+              // Try case-insensitive match
+              ({ data: invoice, error: invoiceError } = await supabase
+                .from("invoices")
+                .select("*")
+                .ilike("invoice_id", invoiceReference)
+                .single());
             }
 
-            // Send notification to invoice creator with fee details
-            if (creatorEmail) {
-              // Update the notification to include fee details
-              await sendInvoiceCreatorNotificationWithFees(
-                creatorEmail,
-                invoice.invoice_id,
-                totalAmount,
-                userAmount,
-                platformFeeRounded,
-                payload.data?.customer?.senderName || "Customer",
-                payerEmail || "N/A",
-                invoice
+            if (invoiceError || !invoice) {
+              console.log(
+                "❌ Invoice not found with reference:",
+                invoiceReference
               );
-            }
+              console.log("❌ Full error:", invoiceError);
 
-            console.log("✅ Virtual account invoice payment processed successfully");
+              // Let's debug: check what invoices exist for this reference pattern
+              const { data: similarInvoices } = await supabase
+                .from("invoices")
+                .select("invoice_id, user_id")
+                .ilike(
+                  "invoice_id",
+                  `%${invoiceReference.replace(/^INV[-_]/i, "")}%`
+                );
 
-            return NextResponse.json(
-              {
-                success: true,
-                message: "Invoice payment processed via virtual account",
-                invoice_reference: invoiceReference,
-                payment_details: {
-                  total_payment: totalAmount,
-                  platform_revenue: platformFeeRounded,
-                  user_received: userAmount,
-                  percentage: "2% platform fee"
+              console.log("🔍 Similar invoices found:", similarInvoices);
+
+              // Fall back to normal deposit flow
+              console.log(
+                "🔄 Falling back to normal virtual account deposit..."
+              );
+            } else {
+              console.log("✅ Found invoice:", {
+                invoice_id: invoice.invoice_id,
+                user_id: invoice.user_id,
+                total_amount: invoice.total_amount,
+                status: invoice.status,
+              });
+
+              // Check if invoice belongs to the depositing user
+              if (invoice.user_id !== aliasAccountReference) {
+                console.log(
+                  "❌ Invoice belongs to different user. Invoice owner:",
+                  invoice.user_id,
+                  "Depositor:",
+                  aliasAccountReference
+                );
+
+                // Process as payment to someone else's invoice
+                await processInvoicePaymentForDifferentUser(
+                  invoice,
+                  aliasAccountReference,
+                  transactionAmount,
+                  nombaTransactionId,
+                  narration,
+                  payload
+                );
+                return NextResponse.json({ success: true }, { status: 200 });
+              }
+
+              // 🔥 MULTIPLE PAYMENTS CHECK - Allow multiple payments for the same invoice
+              if (invoice.allow_multiple_payments) {
+                console.log(
+                  "🔄 Multiple payments enabled - processing payment"
+                );
+                // Continue to process the payment
+              } else {
+                // For single payment invoices, check if already paid
+                if (invoice.status === "paid") {
+                  console.log(
+                    "⚠️ Invoice already paid, processing as normal deposit"
+                  );
+                  // Continue with normal deposit flow (skip invoice processing)
                 }
-              },
-              { status: 200 }
+              }
+
+              // Check for duplicate payments (same transaction ID)
+              const { data: existingPayment, error: checkError } =
+                await supabase
+                  .from("invoice_payments")
+                  .select("*")
+                  .eq("nomba_transaction_id", nombaTransactionId)
+                  .maybeSingle();
+
+              if (existingPayment) {
+                console.log(
+                  "⚠️ Duplicate invoice payment detected, updating invoice totals only"
+                );
+                await updateInvoiceTotals(invoice, transactionAmount);
+                return NextResponse.json({ success: true }, { status: 200 });
+              } else {
+                // 🔥 PROCESS INVOICE PAYMENT WITH 2% PLATFORM REVENUE
+                const totalAmount = transactionAmount; // Total received (₦102 in your example)
+                const platformFeePercentage = 0.02; // 2% platform revenue
+                const platformFee = totalAmount * platformFeePercentage; // 2% of total
+
+                // Round to nearest naira
+                const platformFeeRounded = Math.round(platformFee);
+                const userAmount = totalAmount - platformFeeRounded; // What user actually gets
+
+                console.log(`💰 Revenue calculation for ₦${totalAmount}:`, {
+                  total_received: totalAmount,
+                  platform_fee_percentage: `${platformFeePercentage * 100}%`,
+                  platform_fee_calculated: platformFee.toFixed(2),
+                  platform_fee_rounded: platformFeeRounded,
+                  user_amount: userAmount,
+                  calculation: `₦${totalAmount} - ${
+                    platformFeePercentage * 100
+                  }% = ₦${userAmount}`,
+                });
+
+                // Create payment record
+                const { data: paymentRecord, error: paymentError } =
+                  await supabase
+                    .from("invoice_payments")
+                    .insert([
+                      {
+                        invoice_id: invoice.id,
+                        user_id: invoice.user_id,
+                        order_reference:
+                          nombaTransactionId || `VA-${Date.now()}`,
+                        payer_email:
+                          payload.data?.customer?.senderEmail ||
+                          invoice.client_email ||
+                          "N/A",
+                        payer_name:
+                          payload.data?.customer?.senderName ||
+                          invoice.client_name ||
+                          "Virtual Account User",
+                        payer_phone:
+                          payload.data?.customer?.senderPhone ||
+                          invoice.client_phone ||
+                          "N/A",
+                        amount: totalAmount,
+                        paid_amount: totalAmount,
+                        platform_fee: platformFeeRounded, // Store platform fee
+                        user_received: userAmount, // Store what user actually gets
+                        status: "completed",
+                        payment_link: invoice.payment_link,
+                        nomba_transaction_id: nombaTransactionId,
+                        payment_method: "virtual_account",
+                        bank_name: payload.data?.customer?.bankName || "N/A",
+                        bank_account:
+                          payload.data?.customer?.accountNumber || "N/A",
+                        narration: narration,
+                        paid_at: new Date().toISOString(),
+                        is_reusable: false,
+                        payment_attempts: 1,
+                        created_at: new Date().toISOString(),
+                      },
+                    ])
+                    .select()
+                    .single();
+
+                if (paymentError) {
+                  console.error(
+                    "❌ Failed to create invoice payment record:",
+                    paymentError
+                  );
+                  // Fall back to normal deposit flow
+                  console.log(
+                    "🔄 Falling back to normal deposit due to payment record error"
+                  );
+                } else {
+                  // 🔥 CREDIT USER'S WALLET WITH AMOUNT AFTER PLATFORM FEE (userAmount)
+                  console.log(
+                    `💰 Crediting invoice owner's wallet with 2% platform fee deduction:`,
+                    {
+                      user_id: invoice.user_id,
+                      total_received: totalAmount,
+                      platform_revenue: platformFeeRounded,
+                      user_credit_amount: userAmount,
+                      percentage: "2% platform fee",
+                    }
+                  );
+
+                  const { error: creditError } = await supabase.rpc(
+                    "increment_wallet_balance",
+                    {
+                      user_id: invoice.user_id,
+                      amt: userAmount,
+                    }
+                  );
+
+                  if (creditError) {
+                    console.error(
+                      "❌ Failed to credit invoice owner's wallet:",
+                      creditError
+                    );
+                  } else {
+                    console.log(
+                      `✅ Successfully credited ₦${userAmount} to invoice owner ${invoice.user_id} (₦${platformFeeRounded} 2% platform revenue retained)`
+                    );
+                  }
+
+                  // Create transaction record for invoice payment
+                  const transactionDescription = `Virtual account payment of ₦${totalAmount} for invoice ${invoice.invoice_id}`;
+
+                  const { data: transaction, error: transactionError } =
+                    await supabase
+                      .from("transactions")
+                      .insert([
+                        {
+                          user_id: invoice.user_id,
+                          type: "virtual_account_deposit",
+                          amount: userAmount, // The amount user actually receives
+                          status: "success",
+                          reference: nombaTransactionId || `VA-${Date.now()}`,
+                          description: transactionDescription,
+                          narration: `Payment received for Invoice #${invoice.invoice_id} via virtual account`,
+                          fee: platformFeeRounded + nombaFee, // Total fees (your revenue + Nomba's fee)
+                          total_deduction: totalAmount, // Total amount deducted from payer
+                          channel: "virtual_account",
+                          sender: {
+                            name:
+                              payload.data?.customer?.senderName ||
+                              "Virtual Account User",
+                            bank: payload.data?.customer?.bankName || "N/A",
+                            account_number:
+                              payload.data?.customer?.accountNumber || "N/A",
+                            type: "customer",
+                          },
+                          receiver: {
+                            name: invoice.from_name,
+                            email: invoice.from_email,
+                            business: invoice.business_name,
+                            type: "merchant",
+                          },
+                          external_response: {
+                            ...payload,
+                            invoice_payment: true,
+                            invoice_reference: invoiceReference,
+                            fee_breakdown: {
+                              total_payment: totalAmount,
+                              user_received: userAmount,
+                              platform_revenue: platformFeeRounded,
+                              platform_percentage: "2%",
+                              nomba_fee: nombaFee,
+                              total_fees: platformFeeRounded + nombaFee,
+                              calculation: `₦${totalAmount} total - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount} to user`,
+                            },
+                          },
+                        },
+                      ])
+                      .select()
+                      .single();
+
+                  if (transactionError) {
+                    console.error(
+                      "❌ Failed to create transaction record:",
+                      transactionError
+                    );
+                  }
+
+                  // ✅ UPDATE INVOICE TOTALS with total amount paid
+                  await updateInvoiceTotals(invoice, totalAmount);
+
+                  // Send notifications
+                  try {
+                    // Get invoice creator's email
+                    const { data: creatorData } = await supabase
+                      .from("users")
+                      .select("email, first_name")
+                      .eq("id", invoice.user_id)
+                      .single();
+
+                    const creatorEmail = creatorData?.email;
+
+                    // Send email to payer if we have their email
+                    const payerEmail = payload.data?.customer?.senderEmail;
+                    if (payerEmail && payerEmail !== "N/A") {
+                      sendPaymentSuccessEmail(
+                        payerEmail,
+                        invoice.invoice_id,
+                        totalAmount,
+                        payload.data?.customer?.senderName || "Customer",
+                        invoice
+                      ).catch((error) =>
+                        console.error("❌ Payer email failed:", error)
+                      );
+                    }
+
+                    // Send notification to invoice creator with fee details
+                    if (creatorEmail) {
+                      // Update the notification to include fee details
+                      await sendInvoiceCreatorNotificationWithFees(
+                        creatorEmail,
+                        invoice.invoice_id,
+                        totalAmount,
+                        userAmount,
+                        platformFeeRounded,
+                        payload.data?.customer?.senderName || "Customer",
+                        payerEmail || "N/A",
+                        invoice
+                      );
+                    }
+
+                    console.log(
+                      "✅ Virtual account invoice payment processed successfully"
+                    );
+
+                    return NextResponse.json(
+                      {
+                        success: true,
+                        message:
+                          "Invoice payment processed via virtual account",
+                        invoice_reference: invoiceReference,
+                        payment_details: {
+                          total_payment: totalAmount,
+                          platform_revenue: platformFeeRounded,
+                          user_received: userAmount,
+                          percentage: "2% platform fee",
+                        },
+                      },
+                      { status: 200 }
+                    );
+                  } catch (emailError) {
+                    console.error(
+                      "❌ Email error, but payment processed:",
+                      emailError
+                    );
+                    // Payment was still successful, so return success
+                    return NextResponse.json(
+                      {
+                        success: true,
+                        message: "Invoice payment processed (emails failed)",
+                        invoice_reference: invoiceReference,
+                      },
+                      { status: 200 }
+                    );
+                  }
+                }
+              }
+            }
+          } catch (invoiceProcessingError: any) {
+            console.error(
+              "❌ Invoice processing error, falling back to normal deposit:",
+              invoiceProcessingError
             );
-          } catch (emailError) {
-            console.error("❌ Email error, but payment processed:", emailError);
-            // Payment was still successful, so return success
-            return NextResponse.json(
-              {
-                success: true,
-                message: "Invoice payment processed (emails failed)",
-                invoice_reference: invoiceReference,
-              },
-              { status: 200 }
-            );
+            // Fall through to normal deposit processing
           }
+        } else {
+          console.log(
+            "📝 No invoice reference found in narration, processing as normal virtual account deposit"
+          );
         }
-      }
-    }
-  } catch (invoiceProcessingError: any) {
-    console.error("❌ Invoice processing error, falling back to normal deposit:", invoiceProcessingError);
-    // Fall through to normal deposit processing
-  }
-} else {
-  console.log("📝 No invoice reference found in narration, processing as normal virtual account deposit");
-}
         // -------------------- END UPDATED VIRTUAL ACCOUNT NARRATION LOGIC --------------------
       } else if (isCardPayment) {
         // Card: find the pending transaction inserted at initialize step using orderReference
@@ -2031,8 +2141,7 @@ if (invoiceReference) {
           withdrawalDetails.bank_name ||
           "N/A";
 
-        const narration =
-          payload.data?.transaction?.narration
+        const narration = payload.data?.transaction?.narration;
 
         // console.log("🏦 Extracted Withdrawal Details:", {
         //   recipientName,

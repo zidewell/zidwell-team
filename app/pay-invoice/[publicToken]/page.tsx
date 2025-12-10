@@ -49,7 +49,6 @@ interface InvoiceData {
   target_quantity?: number;
 }
 
-// Environment validation
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -133,6 +132,7 @@ export default async function InvoicePage({
       target_quantity: invoice.target_quantity,
     };
 
+    console.log("Invoice Data:", invoiceData);
     return (
       <ToastProvider>
         <div className="min-h-screen bg-background">
@@ -153,8 +153,11 @@ export default async function InvoicePage({
               )}
 
               {/* Payment Form Component */}
+
               <PaymentForm
                 invoiceId={invoice.invoice_id}
+                status={invoiceData.status}
+                allow_multiple_payments={invoiceData.allow_multiple_payments}
                 amount={invoice.total_amount}
                 initiatorAccountName={invoice.initiator_account_name}
                 initiatorAccountNumber={invoice.initiator_account_number}
@@ -165,9 +168,7 @@ export default async function InvoicePage({
               <ClientInformationSection invoice={invoice} />
 
               {/* Message */}
-              {invoice.message && (
-                <MessageSection invoice={invoice} />
-              )}
+              {invoice.message && <MessageSection invoice={invoice} />}
 
               {/* Items */}
               <InvoiceItemsSection items={items} />
@@ -289,9 +290,7 @@ function ClientInformationSection({ invoice }: { invoice: any }) {
       <div className="space-y-2">
         <h3 className="font-semibold text-foreground">From</h3>
         <div className="text-sm text-muted-foreground">
-          <p className="font-medium text-foreground">
-            {invoice.from_name}
-          </p>
+          <p className="font-medium text-foreground">{invoice.from_name}</p>
           <p>{invoice.from_email}</p>
           {invoice.bill_to && <p className="mt-1">{invoice.bill_to}</p>}
         </div>
@@ -314,9 +313,7 @@ function MessageSection({ invoice }: { invoice: any }) {
 function InvoiceItemsSection({ items }: { items: InvoiceItem[] }) {
   return (
     <div className="mb-6">
-      <h3 className="font-semibold mb-4 text-foreground">
-        Invoice Items
-      </h3>
+      <h3 className="font-semibold mb-4 text-foreground">Invoice Items</h3>
       <div className="space-y-3">
         {items.map((item) => (
           <div key={item.id} className="flex justify-between text-sm">
@@ -378,9 +375,7 @@ function FooterSection({ invoice }: { invoice: any }) {
     <div className="text-center mt-8">
       <p className="text-sm text-muted-foreground">
         Secured by{" "}
-        <span className="text-[#C29307] font-semibold">
-          Zidwell Finance
-        </span>
+        <span className="text-[#C29307] font-semibold">Zidwell Finance</span>
       </p>
       <p className="text-xs text-muted-foreground mt-2">
         Need help? Contact {invoice.from_email}

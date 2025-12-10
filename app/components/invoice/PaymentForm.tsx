@@ -21,6 +21,8 @@ interface PaymentFormProps {
   initiatorAccountName?: string;
   initiatorAccountNumber?: string;
   initiatorBankName?: string;
+  status?: string;
+  allow_multiple_payments?: boolean;
 }
 
 // Validation utility
@@ -55,7 +57,9 @@ export default function PaymentForm({
   amount,
   initiatorAccountName,
   initiatorAccountNumber,
-  initiatorBankName
+  initiatorBankName,
+   status,
+  allow_multiple_payments = false
 }: PaymentFormProps) {
   const [payerInfo, setPayerInfo] = useState<PayerInfo>({
     fullName: "",
@@ -250,18 +254,19 @@ export default function PaymentForm({
       />
 
       {/* Pay Now Button */}
-      {!showPaymentForm && (
-        <div className="mb-6">
-          <Button 
-            size="lg" 
-            className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
-            onClick={() => setShowPaymentForm(true)}
-          >
-            <CreditCard className="h-5 w-5 mr-2" />
-            Pay Now
-          </Button>
-        </div>
-      )}
+     {!showPaymentForm && (
+  <div className="mb-6">
+    <Button 
+      size="lg" 
+      className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
+      onClick={() => setShowPaymentForm(true)}
+      disabled={status === "paid" && allow_multiple_payments === false}
+    >
+      <CreditCard className="h-5 w-5 mr-2" />
+      Pay Now
+    </Button>
+  </div>
+)}
     </>
   );
 }

@@ -1472,8 +1472,7 @@ export async function POST(req: NextRequest) {
                         nomba_transaction_id: nombaTransactionId,
                         payment_method: "virtual_account",
                         bank_name: payload.data?.customer?.bankName || "N/A",
-                        bank_account:
-                          payload.data?.customer?.accountNumber || "N/A",
+                        bank_account: payload.data?.customer?.accountNumber || "N/A",
                         narration: narration,
                         paid_at: new Date().toISOString(),
                         is_reusable: false,

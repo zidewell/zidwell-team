@@ -1465,8 +1465,8 @@ export async function POST(req: NextRequest) {
                           "N/A",
                         amount: totalAmount,
                         paid_amount: totalAmount,
-                        platform_fee: platformFeeRounded, // Store platform fee
-                        user_received: userAmount, // Store what user actually gets
+                        platform_fee: platformFeeRounded, 
+                        user_received: userAmount, 
                         status: "completed",
                         payment_link: invoice.payment_link,
                         nomba_transaction_id: nombaTransactionId,
@@ -1539,7 +1539,7 @@ export async function POST(req: NextRequest) {
                           reference: nombaTransactionId || `VA-${Date.now()}`,
                           description: transactionDescription,
                           narration: `Payment received for Invoice #${invoice.invoice_id} via virtual account`,
-                          fee: platformFeeRounded + nombaFee, // Total fees (your revenue + Nomba's fee)
+                          fee: platformFeeRounded, // Only platform fee, no Nomba fee
                           total_deduction: totalAmount, // Total amount deducted from payer
                           channel: "virtual_account",
                           sender: {
@@ -1566,9 +1566,8 @@ export async function POST(req: NextRequest) {
                               user_received: userAmount,
                               platform_revenue: platformFeeRounded,
                               platform_percentage: "2%",
-                              nomba_fee: nombaFee,
-                              total_fees: platformFeeRounded + nombaFee,
-                              calculation: `₦${totalAmount} total - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount} to user`,
+                              total_fees: platformFeeRounded, // Only platform fee
+                              calculation: `₦${totalAmount} total - ₦${platformFeeRounded} (2% platform) = ₦${userAmount} to user`, // Remove Nomba from calculation
                             },
                           },
                         },
@@ -1733,13 +1732,13 @@ export async function POST(req: NextRequest) {
 
       // NO APP FEES FOR ANY PAYMENT METHOD
       let ourAppFee = 0;
-      let totalFees = Number(nombaFee.toFixed(2));
-      let netCredit = Number((amount - totalFees).toFixed(2));
+      let totalFees = 0; // No fees for normal deposits
+      let netCredit = amount; // User gets full amount
       const total_deduction = amount;
 
       console.log("💰 Deposit calculations (NO CHARGES):");
       console.log("   - Amount:", amount);
-      console.log("   - Nomba's fee:", nombaFee);
+      console.log("   - Nomba's fee:", nombaFee, "(absorbed by platform)");
       console.log("   - Our app fee:", ourAppFee);
       console.log("   - Total fees:", totalFees);
       console.log("   - Net credit to user:", netCredit);
@@ -1778,9 +1777,9 @@ export async function POST(req: NextRequest) {
         const updatedExternalResponse = {
           ...payload,
           fee_breakdown: {
-            nomba_fee: nombaFee,
-            total_fee: totalFees,
-            profit_margin: Number((ourAppFee - nombaFee).toFixed(2)),
+            nomba_fee: nombaFee, // Still track it
+            total_fee: totalFees, // Zero for user
+            note: "Nomba fee absorbed by platform",
           },
         };
 
@@ -1860,10 +1859,10 @@ export async function POST(req: NextRequest) {
       const updatedExternalResponse = {
         ...payload,
         fee_breakdown: {
-          nomba_fee: nombaFee,
+          nomba_fee: nombaFee, // Still track it but user doesn't pay
           app_fee: ourAppFee,
-          total_fee: totalFees,
-          profit_margin: Number((ourAppFee - nombaFee).toFixed(2)),
+          total_fee: totalFees, // Zero for user
+          note: "Nomba fee absorbed by platform for non-invoice deposits",
         },
       };
 

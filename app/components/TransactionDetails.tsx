@@ -325,10 +325,7 @@ export default function TransactionDetailsPage() {
         <div class="section">
           <div class="section-title">Transaction Details</div>
           <div class="details-card">
-            <div class="detail-row">
-              <span class="detail-label">Type</span>
-              <span class="detail-value">${transaction.type || "N/A"}</span>
-            </div>
+           
             <div class="detail-row">
               <span class="detail-label">Description</span>
               <span class="detail-value">${
@@ -794,14 +791,14 @@ export default function TransactionDetailsPage() {
                     </h2>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
+                    {/* <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
                       <span className="text-gray-600 text-sm sm:text-base">
                         Type
                       </span>
                       <span className="font-medium text-sm sm:text-base text-right xs:text-left capitalize">
                         {transaction.type || "N/A"}
                       </span>
-                    </div>
+                    </div> */}
                     <div className="flex flex-col xs:flex-row xs:justify-between gap-1 xs:gap-2">
                       <span className="text-gray-600 text-sm sm:text-base">
                         Description

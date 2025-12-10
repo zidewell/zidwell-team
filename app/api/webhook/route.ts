@@ -334,7 +334,7 @@ Great news! You've received a new payment for your invoice.
 • Payment Processing Fee: ₦${processingFee.toLocaleString()}
 • Total Fees: ₦${totalFees.toLocaleString()}
 • Amount Credited to Your Wallet: ₦${userAmount.toLocaleString()}
-• Payment Method: Virtual Account Transfer
+• Payment Method: Bank Account Transfer
 
 ✅ Your wallet has been credited with ₦${userAmount.toLocaleString()}
 
@@ -1536,7 +1536,7 @@ export async function POST(req: NextRequest) {
                   }
 
                   // Create transaction record for invoice payment
-                  const transactionDescription = `Virtual account payment of ₦${totalAmount} for invoice ${invoice.invoice_id}`;
+                  const transactionDescription = `Wallet payment of ₦${totalAmount} for invoice ${invoice.invoice_id}`;
 
                   const { data: transaction, error: transactionError } =
                     await supabase

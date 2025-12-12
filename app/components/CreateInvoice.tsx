@@ -266,7 +266,7 @@ const InvoiceItemForm = ({
       setFormData(item);
     } else {
       setFormData({
-        id: crypto.randomUUID(),
+        id: "", // Will be generated in handleItemSubmit
         description: "",
         quantity: 1,
         unitPrice: 0,
@@ -368,7 +368,7 @@ const InvoiceItemForm = ({
                 step="1"
                 required
                 className={errors.quantity ? "border-red-500" : ""}
-              />
+            />
               {errors.quantity && (
                 <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>
               )}
@@ -420,7 +420,7 @@ const InvoiceItemForm = ({
   );
 };
 
-// View-only Invoice Item Row Component
+// View-only Invoice Item Row Component - UPDATED FOR RESPONSIVENESS
 const InvoiceItemRow = ({
   item,
   onEdit,
@@ -431,46 +431,66 @@ const InvoiceItemRow = ({
   onRemove: (id: string) => void;
 }) => {
   return (
-    <div className="grid grid-cols-12 gap-3 items-center mb-3 p-3 border rounded-md hover:bg-accent/5 transition-colors">
-      <div className="col-span-5">
-        <div className="font-medium truncate" title={item.description}>
+    <div className="grid grid-cols-12 gap-2 md:gap-3 items-center mb-3 p-3 border rounded-md hover:bg-accent/5 transition-colors">
+      {/* Description - Responsive */}
+      <div className="col-span-7 md:col-span-5">
+        <div className="font-medium truncate text-sm md:text-base" title={item.description}>
           {item.description || "No description"}
         </div>
       </div>
 
-      <div className="col-span-1">
-        <div className="text-muted-foreground text-center">{item.quantity}</div>
-      </div>
-
-      <div className="col-span-2">
-        <div className="text-muted-foreground text-right">
-          ₦{item.unitPrice.toLocaleString()}
+      {/* Quantity - Responsive */}
+      <div className="col-span-2 md:col-span-1">
+        <div className="text-muted-foreground text-center text-xs md:text-sm">
+          {item.quantity}
+        </div>
+        <div className="text-[10px] text-muted-foreground text-center md:hidden">
+          Qty
         </div>
       </div>
 
-      <div className="col-span-2">
+      {/* Unit Price - Responsive */}
+      <div className="col-span-3 md:col-span-2">
+        <div className="text-muted-foreground text-right text-xs md:text-sm">
+          ₦{item.unitPrice.toLocaleString()}
+        </div>
+        <div className="text-[10px] text-muted-foreground text-right md:hidden">
+          Price
+        </div>
+      </div>
+
+      {/* Total - Hidden on mobile, shown on desktop */}
+      <div className="hidden md:block md:col-span-2">
         <div className="font-semibold text-right">
           ₦{item.total.toLocaleString()}
         </div>
       </div>
 
+      {/* Actions - Responsive */}
       <div className="col-span-2 flex justify-end space-x-1">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onEdit(item.id)}
-          className="h-8 w-8 hover:bg-primary/10"
+          className="h-7 w-7 md:h-8 md:w-8 hover:bg-primary/10"
         >
-          <Edit className="h-3.5 w-3.5" />
+          <Edit className="h-3 w-3 md:h-3.5 md:w-3.5" />
         </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onRemove(item.id)}
-          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+          className="h-7 w-7 md:h-8 md:w-8 hover:bg-destructive/10 hover:text-destructive"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
         </Button>
+      </div>
+
+      {/* Mobile: Show total below description */}
+      <div className="col-span-7 mt-1 md:hidden">
+        <div className="text-xs font-semibold">
+          Total: ₦{item.total.toLocaleString()}
+        </div>
       </div>
     </div>
   );
@@ -700,6 +720,57 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
 
   const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false);
 
+  // Generate a unique ID for items
+  const generateItemId = () => {
+    return `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+  // FIXED: Properly update invoice_items when adding or editing items with regenerated IDs
+  const handleItemSubmit = (item: InvoiceItem) => {
+    // Always generate a new ID for both new items AND edited items
+    const itemWithId = {
+      ...item,
+      id: generateItemId() // Always generate new ID
+    };
+
+    if (editingItem) {
+      // Update existing item - but with a NEW ID
+      setForm((prev) => ({
+        ...prev,
+        invoice_items: prev.invoice_items.map((i) =>
+          i.id === editingItem.id ? itemWithId : i
+        ),
+      }));
+    } else {
+      // Add new item - with a new ID
+      setForm((prev) => ({
+        ...prev,
+        invoice_items: [...prev.invoice_items, itemWithId],
+      }));
+    }
+    setIsItemDialogOpen(false);
+    setEditingItem(null);
+  };
+
+  const removeItem = (id: string) => {
+    // Create a new array without the item to remove
+    const updatedItems = form.invoice_items.filter((item) => {
+      return item.id !== id;
+    });
+    
+    // Update the form state with the new array
+    setForm((prev) => ({
+      ...prev,
+      invoice_items: updatedItems,
+    }));
+    
+    showCustomNotification({
+      type: "success",
+      title: "Item Removed!",
+      message: "Item has been removed from the invoice.",
+    });
+  };
+
   useEffect(() => {
     const draftId = searchParams?.get("draftId");
 
@@ -746,18 +817,18 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
 
     // Handle both API response structures
     if (draft.items && Array.isArray(draft.items)) {
-      // From get-invoice-draft-details API
+      // From get-invoice-draft-details API - regenerate IDs
       transformedItems = draft.items.map((item: any) => ({
-        id: item.id || crypto.randomUUID(),
+        id: generateItemId(), // Always generate new ID for loaded items
         description: item.description || item.item_description || "",
         quantity: Number(item.quantity) || 1,
         unitPrice: Number(item.unitPrice) || Number(item.unit_price) || 0,
         total: Number(item.total) || Number(item.total_amount) || 0,
       }));
     } else if (draft.invoice_items && Array.isArray(draft.invoice_items)) {
-      // From get-invoice-drafts API
+      // From get-invoice-drafts API - regenerate IDs
       transformedItems = draft.invoice_items.map((item: any) => ({
-        id: item.id || crypto.randomUUID(),
+        id: generateItemId(), // Always generate new ID for loaded items
         description: item.description || item.item_description || "",
         quantity: Number(item.quantity) || 1,
         unitPrice: Number(item.unitPrice) || Number(item.unit_price) || 0,
@@ -798,6 +869,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
       message: "Your draft has been loaded into the form.",
     });
   };
+
   useEffect(() => {
     const checkInvoiceStatus = async () => {
       if (userData?.id) {
@@ -884,53 +956,10 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     setIsItemDialogOpen(true);
   };
 
-  // Handle item submission from popup
-  const handleItemSubmit = (item: InvoiceItem) => {
-    if (editingItem) {
-      setForm((prev) => ({
-        ...prev,
-        invoice_items: prev.invoice_items.map((i) =>
-          i.id === item.id ? item : i
-        ),
-      }));
-    } else {
-      setForm((prev) => ({
-        ...prev,
-        invoice_items: [...prev.invoice_items, item],
-      }));
-    }
-  };
-
   // Handle closing the popup
   const handleDialogClose = () => {
     setIsItemDialogOpen(false);
     setEditingItem(null);
-  };
-
-  // Handle removing an item with confirmation
-  const removeItem = (id: string) => {
-    Swal.fire({
-      title: "Remove Item?",
-      text: "Are you sure you want to remove this item?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#C29307",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, remove it!",
-      cancelButtonText: "Cancel",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setForm((prev) => ({
-          ...prev,
-          invoice_items: prev.invoice_items.filter((item) => item.id !== id),
-        }));
-        showCustomNotification({
-          type: "success",
-          title: "Item Removed!",
-          message: "Item has been removed from the invoice.",
-        });
-      }
-    });
   };
 
   // Initialize from userData
@@ -1687,7 +1716,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
               padding: 20px;
               border-radius: 8px;
               border-left: 4px solid #0ea5e9;
-              margin: 20px 0;
+              margin: 20px 0,
             }
           </style>
         </head>
@@ -2246,13 +2275,20 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
 
                   {form.invoice_items.length > 0 ? (
                     <div>
-                      <div className="grid grid-cols-12 gap-3 mb-2 text-xs font-semibold text-muted-foreground">
-                        <div className="col-span-5">DESCRIPTION</div>
-                        <div className="col-span-1 text-center">QTY</div>
-                        <div className="col-span-2 text-right">PRICE</div>
-                        <div className="col-span-2 text-right">TOTAL</div>
-                        <div className="col-span-2 text-right">ACTIONS</div>
+                      {/* Header Row - Responsive */}
+                      <div className="hidden md:grid md:grid-cols-12 gap-3 mb-2 text-xs font-semibold text-muted-foreground">
+                        <div className="md:col-span-5">DESCRIPTION</div>
+                        <div className="md:col-span-1 text-center">QTY</div>
+                        <div className="md:col-span-2 text-right">PRICE</div>
+                        <div className="md:col-span-2 text-right">TOTAL</div>
+                        <div className="md:col-span-2 text-right">ACTIONS</div>
                       </div>
+                      
+                      {/* Mobile header hint */}
+                      <div className="md:hidden text-xs text-muted-foreground mb-2">
+                        Tap items to see details
+                      </div>
+                      
                       <div className="space-y-2">
                         {form.invoice_items.map((item) => (
                           <InvoiceItemRow
@@ -2381,7 +2417,6 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     </>
   );
 }
-
 
 export default function LoginPage() {
   return (

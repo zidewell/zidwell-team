@@ -241,9 +241,9 @@ Zidwell Team
           
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount:</strong> ₦${(
+            <p><strong>Amount:</strong> ₦${
               amount - totalFee
-            ).toLocaleString()}</p>
+            }.toLocaleString()}</p>
             <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
             <p><strong>Total Deduction:</strong> ₦${totalDeduction.toLocaleString()}</p>
             <p><strong>Recipient Name:</strong> ${recipientName}</p>
@@ -403,7 +403,6 @@ Zidwell Team
   }
 }
 
-// ADD THIS HELPER FUNCTION BEFORE THE MAIN POST FUNCTION
 async function processInvoicePaymentForDifferentUser(
   invoice: any,
   depositorUserId: string,
@@ -465,6 +464,295 @@ async function processInvoicePaymentForDifferentUser(
     );
   } catch (error) {
     console.error("❌ Error in cross-user payment processing:", error);
+  }
+}
+
+// ==================== NEW FUNCTION: Send Follow-up Payment Email ====================
+async function sendFollowupPaymentEmail(
+  customerEmail: string,
+  customerName: string,
+  invoiceId: string,
+  paidAmount: number,
+  remainingAmount: number,
+  paymentLink: string,
+  invoice: any
+) {
+  try {
+    const subject = `Remaining Balance for Invoice ${invoiceId} - ₦${remainingAmount.toLocaleString()}`;
+    const greeting = customerName ? `Hi ${customerName},` : "Hello,";
+
+    // Calculate the amount with 2% fee for display
+    const platformFee = Math.round(remainingAmount * 0.02);
+    const totalWithFee = remainingAmount + platformFee;
+
+    const emailBody = `
+${greeting}
+
+Thank you for your partial payment of ₦${paidAmount.toLocaleString()} for Invoice ${invoiceId}.
+
+📋 Payment Summary:
+• Invoice Total: ₦${invoice.total_amount.toLocaleString()}
+• Amount Paid: ₦${paidAmount.toLocaleString()}
+• Remaining Balance: ₦${remainingAmount.toLocaleString()}
+• Platform Fee (2%): ₦${platformFee.toLocaleString()}
+• Total to Pay: ₦${totalWithFee.toLocaleString()}
+
+To complete your payment, please use the link below:
+
+🔗 Pay Remaining Balance: ${paymentLink}
+
+This payment link includes the 2% platform fee and will expire in 7 days.
+
+If you have any questions, please contact ${invoice.from_name} at ${invoice.from_email}.
+
+Thank you,
+Zidwell Team
+    `;
+
+    await transporter.sendMail({
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      to: customerEmail,
+      subject,
+      text: emailBody,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <p>${greeting}</p>
+          
+          <h3 style="color: #f59e0b;">Invoice Payment Incomplete</h3>
+          
+          <p>Thank you for your partial payment of <strong>₦${paidAmount.toLocaleString()}</strong> for Invoice ${invoiceId}.</p>
+          
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin-top: 0;">📋 Payment Summary</h4>
+            <p><strong>Invoice Total:</strong> ₦${invoice.total_amount.toLocaleString()}</p>
+            <p><strong>Amount Paid:</strong> ₦${paidAmount.toLocaleString()}</p>
+            <p><strong>Remaining Balance:</strong> <span style="color: #ef4444; font-weight: bold;">₦${remainingAmount.toLocaleString()}</span></p>
+            <p><strong>Platform Fee (2%):</strong> ₦${platformFee.toLocaleString()}</p>
+            <p><strong>Total to Pay:</strong> ₦${totalWithFee.toLocaleString()}</p>
+          </div>
+          
+          <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; border: 2px solid #22c55e;">
+            <p style="margin-top: 0; font-weight: bold;">Complete Your Payment</p>
+            <a href="${paymentLink}" 
+               style="background-color: #22c55e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+               🔗 Pay Remaining ₦${totalWithFee.toLocaleString()}
+            </a>
+            <p style="color: #64748b; font-size: 14px; margin-top: 10px;">
+              Includes 2% platform fee • Expires in 7 days
+            </p>
+          </div>
+          
+          <p style="color: #64748b;">
+            If you have any questions, please contact <strong>${invoice.from_name}</strong> at ${invoice.from_email}.
+          </p>
+          
+          <p>Thank you,<br><strong>Zidwell Team</strong></p>
+        </div>
+      `,
+    });
+
+    console.log(`📧 Follow-up payment email sent to ${customerEmail} for remaining ₦${remainingAmount}`);
+  } catch (emailError) {
+    console.error("❌ Failed to send follow-up payment email:", emailError);
+  }
+}
+
+// ==================== NEW FUNCTION: Generate Follow-up Payment ====================
+async function generateRemainingBalancePayment(
+  invoice: any,
+  remainingAmount: number,
+  customerEmail: string,
+  customerName: string
+) {
+  try {
+    console.log(`🔗 Generating follow-up payment for remaining ₦${remainingAmount}...`);
+    
+    // Calculate the amount with 2% fee
+    const platformFee = Math.round(remainingAmount * 0.02); // 2% platform fee
+    const totalWithFee = remainingAmount + platformFee;
+    
+    // Generate unique reference
+    const followupRef = `INV-FOLLOWUP-${invoice.invoice_id}-${Date.now()}`;
+    
+    // Get Nomba token
+    const token = await getNombaToken();
+    
+    // Create payment data with 2% fee included
+    const paymentData = {
+      amount: totalWithFee,
+      customerEmail: customerEmail,
+      customerName: customerName,
+      currency: "NGN",
+      merchantId: process.env.NOMBA_MERCHANT_ID,
+      metadata: {
+        type: "invoice_followup",
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoice_id,
+        userId: invoice.user_id,
+        remainingAmount: remainingAmount,
+        platformFee: platformFee,
+        totalWithFee: totalWithFee,
+        isPartialPayment: true,
+        followupReference: followupRef
+      },
+      callbackUrl: `${baseUrl}/api/invoice-payment-callback?invoiceId=${invoice.id}&type=followup`,
+      description: `Remaining balance for Invoice ${invoice.invoice_id}`,
+      redirectUrl: `${baseUrl}/dashboard/invoices/${invoice.id}?payment=followup&status=success`,
+      expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    };
+    
+    // Create payment link with Nomba
+    const response = await fetch(`${process.env.NOMBA_URL}/v1/checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        accountId: process.env.NOMBA_ACCOUNT_ID!,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(paymentData),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Nomba API error: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error("Failed to create follow-up payment link");
+    }
+    
+    // Save follow-up payment record
+    const { error: insertError } = await supabase
+      .from("invoice_followup_payments")
+      .insert({
+        invoice_id: invoice.id,
+        user_id: invoice.user_id,
+        amount: remainingAmount,
+        platform_fee: platformFee,
+        total_amount: totalWithFee,
+        reference: followupRef,
+        payment_link: data.data?.paymentLink || data.paymentUrl,
+        nomba_checkout_id: data.data?.checkoutId,
+        status: "pending",
+        customer_email: customerEmail,
+        customer_name: customerName,
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      });
+    
+    if (insertError) {
+      console.error("❌ Failed to save follow-up payment:", insertError);
+    }
+    
+    // Update invoice with follow-up info
+    await supabase
+      .from("invoices")
+      .update({
+        has_followup_payment: true,
+        followup_amount: remainingAmount,
+        followup_reference: followupRef,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", invoice.id);
+    
+    console.log(`✅ Follow-up payment created: ${followupRef} for ₦${totalWithFee}`);
+    
+    return {
+      paymentLink: data.data?.paymentLink || data.paymentUrl,
+      reference: followupRef,
+      amount: remainingAmount,
+      platformFee: platformFee,
+      totalWithFee: totalWithFee,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    };
+    
+  } catch (error) {
+    console.error("❌ Error generating follow-up payment:", error);
+    throw error;
+  }
+}
+
+// ==================== NEW FUNCTION: Send Invoice Creator Follow-up Notification ====================
+async function sendInvoiceCreatorFollowupNotification(
+  creatorUserId: string,
+  invoiceId: string,
+  paidAmount: number,
+  remainingAmount: number,
+  customerName: string
+) {
+  try {
+    // Get creator details
+    const { data: creator, error } = await supabase
+      .from("users")
+      .select("email, first_name")
+      .eq("id", creatorUserId)
+      .single();
+
+    if (error || !creator) {
+      console.error("Failed to fetch invoice creator:", error);
+      return;
+    }
+
+    const subject = `Partial Payment Received - Follow-up Required for Invoice ${invoiceId}`;
+    const greeting = creator.first_name ? `Hi ${creator.first_name},` : "Hello,";
+
+    const emailBody = `
+${greeting}
+
+A partial payment has been received for Invoice ${invoiceId}.
+
+📋 Payment Details:
+• Customer: ${customerName}
+• Amount Paid: ₦${paidAmount.toLocaleString()}
+• Remaining Balance: ₦${remainingAmount.toLocaleString()}
+
+A follow-up payment link has been automatically generated and sent to the customer. The link includes the 2% platform fee and will expire in 7 days.
+
+You can monitor the payment status from your dashboard.
+
+Best regards,
+Zidwell Team
+    `;
+
+    await transporter.sendMail({
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
+      to: creator.email,
+      subject,
+      text: emailBody,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <p>${greeting}</p>
+          
+          <h3 style="color: #f59e0b;">⚠️ Partial Payment Received</h3>
+          
+          <p>A partial payment has been received for Invoice ${invoiceId}.</p>
+          
+          <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f59e0b;">
+            <h4 style="margin-top: 0;">📋 Payment Details</h4>
+            <p><strong>Customer:</strong> ${customerName}</p>
+            <p><strong>Amount Paid:</strong> ₦${paidAmount.toLocaleString()}</p>
+            <p><strong>Remaining Balance:</strong> <span style="color: #ef4444; font-weight: bold;">₦${remainingAmount.toLocaleString()}</span></p>
+          </div>
+          
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin-top: 0;">🔄 Follow-up Status</h4>
+            <p>A follow-up payment link has been automatically generated and sent to the customer.</p>
+            <p><strong>Platform Fee:</strong> 2% included in follow-up amount</p>
+            <p><strong>Link Expiry:</strong> 7 days</p>
+          </div>
+          
+          <p>You can monitor the payment status from your <a href="${baseUrl}/dashboard/invoices">dashboard</a>.</p>
+          
+          <p>Best regards,<br><strong>Zidwell Team</strong></p>
+        </div>
+      `,
+    });
+
+    console.log(`📧 Follow-up notification sent to invoice creator ${creator.email}`);
+  } catch (emailError) {
+    console.error("❌ Failed to send creator follow-up notification:", emailError);
   }
 }
 
@@ -1134,6 +1422,61 @@ export async function POST(req: NextRequest) {
             );
           }
 
+          // ==================== NEW: CHECK FOR PARTIAL PAYMENT AND GENERATE FOLLOW-UP ====================
+          const invoiceTotal = Number(invoice.total_amount);
+          const isPartialPayment = paidAmount < invoiceTotal;
+          
+          if (isPartialPayment) {
+            const remainingBalance = invoiceTotal - paidAmount;
+            
+            console.log(`⚠️ PARTIAL PAYMENT DETECTED:`, {
+              invoice_total: invoiceTotal,
+              amount_paid: paidAmount,
+              remaining_balance: remainingBalance,
+              percentage: `${((paidAmount / invoiceTotal) * 100).toFixed(2)}% paid`
+            });
+            
+            // Generate follow-up payment link for remaining balance
+            if (remainingBalance > 0) {
+              try {
+                console.log(`🔄 Generating follow-up payment for remaining ₦${remainingBalance}...`);
+                
+                const followupPayment = await generateRemainingBalancePayment(
+                  invoice,
+                  remainingBalance,
+                  customerEmail || invoice.client_email,
+                  customerName || invoice.client_name
+                );
+                
+                // Send follow-up payment email to customer
+                await sendFollowupPaymentEmail(
+                  customerEmail || invoice.client_email,
+                  customerName || invoice.client_name,
+                  invoice.invoice_id,
+                  paidAmount,
+                  remainingBalance,
+                  followupPayment.paymentLink,
+                  invoice
+                );
+                
+                // Notify invoice creator about partial payment
+                await sendInvoiceCreatorFollowupNotification(
+                  invoice.user_id,
+                  invoice.invoice_id,
+                  paidAmount,
+                  remainingBalance,
+                  customerName || "Customer"
+                );
+                
+                console.log(`✅ Follow-up payment system activated for remaining ₦${remainingBalance}`);
+                
+              } catch (followupError) {
+                console.error("❌ Failed to generate follow-up payment:", followupError);
+                // Don't fail the main payment processing
+              }
+            }
+          }
+
           return NextResponse.json({ success: true }, { status: 200 });
         } catch (invoiceError: any) {
           console.error("❌ Invoice processing error:", invoiceError);
@@ -1448,6 +1791,11 @@ export async function POST(req: NextRequest) {
                   user_amount: userAmount,
                   calculation: `₦${totalAmount} - ₦${platformFeeRounded} (2% platform) - ₦${nombaFee} (Nomba) = ₦${userAmount}`,
                 });
+                
+                // ⭐ CHECK FOR PARTIAL PAYMENT
+                const invoiceTotal = Number(invoice.total_amount);
+                const isPartialPayment = totalAmount < invoiceTotal;
+                
                 // Create payment record
                 const { data: paymentRecord, error: paymentError } =
                   await supabase
@@ -1487,6 +1835,8 @@ export async function POST(req: NextRequest) {
                         is_reusable: false,
                         payment_attempts: 1,
                         created_at: new Date().toISOString(),
+                        is_partial_payment: isPartialPayment,
+                        remaining_balance: isPartialPayment ? invoiceTotal - totalAmount : 0
                       },
                     ])
                     .select()
@@ -1596,6 +1946,58 @@ export async function POST(req: NextRequest) {
 
                   // ✅ UPDATE INVOICE TOTALS with total amount paid
                   await updateInvoiceTotals(invoice, totalAmount);
+                  
+                  // ⭐ CHECK FOR PARTIAL PAYMENT AND GENERATE FOLLOW-UP (for VA payments)
+                  if (isPartialPayment) {
+                    const remainingBalance = invoiceTotal - totalAmount;
+                    
+                    console.log(`⚠️ VIRTUAL ACCOUNT PARTIAL PAYMENT DETECTED:`, {
+                      invoice_total: invoiceTotal,
+                      amount_paid: totalAmount,
+                      remaining_balance: remainingBalance,
+                      percentage: `${((totalAmount / invoiceTotal) * 100).toFixed(2)}% paid`
+                    });
+                    
+                    // Generate follow-up payment link for remaining balance
+                    if (remainingBalance > 0) {
+                      try {
+                        console.log(`🔄 Generating follow-up payment for remaining ₦${remainingBalance}...`);
+                        
+                        const followupPayment = await generateRemainingBalancePayment(
+                          invoice,
+                          remainingBalance,
+                          payload.data?.customer?.senderEmail || invoice.client_email,
+                          payload.data?.customer?.senderName || invoice.client_name
+                        );
+                        
+                        // Send follow-up payment email to customer
+                        await sendFollowupPaymentEmail(
+                          payload.data?.customer?.senderEmail || invoice.client_email,
+                          payload.data?.customer?.senderName || invoice.client_name,
+                          invoice.invoice_id,
+                          totalAmount,
+                          remainingBalance,
+                          followupPayment.paymentLink,
+                          invoice
+                        );
+                        
+                        // Notify invoice creator about partial payment
+                        await sendInvoiceCreatorFollowupNotification(
+                          invoice.user_id,
+                          invoice.invoice_id,
+                          totalAmount,
+                          remainingBalance,
+                          payload.data?.customer?.senderName || "Customer"
+                        );
+                        
+                        console.log(`✅ Follow-up payment system activated for remaining ₦${remainingBalance}`);
+                        
+                      } catch (followupError) {
+                        console.error("❌ Failed to generate follow-up payment:", followupError);
+                        // Don't fail the main payment processing
+                      }
+                    }
+                  }
 
                   // Send notifications
                   try {

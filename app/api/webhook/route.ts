@@ -371,13 +371,13 @@ Zidwell Team
             <p><strong>Payment Processing Fee:</strong> ₦${processingFee.toLocaleString()}</p>
             <p><strong>Total Fees:</strong> ₦${totalFees.toLocaleString()}</p>
             <p><strong>Amount Credited to Your Wallet:</strong> <span style="color: #22c55e; font-weight: bold;">₦${userAmount.toLocaleString()}</span></p>
-            <p><strong>Payment Method:</strong> Virtual Account Transfer</p>
+            <p><strong>Payment Method:</strong>Bank Transfer</p>
           </div>
           
           <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #22c55e;">
             <h3 style="margin-top: 0;">✅ Wallet Updated</h3>
             <p>Your wallet has been successfully credited with <strong>₦${userAmount.toLocaleString()}</strong></p>
-            <p>The funds are now available for use in your Zidwell account.</p>
+            <p>The funds are now available for use in your Zidwell Wallet.</p>
           </div>
           
           <p>Thank you for using Zidwell!</p>

@@ -263,7 +263,7 @@ export default function PaymentForm({
       disabled={status === "paid" && allow_multiple_payments === false}
     >
       <CreditCard className="h-5 w-5 mr-2" />
-      Pay Now
+      {status === "paid" && allow_multiple_payments === false ? "Payment Completed" : "Pay Now"}
     </Button>
   </div>
 )}

@@ -20,6 +20,7 @@ const FloatingWhatsApp = () => {
     "/auth/forgot-password",
     "/auth/reset-password",
     "/auth/verify-email",
+    "/finwell",
     
     // Onboarding/Setup flows - users are in focused setup process
     "/onboarding",

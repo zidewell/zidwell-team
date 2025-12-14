@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
       dateOfBirth,
       transactionPin,
       businessName,
-      role,
       businessAddress,
       businessCategory,
       businessDescription,
@@ -95,6 +94,7 @@ export async function POST(req: NextRequest) {
           last_name,
           phone,
           date_of_birth: dateOfBirth,
+          admin_role: "user",
           transaction_pin: hashedPin,
           pin_set: true,
           wallet_balance: 0,
@@ -127,7 +127,6 @@ export async function POST(req: NextRequest) {
       {
         user_id: auth_id,
         business_name: businessName || "",
-        role: role || "",
         business_address: businessAddress || "",
         business_category: businessCategory || "",
         business_description: businessDescription || "",

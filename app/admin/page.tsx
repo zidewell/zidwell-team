@@ -16,6 +16,8 @@ import {
   Pie,
   Cell,
   Legend,
+  AreaChart,
+  Area,
 } from "recharts";
 import {
   Select,
@@ -27,7 +29,19 @@ import {
 import AdminLayout from "../components/admin-components/layout";
 import KPICard from "../components/admin-components/KPICard";
 import { Skeleton } from "../components/ui/skeleton";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Minus, 
+  DollarSign, 
+  CreditCard, 
+  Wallet, 
+  Receipt,
+  Users,
+  FileText,
+  BarChart3,
+  RefreshCw
+} from "lucide-react";
 
 const fetcher = (url: string) =>
   fetch(url).then(async (r) => {
@@ -46,6 +60,7 @@ const CHART_COLORS = {
   outflow: "#ef4444",
   contracts: "#3b82f6",
   invoices: "#8b5cf6",
+  revenue: "#f59e0b", // New color for revenue
   pie: ["#10b981", "#ef4444", "#3b82f6", "#8b5cf6", "#f59e0b", "#84cc16"],
 };
 
@@ -104,7 +119,11 @@ export default function AdminDashboard() {
 
   const { data: summaryData, error: summaryError } = useSWR<any>(
     `/api/admin-apis/dashboard/summary?range=${range}`,
-    fetcher
+    fetcher,
+    {
+      refreshInterval: 300000, // Refresh every 5 minutes
+      revalidateOnFocus: true,
+    }
   );
 
   const { data: paginatedData, error: paginatedError } = useSWR<any>(
@@ -123,18 +142,33 @@ export default function AdminDashboard() {
   const totalOutflow = Number(summaryData?.totalOutflow ?? 0);
   const mainWalletBalance = Number(summaryData?.mainWalletBalance ?? 0);
   const nombaBalanceRaw = Number(summaryData?.nombaBalance ?? 0);
+  
+  // NEW: App Revenue
+  const totalAppRevenue = Number(summaryData?.totalAppRevenue ?? 0);
+  const transactionFees = Number(summaryData?.transactionFees ?? 0);
+  const platformFees = Number(summaryData?.platformFees ?? 0);
+  const invoiceFees = Number(summaryData?.invoiceFees ?? 0);
 
   const totalContracts = Number(summaryData?.totalContractsIssued ?? 0);
   const pendingContracts = Number(summaryData?.pendingContracts ?? 0);
   const signedContracts = Number(summaryData?.signedContracts ?? 0);
 
-  const totalInvoices = Number(summaryData?.totalInvoices ?? 0);
+  const totalInvoices = Number(summaryData?.totalInvoicesIssued ?? 0);
   const paidInvoices = Number(summaryData?.paidInvoices ?? 0);
-  const unpaidInvoices = Number(summaryData?.unpaidInvoices ?? 0);
+  const unpaidInvoices = Number(summaryData?.pendingInvoices ?? 0);
+  const totalInvoiceRevenue = Number(summaryData?.totalInvoiceRevenue ?? 0);
 
-  // Previous period values for growth calculation
+  const totalTransactions = Number(summaryData?.totalTransactions ?? 0);
+  const successfulTransactions = Number(summaryData?.successfulTransactions ?? 0);
+  const failedTransactions = Number(summaryData?.failedTransactions ?? 0);
+  const pendingTransactions = Number(summaryData?.pendingTransactions ?? 0);
+
+  const totalUsers = Number(summaryData?.totalUsers ?? 0);
+
+  // Previous period values for growth calculation (you'll need to implement this in the API)
   const prevTotalInflow = Number(summaryData?.prevTotalInflow ?? 0);
   const prevTotalOutflow = Number(summaryData?.prevTotalOutflow ?? 0);
+  const prevTotalAppRevenue = Number(summaryData?.prevTotalAppRevenue ?? 0);
   const prevTotalContracts = Number(summaryData?.prevTotalContracts ?? 0);
   const prevPendingContracts = Number(summaryData?.prevPendingContracts ?? 0);
   const prevSignedContracts = Number(summaryData?.prevSignedContracts ?? 0);
@@ -150,6 +184,7 @@ export default function AdminDashboard() {
 
   const inflowGrowth = calculateGrowth(totalInflow, prevTotalInflow);
   const outflowGrowth = calculateGrowth(totalOutflow, prevTotalOutflow);
+  const appRevenueGrowth = calculateGrowth(totalAppRevenue, prevTotalAppRevenue);
   const contractsGrowth = calculateGrowth(totalContracts, prevTotalContracts);
   const pendingContractsGrowth = calculateGrowth(pendingContracts, prevPendingContracts);
   const signedContractsGrowth = calculateGrowth(signedContracts, prevSignedContracts);
@@ -160,6 +195,7 @@ export default function AdminDashboard() {
   const monthlyTransactions = summaryData?.monthlyTransactions ?? [];
   const monthlyInvoices = summaryData?.monthlyInvoices ?? [];
   const monthlyContracts = summaryData?.monthlyContracts ?? [];
+  const monthlyAppRevenue = summaryData?.monthlyAppRevenue ?? [];
 
   // Data for pie charts
   const contractsPieData = [
@@ -175,6 +211,12 @@ export default function AdminDashboard() {
   const cashflowPieData = [
     { name: "Inflow", value: totalInflow, color: CHART_COLORS.pie[0] },
     { name: "Outflow", value: totalOutflow, color: CHART_COLORS.pie[1] },
+  ].filter(item => item.value > 0);
+
+  const revenueBreakdownData = [
+    { name: "Transaction Fees", value: transactionFees, color: CHART_COLORS.revenue },
+    { name: "Platform Fees", value: platformFees, color: "#84cc16" },
+    { name: "Invoice Fees", value: invoiceFees, color: "#8b5cf6" },
   ].filter(item => item.value > 0);
 
   const recentActivity = summaryData?.latestTransactions?.slice(0, 5) ?? paginatedData?.transactions?.slice(0, 5) ?? [];
@@ -194,7 +236,7 @@ export default function AdminDashboard() {
   };
 
   const refresh = async () => {
-    await mutate(`/api/admin-apis/dashboard/summary?range=${range}`);
+    await mutate(`/api/admin-apis/dashboard/summary?range=${range}&nocache=true`);
     await mutate(`/api/admin-apis/transactions?page=${page}&range=${range}`);
   };
 
@@ -202,17 +244,40 @@ export default function AdminDashboard() {
 
   const formatCurrency = (value: number | string) => {
     const n = Number(value || 0);
-    return n.toLocaleString("en-NG", { style: "currency", currency: "NGN" });
+    if (n === 0) return "₦0";
+    return n.toLocaleString("en-NG", { 
+      style: "currency", 
+      currency: "NGN",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    });
   };
 
   // Format date safely for client-side only
   const formatDateSafely = (dateString: string) => {
     if (!isClient) return dateString;
     try {
-      return new Date(dateString).toLocaleString();
+      return new Date(dateString).toLocaleString('en-NG', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     } catch {
       return dateString;
     }
+  };
+
+  // Format for chart tooltips
+  const formatCurrencyShort = (value: number) => {
+    if (value >= 1000000) {
+      return `₦${(value / 1000000).toFixed(1)}M`;
+    }
+    if (value >= 1000) {
+      return `₦${(value / 1000).toFixed(1)}K`;
+    }
+    return `₦${value}`;
   };
 
   if (loading) {
@@ -256,11 +321,12 @@ export default function AdminDashboard() {
     <AdminLayout>
       <div className="px-4 py-6 space-y-8">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-gray-900">Admin Dashboard</h2>
-            <div className="mt-1 text-sm text-gray-500">
-              Range: {range === "total" ? "All time" : range}
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Dashboard</h2>
+            <div className="mt-1 text-sm text-gray-500 flex items-center gap-2">
+              <BarChart3 size={14} />
+              <span>Range: {range === "total" ? "All time" : range}</span>
             </div>
           </div>
 
@@ -286,111 +352,191 @@ export default function AdminDashboard() {
 
             <button
               onClick={refresh}
-              className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium transition-colors"
+              className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-medium transition-colors flex items-center gap-2"
             >
+              <RefreshCw size={16} />
               Refresh Data
             </button>
           </div>
         </div>
 
         {/* KPI Row 1 - Financial */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard 
             title="Total Inflow" 
             value={formatCurrency(totalInflow)}
             growth={<GrowthIndicator value={inflowGrowth} />}
+            icon={<TrendingUp className="w-5 h-5 text-green-600" />}
             className="border-l-4 border-l-green-500"
+            subtitle="Money coming into the platform"
           />
           <KPICard 
             title="Total Outflow" 
             value={formatCurrency(totalOutflow)}
             growth={<GrowthIndicator value={outflowGrowth} />}
+            // icon={<TrendingDown className="w-5 h-5 text-red-600" />}
             className="border-l-4 border-l-red-500"
+            subtitle="Money leaving the platform"
           />
           <KPICard
             title="Main Wallet Balance"
             value={formatCurrency(mainWalletBalance)}
+            icon={<Wallet className="w-5 h-5 text-blue-600" />}
+            subtitle="Total user wallet balances"
           />
           <KPICard
             title="Admin Wallet (Nomba)"
             value={formatCurrency(nombaBalanceRaw)}
+            icon={<CreditCard className="w-5 h-5 text-purple-600" />}
+            subtitle="Nomba account balance"
           />
         </div>
 
-        {/* KPI Row 2 - Contracts */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* KPI Row 2 - Revenue & Performance */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KPICard 
+            title="Total App Revenue" 
+            value={formatCurrency(totalAppRevenue)}
+            growth={<GrowthIndicator value={appRevenueGrowth} />}
+            icon={<DollarSign className="w-5 h-5 text-amber-600" />}
+            className="border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-white"
+            subtitle="Total platform earnings"
+          />
+          <KPICard 
+            title="Invoice Reveue" 
+            value={formatCurrency(invoiceFees)}
+            icon={<Receipt className="w-5 h-5 text-violet-600" />}
+            subtitle="Revenue from invoices"
+          />
+          <KPICard 
+            title="Total Users" 
+            value={totalUsers.toLocaleString()}
+            icon={<Users className="w-5 h-5 text-green-600" />}
+            subtitle="Registered users"
+          />
+          <KPICard 
+            title="Total Transactions" 
+            value={totalTransactions.toLocaleString()}
+            icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+            subtitle="All transactions"
+          />
+        </div>
+
+        {/* KPI Row 3 - Contract & Invoice Status */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KPICard 
             title="Total Contracts" 
             value={totalContracts.toLocaleString()}
             growth={<GrowthIndicator value={contractsGrowth} />}
-          />
-          <KPICard 
-            title="Pending Contracts" 
-            value={pendingContracts.toLocaleString()}
-            growth={<GrowthIndicator value={pendingContractsGrowth} />}
+            icon={<FileText className="w-5 h-5 text-blue-600" />}
+            subtitle="Contracts issued"
           />
           <KPICard 
             title="Signed Contracts" 
             value={signedContracts.toLocaleString()}
             growth={<GrowthIndicator value={signedContractsGrowth} />}
+            icon={<FileText className="w-5 h-5 text-green-600" />}
+            subtitle="Contracts signed"
           />
-          <KPICard 
-            title="Total Invoices" 
-            value={totalInvoices.toLocaleString()}
-            growth={<GrowthIndicator value={invoicesGrowth} />}
-          />
-        </div>
-
-        {/* KPI Row 3 - Invoice Status & Pie Charts */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <KPICard 
             title="Paid Invoices" 
             value={paidInvoices.toLocaleString()}
             growth={<GrowthIndicator value={paidInvoicesGrowth} />}
+            icon={<Receipt className="w-5 h-5 text-green-600" />}
+            subtitle="Invoices paid"
           />
           <KPICard 
             title="Unpaid Invoices" 
             value={unpaidInvoices.toLocaleString()}
             growth={<GrowthIndicator value={unpaidInvoicesGrowth} />}
+            icon={<Receipt className="w-5 h-5 text-red-600" />}
+            subtitle="Invoices pending"
           />
-          
-          {/* Contracts Pie Chart */}
+        </div>
+
+        {/* Charts Section - Top Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* App Revenue Trend */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">💰 App Revenue Trend</h3>
+              <div className="text-sm text-gray-500">Filtered: {range}</div>
+            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={monthlyAppRevenue}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  tickFormatter={(value) => formatCurrencyShort(value)}
+                />
+                <Tooltip
+                  formatter={(value: number) => [formatCurrency(value), "Revenue"]}
+                  labelFormatter={(label) => `Month: ${label}`}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke={CHART_COLORS.revenue}
+                  fill="url(#colorRevenue)"
+                  strokeWidth={2}
+                />
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={CHART_COLORS.revenue} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={CHART_COLORS.revenue} stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Revenue Distribution Pie Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
-            <div className="text-sm text-gray-500 mb-2">Contract Status</div>
-            <div className="h-32">
-              {contractsPieData.length > 0 ? (
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">📊 Revenue Breakdown</h3>
+              <div className="text-sm text-gray-500">Sources</div>
+            </div>
+            <div className="h-64">
+              {revenueBreakdownData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={contractsPieData}
+                      data={revenueBreakdownData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={40}
-                      outerRadius={60}
-                      paddingAngle={2}
+                      labelLine={false}
+                      label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
                       dataKey="value"
                     >
-                      {contractsPieData.map((entry, index) => (
+                      {revenueBreakdownData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => [value, "Count"]} />
+                    <Tooltip formatter={(value: number) => [formatCurrency(value), "Amount"]} />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="h-full flex items-center justify-center text-gray-400">
-                  No data
+                  No revenue data
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Charts Section */}
+        {/* Charts Section - Bottom Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Transactions Trend */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900">📈 Transactions Trend</h3>
               <div className="text-sm text-gray-500">Filtered: {range}</div>
@@ -406,7 +552,7 @@ export default function AdminDashboard() {
                 <YAxis 
                   tick={{ fontSize: 12 }}
                   tickLine={false}
-                  tickFormatter={(value) => formatCurrency(value).split('.')[0]}
+                  tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
                   formatter={(value: number) => [formatCurrency(value), "Amount"]}
@@ -424,44 +570,6 @@ export default function AdminDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Cash Flow Distribution */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">💰 Cash Flow</h3>
-              <div className="text-sm text-gray-500">Distribution</div>
-            </div>
-            <div className="h-64">
-              {cashflowPieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={cashflowPieData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {cashflowPieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => [formatCurrency(value), "Amount"]} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-400">
-                  No cash flow data
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Additional Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Invoices Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <div className="flex items-center justify-between mb-6">
@@ -480,9 +588,13 @@ export default function AdminDashboard() {
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                 />
-                <Tooltip />
+                <Tooltip formatter={(value: number, name: string) => {
+                  if (name === "count") return [value, "Invoice Count"];
+                  return [formatCurrency(value), "Revenue"];
+                }} />
                 <Bar 
                   dataKey="count" 
+                  name="Invoice Count"
                   fill={CHART_COLORS.invoices}
                   radius={[4, 4, 0, 0]}
                 />
@@ -521,7 +633,7 @@ export default function AdminDashboard() {
 
         {/* Recent Transactions */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
             <h3 className="text-lg font-semibold text-gray-900">🕒 Recent Transactions</h3>
             <div className="flex items-center gap-3">
               <div className="text-sm text-gray-500">Page: {page}</div>
@@ -566,6 +678,9 @@ export default function AdminDashboard() {
                     Type
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date
                   </th>
                 </tr>
@@ -574,14 +689,42 @@ export default function AdminDashboard() {
                 {recentActivity.length > 0 ? (
                   recentActivity.map((tx: any) => (
                     <tr key={tx.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {formatCurrency(tx.amount)}
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-900">
+                          {formatCurrency(tx.amount)}
+                        </div>
+                        {tx.fee > 0 && (
+                          <div className="text-xs text-amber-600 mt-1">
+                            Fee: {formatCurrency(tx.fee)}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {tx.description || "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-600">
-                        {tx.type || "—"}
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          (tx.type?.toLowerCase() || '').includes('fee') 
+                            ? 'bg-amber-100 text-amber-800'
+                            : (tx.type?.toLowerCase() || '').includes('deposit') || (tx.type?.toLowerCase() || '').includes('received')
+                            ? 'bg-green-100 text-green-800'
+                            : (tx.type?.toLowerCase() || '').includes('withdrawal') || (tx.type?.toLowerCase() || '').includes('sent')
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {tx.type || "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          tx.status === 'success' 
+                            ? 'bg-green-100 text-green-800'
+                            : tx.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {tx.status || "—"}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
                         {formatDateSafely(tx.created_at)}
@@ -590,13 +733,63 @@ export default function AdminDashboard() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
                       No transactions found
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Summary Stats Footer */}
+        <div className="bg-gradient-to-r from-gray-50 to-white p-6 rounded-2xl shadow-sm border">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Platform Performance Summary</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl border">
+              <div className="text-sm text-gray-500">Total Users</div>
+              <div className="text-2xl font-bold text-gray-900">{totalUsers.toLocaleString()}</div>
+            </div>
+            <div className="bg-white p-4 rounded-xl border">
+              <div className="text-sm text-gray-500">Success Rate</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {totalTransactions > 0 
+                  ? `${((successfulTransactions / totalTransactions) * 100).toFixed(1)}%`
+                  : '0%'}
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-xl border">
+              <div className="text-sm text-gray-500">Avg. Revenue per User</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {totalUsers > 0 && totalAppRevenue > 0
+                  ? formatCurrency(totalAppRevenue / totalUsers)
+                  : formatCurrency(0)}
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-xl border">
+              <div className="text-sm text-gray-500">Transaction Value</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {totalTransactions > 0
+                  ? formatCurrency((totalInflow + totalOutflow) / totalTransactions)
+                  : formatCurrency(0)}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Revenue Sources:</span> 
+              {revenueBreakdownData.length > 0 
+                ? revenueBreakdownData.map(r => ` ${r.name}`).join(', ')
+                : ' None detected'
+              }
+            </div>
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Data Range:</span> {range === "total" ? "All time" : range}
+            </div>
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Last Updated:</span> {new Date().toLocaleTimeString()}
+            </div>
           </div>
         </div>
       </div>

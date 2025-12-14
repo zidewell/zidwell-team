@@ -20,6 +20,8 @@ import {
   PaginationPrevious,
 } from "@/app/components/ui/pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Progress } from "@/app/components/ui/progress";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -132,6 +134,74 @@ export default function TransactionsPage() {
   const pendingTransactions = useMemo(() => 
     allFilteredTransactions.filter((t: any) => t.status === "pending"), 
     [allFilteredTransactions]
+  );
+
+  // Enhanced stats calculations
+  const successfulAmount = useMemo(() => 
+    successfulTransactions.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0), 
+    [successfulTransactions]
+  );
+
+  const failedAmount = useMemo(() => 
+    failedTransactions.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0), 
+    [failedTransactions]
+  );
+
+  const pendingAmount = useMemo(() => 
+    pendingTransactions.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0), 
+    [pendingTransactions]
+  );
+
+  // Calculate average transaction amounts
+  const avgSuccessfulAmount = useMemo(() => 
+    successfulTransactions.length > 0 ? successfulAmount / successfulTransactions.length : 0, 
+    [successfulTransactions.length, successfulAmount]
+  );
+
+  const avgFailedAmount = useMemo(() => 
+    failedTransactions.length > 0 ? failedAmount / failedTransactions.length : 0, 
+    [failedTransactions.length, failedAmount]
+  );
+
+  const avgPendingAmount = useMemo(() => 
+    pendingTransactions.length > 0 ? pendingAmount / pendingTransactions.length : 0, 
+    [pendingTransactions.length, pendingAmount]
+  );
+
+  // Calculate success/failure rates
+  const successRate = useMemo(() => 
+    allFilteredTransactions.length > 0 ? 
+      (successfulTransactions.length / allFilteredTransactions.length) * 100 : 0, 
+    [allFilteredTransactions.length, successfulTransactions.length]
+  );
+
+  const failureRate = useMemo(() => 
+    allFilteredTransactions.length > 0 ? 
+      (failedTransactions.length / allFilteredTransactions.length) * 100 : 0, 
+    [allFilteredTransactions.length, failedTransactions.length]
+  );
+
+  const pendingRate = useMemo(() => 
+    allFilteredTransactions.length > 0 ? 
+      (pendingTransactions.length / allFilteredTransactions.length) * 100 : 0, 
+    [allFilteredTransactions.length, pendingTransactions.length]
+  );
+
+  // Calculate transaction volume by type
+  const volumeByType = useMemo(() => {
+    const typeMap: Record<string, number> = {};
+    allFilteredTransactions.forEach((t: any) => {
+      typeMap[t.type] = (typeMap[t.type] || 0) + Number(t.amount || 0);
+    });
+    return typeMap;
+  }, [allFilteredTransactions]);
+
+  // Get top 3 transaction types by volume
+  const topTypesByVolume = useMemo(() => 
+    Object.entries(volumeByType)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3),
+    [volumeByType]
   );
 
   // Handle user click to navigate to user-specific transactions
@@ -519,135 +589,262 @@ export default function TransactionsPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Total Volume</h3>
-            <p className="text-2xl font-semibold">₦{totalAmount.toLocaleString()}</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Total Fees</h3>
-            <p className="text-2xl font-semibold text-orange-600">
-              ₦{totalFee.toLocaleString()}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Successful</h3>
-            <p className="text-2xl font-semibold text-green-600">
-              {successfulTransactions.length}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Failed</h3>
-            <p className="text-2xl font-semibold text-red-600">
-              {failedTransactions.length}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="text-2xl font-semibold text-yellow-600">
-              {pendingTransactions.length}
-            </p>
-          </div>
+        {/* Enhanced Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Volume Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Total Volume</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">₦{totalAmount.toLocaleString()}</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {allFilteredTransactions.length} transactions
+              </div>
+              <div className="mt-2 space-y-1">
+                {topTypesByVolume.map(([type, amount]) => (
+                  <div key={type} className="flex justify-between text-xs">
+                    <span className="text-gray-600">{type}:</span>
+                    <span className="font-medium">₦{Math.round(amount).toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Successful Transactions Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Successful</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {successfulTransactions.length}
+              </div>
+              <div className="text-lg font-semibold mt-1">
+                ₦{successfulAmount.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {successfulTransactions.length > 0 && `Avg: ₦${avgSuccessfulAmount.toFixed(2)}`}
+              </div>
+              <div className="mt-2">
+                <Progress value={successRate} className="h-2" />
+                <div className="text-xs text-gray-500 mt-1">
+                  {successRate.toFixed(1)}% success rate
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Failed Transactions Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Failed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {failedTransactions.length}
+              </div>
+              <div className="text-lg font-semibold mt-1">
+                ₦{failedAmount.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {failedTransactions.length > 0 && `Avg: ₦${avgFailedAmount.toFixed(2)}`}
+              </div>
+              <div className="mt-2">
+                <Progress value={failureRate} className="h-2 bg-red-100" />
+                <div className="text-xs text-gray-500 mt-1">
+                  {failureRate.toFixed(1)}% failure rate
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pending Transactions Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Pending</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                {pendingTransactions.length}
+              </div>
+              <div className="text-lg font-semibold mt-1">
+                ₦{pendingAmount.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {pendingTransactions.length > 0 && `Avg: ₦${avgPendingAmount.toFixed(2)}`}
+              </div>
+              <div className="mt-2">
+                <Progress value={pendingRate} className="h-2 bg-yellow-100" />
+                <div className="text-xs text-gray-500 mt-1">
+                  {pendingRate.toFixed(1)}% pending rate
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Stats Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {/* Total Fees Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Total Fees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">
+                ₦{totalFee.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {allFilteredTransactions.length > 0 
+                  ? `Avg: ₦${(totalFee / allFilteredTransactions.length).toFixed(2)} per transaction` 
+                  : 'No fees'
+                }
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Average Transaction Size */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Avg Transaction Size</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ₦{allFilteredTransactions.length > 0 ? (totalAmount / allFilteredTransactions.length).toFixed(2) : '0.00'}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Across all {allFilteredTransactions.length} transactions
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Transaction Status Distribution */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Status Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-green-600">✓ Success</span>
+                  <span className="text-sm font-medium">{successfulTransactions.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-red-600">✗ Failed</span>
+                  <span className="text-sm font-medium">{failedTransactions.length}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-yellow-600">⏳ Pending</span>
+                  <span className="text-sm font-medium">{pendingTransactions.length}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div className="md:col-span-2">
-            <Input
-              placeholder="Search by reference, user ID, email, name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <p className="text-xs text-gray-500 mt-1">Search across references, user IDs, emails, and names</p>
-          </div>
-          <div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="deposit">Deposit</SelectItem>
-                <SelectItem value="withdrawal">Transfer</SelectItem>
-                <SelectItem value="airtime">Airtime</SelectItem>
-                <SelectItem value="electricity">Electricity</SelectItem>
-                <SelectItem value="data">Data</SelectItem>
-                <SelectItem value="cable">Cable TV</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+              <div className="md:col-span-2">
+                <Input
+                  placeholder="Search by reference, user ID, email, name..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <p className="text-xs text-gray-500 mt-1">Search across references, user IDs, emails, and names</p>
+              </div>
+              <div>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="deposit">Deposit</SelectItem>
+                    <SelectItem value="withdrawal">Transfer</SelectItem>
+                    <SelectItem value="airtime">Airtime</SelectItem>
+                    <SelectItem value="electricity">Electricity</SelectItem>
+                    <SelectItem value="data">Data</SelectItem>
+                    <SelectItem value="cable">Cable TV</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="success">Success</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="processing">Processing</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div>
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Time" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="total">All Time</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="year">This Year</SelectItem>
-                <SelectItem value="custom">Custom Range</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div>
+                <Select value={dateRange} onValueChange={setDateRange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="total">All Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="year">This Year</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={() => {
-                setSearchTerm("");
-                setTypeFilter("all");
-                setStatusFilter("all");
-                setDateRange("total");
-                setStartDate("");
-                setEndDate("");
-              }}
-            >
-              Clear Filters
-            </Button>
-          </div>
-        </div>
-
-        {/* Custom Date Range */}
-        {dateRange === "custom" && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
+              <div>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setTypeFilter("all");
+                    setStatusFilter("all");
+                    setDateRange("total");
+                    setStartDate("");
+                    setEndDate("");
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
+
+            {/* Custom Date Range */}
+            {dateRange === "custom" && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+                  <Input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Results Count */}
         <div className="text-sm text-gray-500">
@@ -660,12 +857,16 @@ export default function TransactionsPage() {
         </div>
 
         {/* Table */}
-        <AdminTable
-          columns={columns}
-          rows={transactions}
-          onViewDetails={handleViewDetails}
-          onRetryTransaction={handleRetryTransaction}
-        />
+        <Card>
+          <CardContent className="pt-6">
+            <AdminTable
+              columns={columns}
+              rows={transactions}
+              onViewDetails={handleViewDetails}
+              onRetryTransaction={handleRetryTransaction}
+            />
+          </CardContent>
+        </Card>
 
         {/* Pagination */}
         {totalPages > 1 && (

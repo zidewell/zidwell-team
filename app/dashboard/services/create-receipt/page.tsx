@@ -4,6 +4,7 @@ import DashboardSidebar from "@/app/components/dashboard-sidebar";
 import RecieptManager from "@/app/components/ReceiptGen";
 import { Button } from "@/app/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function page() {
@@ -44,7 +45,20 @@ export default function page() {
               </div>
             </div>
 
-            <RecieptManager />
+            {typeof window !== "undefined" &&
+            window.location.hostname.includes("zidwell.com") ? (
+              <Image
+                src={"/coming-soon.png"}
+                alt="coming soon"
+                className=" w-full object-contain"
+                width={500}
+                height={500}
+              />
+            ) : (
+              
+                          <RecieptManager />
+             
+            )}
           </div>
         </main>
       </div>

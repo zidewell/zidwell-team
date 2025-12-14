@@ -39,7 +39,7 @@ function RegisterForm() {
     password: "",
     confirmPassword: "",
     phone: "",
-    referralSource: "", // New field
+    referralSource: "", 
   });
   const [showModal, setShowModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -64,7 +64,7 @@ function RegisterForm() {
   }, []);
 
   // Navigation handlers
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5)); // Changed to 5 steps
+  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5)); 
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const handleNextStep = () => {

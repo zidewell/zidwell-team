@@ -452,7 +452,8 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   // ============================================
   // All sources already filtered for successful/completed status
 
-  const combinedAppRevenue = calculatedAppRevenue + totalPlatformFees + totalInvoiceFees;
+  // const combinedAppRevenue = calculatedAppRevenue + totalPlatformFees + totalInvoiceFees;
+  const combinedAppRevenue = calculatedAppRevenue + totalPlatformFees;
 
   // monthlyInvoices breakdown
   const monthlyInvoicesMap: Record<

@@ -10,7 +10,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const adminUser = await requireAdmin(req);
@@ -23,7 +23,7 @@ export async function POST(
 
     const clientInfo = getClientInfo(req.headers);
     const { reason } = await req.json();
-    const userId = params.id;
+     const { id: userId } = await params;
 
     // Get pending user details
     const { data: pendingUser, error: fetchError } = await supabaseAdmin

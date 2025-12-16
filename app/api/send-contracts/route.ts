@@ -12,20 +12,8 @@ const supabase = createClient(
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-<<<<<<< HEAD
     const { userId, initiatorName, receiverEmail, receiverName,signeePhone, contractText, contractTitle, initiatorEmail, status } =
       body;
-=======
-    const {
-      userId,
-      initiatorName,
-      signeeEmail,
-      contractText,
-      contractTitle,
-      initiatorEmail,
-      status,
-    } = body;
->>>>>>> 770e4d67ae05f0e3e6a2bb7f4b927cf1b065eac2
 
     if (
       !receiverEmail ||

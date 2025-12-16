@@ -235,13 +235,8 @@ export default function DashboardSidebar() {
             {/* Other services */}
             <NavItem
               item={{
-<<<<<<< HEAD
                 name: "Create Contract",
                 href: "/dashboard/services/contract",
-=======
-                name: "Simple Agreement",
-                href: "/dashboard/services/simple-agreement",
->>>>>>> 770e4d67ae05f0e3e6a2bb7f4b927cf1b065eac2
                 icon: FileText,
               }}
               isActive={pathname === "/dashboard/services/contract"}

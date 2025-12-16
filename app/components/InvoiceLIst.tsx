@@ -1,3 +1,5 @@
+"use client";
+
 import { Download, Edit, Eye, Loader2, Users } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Button } from "./ui/button";
@@ -313,6 +315,9 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
               border-left: 4px solid #2196F3;
               margin: 20px 0;
             }
+             .invoice-narration{
+               margin-left: 30px;
+              }
             .footer {
               margin-top: 50px;
               text-align: center;
@@ -379,6 +384,11 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                   invoice.status
                 } <span class="status-badge">${invoice.status.toUpperCase()}</span></p>
               </div>
+                     <small class="invoice-narration">
+                  Ensure this invoice number <strong>${
+                    invoice.invoice_id
+                  }</strong> is used as the narration when you transfer to make payment valid.
+                </small>
             </div>
 
             <div class="section">
@@ -420,52 +430,7 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                 : ""
             }
 
-            // ${
-              invoice.allow_multiple_payments
-                ? `
-            // <div class="section">
-            //   <div class="payment-info">
-            //     <h3>Payment Information:</h3>
-            //     ${
-              paymentProgress
-                ? `
-            //     <p><strong>Payment Progress:</strong> ${
-              paymentProgress.paidCount
-            } out of ${paymentProgress.targetQuantity} target payments</p>
-            //     <div class="progress-bar">
-            //       <div class="progress-fill" style="width: ${
-              paymentProgress.progress
-            }%"></div>
-            //     </div>
-            //     <p>${
-              paymentProgress.isComplete
-                ? "🎉 Target reached! This invoice is fully paid."
-                : `Progress: ${Math.round(paymentProgress.progress)}% complete`
-            }</p>
-            //     `
-                : `
-            //     <p>This invoice allows multiple payments.</p>
-            //     ${
-              paidAmount > 0
-                ? `
-            //     <p><strong>Amount Paid:</strong> ₦${Number(
-              paidAmount
-            ).toLocaleString()} of ₦${Number(totalAmount).toLocaleString()}</p>
-            //     <div class="progress-bar">
-            //       <div class="progress-fill" style="width: ${
-              (paidAmount / totalAmount) * 100
-            }%"></div>
-            //     </div>
-            //     `
-                : "<p>No payments received yet.</p>"
-            }
-            //     `
-            }
-            //   </div>
-            // </div>
-            // `
-                : ""
-            }
+           
 
             <div class="section">
               <h3>Invoice Items</h3>
@@ -604,12 +569,18 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader />
-      </div>
-    );
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return <Loader />;
   }
 
   if (invoices.length === 0) {
@@ -656,46 +627,12 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                     >
                       {invoice.status?.toUpperCase()}
                     </Badge>
-                    {/* Payment Count Badge */}
-                    {paymentCountText && (
-                      <Badge className="bg-purple-100 text-purple-800 flex items-center gap-1">
-                        <Users className="w-3 h-3" />
-                        {paymentCountText}
-                      </Badge>
-                    )}
                   </div>
                   <p className="text-gray-900 font-medium mb-1">
                     {invoice.client_name || invoice.bill_to || "No client name"}
                   </p>
                   <p className="text-gray-600 mb-2">{invoice.client_email}</p>
 
-                  {/* Payment Progress for Multiple Payments */}
-                  {paymentProgress && (
-                    <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-blue-800">
-                          Payment Progress
-                        </span>
-                        <span className="text-sm text-blue-700">
-                          {paymentProgress.paidCount} /{" "}
-                          {paymentProgress.targetQuantity}
-                        </span>
-                      </div>
-                      <div className="w-full bg-blue-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${paymentProgress.progress}%` }}
-                        ></div>
-                      </div>
-                      <p className="text-xs text-blue-600 mt-1">
-                        {paymentProgress.isComplete
-                          ? "🎉 Target reached!"
-                          : `${Math.round(paymentProgress.progress)}% complete`}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Payment amount for non-target multiple payments */}
                   {invoice.allow_multiple_payments &&
                     !paymentProgress &&
                     invoice.paid_amount > 0 && (
@@ -720,6 +657,23 @@ const InvoiceList: React.FC<Props> = ({ invoices, loading, onRefresh }) => {
                 </div>
 
                 <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
+                  {invoice.status === "draft" && (
+                    <Button
+                      onClick={() => {
+                        // Navigate to create invoice page with draft ID parameter
+                        router.push(
+                          `/dashboard/services/create-invoice/create?draftId=${invoice.id}`
+                        );
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      View Draft
+                    </Button>
+                  )}
+
                   <Button
                     onClick={() =>
                       setSelectedInvoice(transformInvoiceForPreview(invoice))

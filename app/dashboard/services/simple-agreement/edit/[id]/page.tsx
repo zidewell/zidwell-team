@@ -62,12 +62,22 @@ export default function EditContractPage({
     }
   };
 
-  if (loading)
-    return (
-      <div className="p-4">
-        <Loader />
-      </div>
-    );
+    const [pageLoading, setPageLoading] = useState(true);
+  
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setPageLoading(false);
+      }, 2500);
+  
+      return () => clearTimeout(timer);
+    }, []);
+  
+    if (pageLoading) {
+      return <Loader />;
+    }
+  
+
+
   if (!contract) return <p className="p-4">Contract not found.</p>;
 
   return (

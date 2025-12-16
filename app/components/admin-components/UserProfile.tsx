@@ -238,12 +238,27 @@ export default function UserProfilePage({
     pagination
   });
 
+    const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return <Loader />;
+  }
+
+
   if (userLoading) {
     return (
       <AdminLayout>
-        <div className="flex justify-center items-center h-64">
+       
           <Loader />
-        </div>
+     
       </AdminLayout>
     );
   }

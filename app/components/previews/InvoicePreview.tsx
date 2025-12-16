@@ -34,7 +34,7 @@ export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
         </div>
 
         {/* Multi-Payment Progress - Top */}
-        {invoice.allowMultiplePayments && (
+        {/* {invoice.allowMultiplePayments && (
           <div className="mb-8 p-4 bg-gold/10 border border-gold/20 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-foreground">
@@ -51,7 +51,7 @@ export const InvoicePreview = ({ invoice }: InvoicePreviewProps) => {
               </p>
             )}
           </div>
-        )}
+        )} */}
 
         {/* Client Details - Only if filled */}
         {(invoice.clientName || invoice.clientEmail || invoice.clientPhone) && (

@@ -75,14 +75,14 @@ async function sendNotificationToUsers({
         type,
         startedAt: new Date().toISOString()
       },
-      ipAddress: 'system', // Internal system action
+      ipAddress: 'system', 
       userAgent: 'system'
     });
 
     // Get target users based on audience - only select id and email
     let userQuery = supabase
       .from('users')
-      .select('id, email'); // Only select columns that exist
+      .select('id, email'); 
 
     switch (target_audience) {
       case 'premium_users':

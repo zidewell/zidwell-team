@@ -19,10 +19,11 @@ import {
   ChevronDown,
   ChevronRight,
   Settings,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "../context/userData";
-
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -40,6 +41,7 @@ export default function DashboardSidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [openTopUp, setOpenTopUp] = useState(false);
   const [openBills, setOpenBills] = useState(false);
+  const [showBalance, setShowBalance] = useState(false);
 
   const pathname = usePathname();
   const { userData, balance } = useUserContextData();
@@ -103,6 +105,17 @@ export default function DashboardSidebar() {
     </div>
   );
 
+  // Function to format balance with hidden state
+  const formatBalance = () => {
+    if (!showBalance) {
+      return "*****";
+    }
+    if (balance != null) {
+      return formatNumber(balance);
+    }
+    return "0.00";
+  };
+
   return (
     <>
       {/* Mobile menu button */}
@@ -143,16 +156,34 @@ export default function DashboardSidebar() {
               </Link>
             </div>
             {userData && userData.firstName ? (
-              <>
+              <div className="space-y-2">
                 <p className="text-gray-400 text-sm">
                   Welcome Back {`${userData.firstName}`}
                 </p>
                 {balance != null && (
-                  <span className="text-gray-400 text-sm">
-                    Wallet Balance {` ${formatNumber(balance)}`}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-gray-400 text-sm">Wallet Balance</p>
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-300 text-sm font-medium">
+                          ₦{formatBalance()}
+                        </span>
+                        <button
+                          onClick={() => setShowBalance(!showBalance)}
+                          className="p-1 hover:bg-gray-800 rounded-md transition-colors duration-200"
+                          aria-label={showBalance ? "Hide balance" : "Show balance"}
+                        >
+                          {showBalance ? (
+                            <Eye className="w-4 h-4 text-gray-400 hover:text-gray-300" />
+                          ) : (
+                            <EyeOff className="w-4 h-4 text-gray-400 hover:text-gray-300" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </>
+              </div>
             ) : null}
           </div>
 
@@ -169,11 +200,19 @@ export default function DashboardSidebar() {
 
             <NavItem
               item={{
-                name: "Fund Account",
+                name: "Fund Wallet",
                 href: "/dashboard/fund-account",
                 icon: Wallet,
               }}
               isActive={pathname === "/dashboard/fund-account"}
+            />
+             <NavItem
+              item={{
+                name: "Create Invoice",
+                href: "/dashboard/services/create-invoice",
+                icon: FileSpreadsheet,
+              }}
+              isActive={pathname === "/dashboard/services/create-invoice"}
             />
             <NavItem
               item={{
@@ -196,8 +235,13 @@ export default function DashboardSidebar() {
             {/* Other services */}
             <NavItem
               item={{
+<<<<<<< HEAD
                 name: "Create Contract",
                 href: "/dashboard/services/contract",
+=======
+                name: "Simple Agreement",
+                href: "/dashboard/services/simple-agreement",
+>>>>>>> 770e4d67ae05f0e3e6a2bb7f4b927cf1b065eac2
                 icon: FileText,
               }}
               isActive={pathname === "/dashboard/services/contract"}
@@ -262,19 +306,7 @@ export default function DashboardSidebar() {
               />
             </Dropdown>
 
-            <NavItem
-              item={{
-                name: (
-                  <div>
-                    Create Invoice{" "}
-                  
-                  </div>
-                ),
-                href: "/dashboard/services/create-invoice",
-                icon: FileSpreadsheet,
-              }}
-              isActive={pathname === "/dashboard/services/create-invoice"}
-            />
+           
           </div>
 
           {/* Preferences */}

@@ -550,13 +550,20 @@ const RecieptList: React.FC<Props> = ({ receipts, loading }) => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-       <Loader/>
-      </div>
-    );
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return <Loader />;
   }
+
 
   if (receipts.length === 0) {
     return (

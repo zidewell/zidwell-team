@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
       dateOfBirth,
       transactionPin,
       businessName,
-      role,
       businessAddress,
       businessCategory,
       businessDescription,
@@ -69,8 +68,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { auth_id, email, first_name, last_name, phone, referred_by } =
-      pendingUser;
+    const {
+      auth_id,
+      email,
+      first_name,
+      last_name,
+      phone,
+      referred_by,
+      referral_source,
+    } = pendingUser;
 
     const generatedReferral = `${first_name.toLowerCase()}-${Date.now().toString(
       36
@@ -88,12 +94,14 @@ export async function POST(req: NextRequest) {
           last_name,
           phone,
           date_of_birth: dateOfBirth,
+          admin_role: "user",
           transaction_pin: hashedPin,
           pin_set: true,
           wallet_balance: 0,
           zidcoin_balance: 20,
           referral_code: generatedReferral,
           referred_by: referred_by || "",
+          referral_source,
           bvn_verification: "verified",
           p_bank_name: bankName || "",
           p_bank_code: bankCode || "",
@@ -119,7 +127,6 @@ export async function POST(req: NextRequest) {
       {
         user_id: auth_id,
         business_name: businessName || "",
-        role: role || "",
         business_address: businessAddress || "",
         business_category: businessCategory || "",
         business_description: businessDescription || "",
@@ -166,7 +173,7 @@ export async function POST(req: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          accountName: `${first_name} ${last_name}`, 
+          accountName: `${first_name} ${last_name}`,
           accountRef: auth_id,
           bvn: bvn || undefined,
         }),
@@ -216,7 +223,7 @@ export async function POST(req: NextRequest) {
             : process.env.NEXT_PUBLIC_BASE_URL;
 
         await transporter.sendMail({
-          from: `"Zidwell" <${process.env.EMAIL_USER!}>`,
+          from: `"Zidwell" <${process.env.EMAIL_USER}>`,
           to: email,
           subject: "🎉 Congratulations & Welcome to Zidwell!",
           html: `

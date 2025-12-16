@@ -11,6 +11,12 @@ interface PinPopOverProps {
   setPin: (pin: string[]) => void;
   inputCount: number;
   onConfirm?: (code: string) => void;
+  invoiceFeeInfo?: {
+    isFree: boolean;
+    freeInvoicesLeft: number;
+    totalInvoicesCreated: number;
+    feeAmount: number;
+  };
 }
 
 export default function PinPopOver({
@@ -20,6 +26,7 @@ export default function PinPopOver({
   setPin,
   inputCount,
   onConfirm,
+  invoiceFeeInfo,
 }: PinPopOverProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -100,12 +107,53 @@ export default function PinPopOver({
                 ✕
               </button>
 
+              {/* Invoice Fee Information */}
+              {invoiceFeeInfo && (
+                <div className={`mb-4 p-3 rounded-lg border ${
+                  invoiceFeeInfo.isFree 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-yellow-50 border-yellow-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">
+                        {invoiceFeeInfo.isFree ? "🎉 Free Invoice" : "💰 Invoice Fee"}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {invoiceFeeInfo.isFree ? (
+                          <>
+                            Using free invoice ({invoiceFeeInfo.freeInvoicesLeft - 1} remaining)
+                          </>
+                        ) : (
+                          <>Fee: ₦{invoiceFeeInfo.feeAmount}</>
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-xl font-bold ${
+                        invoiceFeeInfo.isFree ? 'text-green-600' : 'text-yellow-600'
+                      }`}>
+                        {invoiceFeeInfo.isFree ? 'FREE' : '₦100'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Total created: {invoiceFeeInfo.totalInvoicesCreated}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <header className="mb-8">
                 <h1 className="text-2xl font-bold mb-1">
                   Transaction Pin Verification
                 </h1>
                 <p className="text-[15px] text-slate-500">
                   Input your 4-digit pin to complete transaction.
+                  {invoiceFeeInfo?.isFree && (
+                    <span className="block text-green-600 font-medium mt-1">
+                      No payment required for this free invoice
+                    </span>
+                  )}
                 </p>
               </header>
 
@@ -117,7 +165,7 @@ export default function PinPopOver({
                       ref={(el) => {
                         inputsRef.current[i] = el;
                       }}
-                      type="text"
+                      type="password" 
                       inputMode="numeric" 
                       pattern="[0-9]*" 
                       maxLength={1}
@@ -137,9 +185,9 @@ export default function PinPopOver({
                 <div className="max-w-[260px] mx-auto mt-6">
                   <Button
                     type="submit"
-                    className=" hover:bg-[#C29307] w-full inline-flex justify-center whitespace-nowrap rounded-lg bg-[#C29307] px-3.5 py-2.5 text-sm font-medium text-white shadow-sm  focus:outline-none focus:ring focus:ring-[#C29307]transition-colors duration-150"
+                    className="hover:bg-[#C29307] w-full inline-flex justify-center whitespace-nowrap rounded-lg bg-[#C29307] px-3.5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring focus:ring-[#C29307] transition-colors duration-150"
                   >
-                    Confirm
+                    {invoiceFeeInfo?.isFree ? "Confirm Free Invoice" : "Confirm"}
                   </Button>
                 </div>
               </form>

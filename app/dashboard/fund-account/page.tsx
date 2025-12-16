@@ -33,7 +33,7 @@ export default function page() {
                   Fund Account
                 </h1>
                 <p className=" text-muted-foreground">
-                  Add money to your Zidwell account instantly
+                  Add money to your Zidwell Wallet instantly
                 </p>
               </div>
             </div>

@@ -26,7 +26,9 @@ async function getCachedUser(userId: string) {
   // Fetch fresh data
   const { data: user, error } = await supabase
     .from("users")
-    .select("transaction_pin, wallet_balance,zidcoin_balance, email, first_name")
+    .select(
+      "transaction_pin, wallet_balance,zidcoin_balance, email, first_name"
+    )
     .eq("id", userId)
     .single();
 
@@ -128,7 +130,7 @@ Zidwell Team
     const emailBody = status === "success" ? successBody : failedBody;
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || `"Zidwell" <${process.env.EMAIL_USER}>`,
+      from: `"Zidwell" <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
       text: emailBody,
@@ -281,7 +283,6 @@ export async function POST(req: NextRequest) {
 
     transactionId = rpcResult[0].tx_id;
 
-   
     try {
       const apiResponse = await axios.post(
         `${process.env.NOMBA_URL}/v1/bill/electricity`,
@@ -311,7 +312,6 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", transactionId);
 
-      
       try {
         const nombaPayload = {
           transactionRef: `ELECTRICITY-${merchantTxRef}`,
@@ -322,47 +322,47 @@ export async function POST(req: NextRequest) {
           rrn: transactionId,
           merchantTxRef: merchantTxRef,
           orderReference: merchantTxRef,
-          orderId: transactionId
+          orderId: transactionId,
         };
 
         console.log("📤 Calling Nomba API with payload:", nombaPayload);
 
-        const nombaResponse = await fetch('https://api.nomba.com/v1/transactions/accounts', {
-          method: 'POST',
-          headers: {
-            accountId: process.env.NOMBA_ACCOUNT_ID!,
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(nombaPayload)
-        });
+        const nombaResponse = await fetch(
+          "https://api.nomba.com/v1/transactions/accounts",
+          {
+            method: "POST",
+            headers: {
+              accountId: process.env.NOMBA_ACCOUNT_ID!,
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(nombaPayload),
+          }
+        );
 
         const nombaData = await nombaResponse.json();
         console.log("✅ Nomba API response:", nombaData);
-
       } catch (nombaError: any) {
         console.error("❌ Nomba API call failed:", nombaError.message);
         // Don't fail the main transaction if this fails
       }
 
-
-      
-    const { data: cashbackResult, error: cashbackError } = await supabase.rpc(
-      "award_zidcoin_cashback",
-      {
-        p_user_id: userId,
-        p_transaction_id: transactionId,
-        p_transaction_type: "electricity", 
-        p_amount: amount,
-      }
-    );
-
-    if (cashbackResult && cashbackResult.success) {
-      console.log(
-        "🎉 Zidcoin cashback awarded:",
-        cashbackResult.zidcoins_earned
+      const { data: cashbackResult, error: cashbackError } = await supabase.rpc(
+        "award_zidcoin_cashback",
+        {
+          p_user_id: userId,
+          p_transaction_id: transactionId,
+          p_transaction_type: "electricity",
+          p_amount: amount,
+        }
       );
-    }
+
+      if (cashbackResult && cashbackResult.success) {
+        console.log(
+          "🎉 Zidcoin cashback awarded:",
+          cashbackResult.zidcoins_earned
+        );
+      }
 
       // Send success email notification with token information
       await sendElectricityEmailNotification(
@@ -379,7 +379,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         success: true,
-         zidCoinBalance: user?.zidcoin_balance,
+        zidCoinBalance: user?.zidcoin_balance,
         token: apiResponse.data,
       });
     } catch (apiError: any) {

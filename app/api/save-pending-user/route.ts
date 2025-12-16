@@ -9,7 +9,7 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, email, first_name, last_name, phone, referred_by } = body;
+    const { id, email, first_name, last_name, phone, referred_by, referral_source } = body;
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
           last_name,
           phone,
           referred_by: referred_by || "",
+          referral_source,
           verified: false,
           bvn_verification: "pending",
           created_at: new Date().toISOString(),

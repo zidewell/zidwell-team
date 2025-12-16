@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     
     const mailOptions = {
-      from: "Zidwell App",
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject: emailSubject,
       html: emailHtml,
@@ -124,7 +124,7 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
     <body>
       <div class="container">
         <div class="header">
-          <h1>Security Alert</h1>
+          <h1>Zidwell Security Alert</h1>
         </div>
         <div class="content">
           <h2>New Login Detected</h2>
@@ -143,7 +143,7 @@ function generateLoginEmail(user: any, device: any, timestamp: string): string {
           <div class="alert">
             <p><strong>If this wasn't you:</strong></p>
             <p>• Change your password immediately <a href="${baseUrl}/auth/password-reset">Click here</a></p>
-            <p>• Contact our support team <a href="https://wa.me/7069175399">07069175399</a></p>
+            <p>• Contact our support team <a href="https://wa.me/7069175399">click to contact support</a></p>
           </div>
 
           <p>Thank you for keeping your account secure.</p>

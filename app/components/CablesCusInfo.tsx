@@ -42,13 +42,11 @@ export default function CableCustomerCard(props: any) {
             )}
 
             {decorderNumber && (
-            <div className="flex gap-2">
-              <span className="font-medium">Decoder Number:</span>
-              <p className="font-semibold">{decorderNumber}</p>
-            </div>
-
+              <div className="flex gap-2">
+                <span className="font-medium">Decoder Number:</span>
+                <p className="font-semibold">{decorderNumber}</p>
+              </div>
             )}
-
           </CardContent>
         </Card>
       )}
@@ -85,10 +83,10 @@ export default function CableCustomerCard(props: any) {
 
           <Button
             onClick={() => {
-                  if (validateForm()) {
-                    setIsOpen(true);
-                  }
-                }}
+              if (validateForm()) {
+                setIsOpen(true);
+              }
+            }}
             disabled={!selectedPlan || loading}
             className="w-full bg-[#C29307] hover:opacity-90 py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
           >
@@ -99,7 +97,7 @@ export default function CableCustomerCard(props: any) {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                  Process Payment
+                Process Payment
                 <ArrowRight className="w-4 h-4" />
               </div>
             )}

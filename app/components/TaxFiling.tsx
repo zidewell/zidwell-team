@@ -1,20 +1,18 @@
 "use client";
 import { useState } from "react";
 import { Card } from "@/app/components/ui/card";
-import { Button } from "@/app/components/ui/button"; 
+import { Button } from "@/app/components/ui/button";
 import FirstTimeForm from "@/app/components/FirstTimeForm";
 import ReturningForm from "@/app/components/ReturningForm";
 import TaxFilingGen from "./TaxGen";
 
-
-type ViewType = 'main' | 'first-time' | 'returning';
+type ViewType = "main" | "first-time" | "returning";
 
 const TaxFiling = () => {
-  const [currentView, setCurrentView] = useState<ViewType>('main');
+  const [currentView, setCurrentView] = useState<ViewType>("main");
 
   const renderMainView = () => (
     <>
-
       {/* Video Placeholder */}
       <Card className=" p-6 mb-2 shadow-card">
         {/* <div className="aspect-video bg-tax-gray rounded-lg mb-6 flex items-center justify-center">
@@ -26,16 +24,27 @@ const TaxFiling = () => {
             <p className="text-sm text-muted-foreground">Click to watch our step-by-step guide</p>
           </div>
         </div> */}
-        
+
         <div className="">
-          <h3 className="text-xl font-semibold mb-3">How Our Tax Filing Process Works</h3>
+          <h3 className="text-xl font-semibold mb-3">
+            How Our Tax Filing Process Works
+          </h3>
           <ul className="space-y-2 text-muted-foreground">
             <li>• Complete your business profile</li>
-            <li>• Download your bank statement from your banking app and upload it here</li>
-            <li>• Our certified tax professionals will review your information</li>
+            <li>
+              • Download your bank statement from your banking app and upload it
+              here
+            </li>
+            <li>
+              • Our certified tax professionals will review your information
+            </li>
             <li>• We calculate your taxes and provide a detailed breakdown</li>
-            <li>• You receive an invoice with tax amounts and service charges</li>
-            <li>• Upon payment, we file your taxes and provide official receipts</li>
+            <li>
+              • You receive an invoice with tax amounts and service charges
+            </li>
+            <li>
+              • Upon payment, we file your taxes and provide official receipts
+            </li>
           </ul>
         </div>
       </Card>
@@ -45,8 +54,8 @@ const TaxFiling = () => {
         <Card className="p-8 shadow-card hover:shadow-form transition-shadow">
           <h3 className="text-2xl font-bold  mb-4">First-Time Tax Filing</h3>
           <p className="text-muted-foreground mb-6">
-            New to our services? We'll guide you through the complete process and 
-            set up your tax profile for future filings.
+            New to our services? We'll guide you through the complete process
+            and set up your tax profile for future filings.
           </p>
           <ul className="text-sm text-muted-foreground mb-6 space-y-1">
             <li>• Complete document verification</li>
@@ -56,17 +65,19 @@ const TaxFiling = () => {
           <Button
             size="lg"
             className="w-full bg-[#C29307] text-white cursor-pointer"
-            onClick={() => setCurrentView('first-time')}
+            onClick={() => setCurrentView("first-time")}
           >
             Start First-Time Filing
           </Button>
         </Card>
 
         <Card className="p-8 shadow-card hover:shadow-form transition-shadow">
-          <h3 className="text-2xl font-bold text-tax-navy mb-4">Returning Tax Filing</h3>
+          <h3 className="text-2xl font-bold text-tax-navy mb-4">
+            Returning Tax Filing
+          </h3>
           <p className="text-muted-foreground mb-6">
-            Already have an account with us? Quick and easy filing with 
-            your existing profile information.
+            Already have an account with us? Quick and easy filing with your
+            existing profile information.
           </p>
           <ul className="text-sm text-muted-foreground mb-6 space-y-1">
             <li>• Streamlined process</li>
@@ -75,9 +86,8 @@ const TaxFiling = () => {
           </ul>
           <Button
             size="lg"
-           
             className="w-full bg-[#C29307] text-white cursor-pointer"
-            onClick={() => setCurrentView('returning')}
+            onClick={() => setCurrentView("returning")}
           >
             Continue as Returning Client
           </Button>
@@ -88,14 +98,13 @@ const TaxFiling = () => {
 
   return (
     <div className="min-h-screen">
-
       <main className="md:container md:mx-auto p-5">
-        {currentView === 'main' && renderMainView()}
-        {currentView === 'first-time' && <FirstTimeForm />}
-        {currentView === 'returning' && <ReturningForm />}
+        {currentView === "main" && renderMainView()}
+        {currentView === "first-time" && <FirstTimeForm />}
+        {currentView === "returning" && <ReturningForm />}
       </main>
 
-      <TaxFilingGen/>
+      <TaxFilingGen />
     </div>
   );
 };

@@ -1,13 +1,13 @@
-"use client"
-import DashboardSidebar from "../../components/dashboard-sidebar"
-import DashboardHeader from "../../components/dashboard-hearder"
-import TransactionHistory from "../../components/transaction-history"
-import { Button } from "@/app/components/ui/button"
-import { ArrowLeft } from "lucide-react"
-import { useRouter } from "next/navigation"
+"use client";
+import DashboardSidebar from "../../components/dashboard-sidebar";
+import DashboardHeader from "../../components/dashboard-hearder";
+import TransactionHistory from "../../components/transaction-history";
+import { Button } from "@/app/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function TransactionsPage() {
-  const router = useRouter(); 
+  const router = useRouter();
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardSidebar />
@@ -30,19 +30,18 @@ export default function TransactionsPage() {
 
               <div className="">
                 <h1 className="md:text-3xl text-xl font-bold mb-4">
-               Transaction History
+                  Transaction History
                 </h1>
                 <p className=" text-muted-foreground">
-                View and manage all your transactions
+                  View and manage all your transactions
                 </p>
               </div>
             </div>
-            
-          
+
             <TransactionHistory />
           </div>
         </main>
       </div>
     </div>
-  )
+  );
 }

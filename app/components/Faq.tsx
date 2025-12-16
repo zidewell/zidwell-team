@@ -1,110 +1,79 @@
-"use client";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "./ui/accordion";
 
-import React, { useState } from "react";
-
-const faqData = [
+const faqs = [
   {
-    question:  "Is Zidwell free to use?"
-,
+    question: "Is Zidwell a bank?",
     answer:
-      "Yes, our core payment platform is free. We only charge for premium services like the accelerator or future investment advisory."
-
+      "No. Zidwell partners with licensed financial institutions to provide secure financial services. We're a financial wellness platform, not a bank.",
   },
   {
-    question: "Can I use Zidwell without CAC registration?"
-,
+    question: "Do I need to be a business owner to use Zidwell?",
     answer:
-      "Yes. We welcome both registered and informal businesses. For those who need help registering, our partner program offers support."
+      "No. Zidwell works for individuals, freelancers, and businesses. Whether you're just starting out or running an established company, Zidwell can help you manage your finances better.",
   },
   {
-    question: "Is this safe?",
+    question: "Is my money safe?",
     answer:
-      "Absolutely. Your funds are handled by licensed partners, and we never touch your money directly. You stay in full control.",
+      "Yes. All funds are held with regulated partners and protected by standard security practices. We take the security of your money very seriously.",
   },
   {
-    question: "What is Zidcoins used for?",
+    question: "Can I start for free?",
     answer:
-      "Zidcoins is the means of doing all transactions on Zidwell. Every service we offer has a Zidcoin amount attached to it - from contract creation, to receipts, to our ai accountant. Buy Zidcoins from your dashboard and pay with normal bank transfer and enjoy rewards.",
+      "Yes. You can use Zidwell for free with our Pay Per Use plan and upgrade anytime. No credit card required to get started.",
   },
   {
-    question: "Can I use Zidwell for multiple business branches or outlets?",
+    question: "How do I earn ZidCoins?",
     answer:
-      "Yes. Our platform allows you to manage bills across different branches and generate reports for each location",
-  },
- 
-  {
-    question: "How do I fund my Zidwell Wallet?",
-    answer:
-      "You do all transactions on Zidwell with Zidcoins. You buy Zidcoins from your dashboard and pay with normal bank transfer and enjoy rewards.",
+      "You earn 20 ZidCoins every time you spend ₦2,500 or more on airtime, data, cable subscriptions, or electricity payments through Zidwell. You can also earn through referrals.",
   },
   {
-    question: "What happens if a bill payment fails?",
+    question: "What happens when I reach 3,000 ZidCoins?",
     answer:
-      "In rare cases of failed transactions, your wallet will be instantly refunded, and you’ll be notified to retry.",
-  },
-  {
-    question: "Can I assign other team members to manage payments?",
-    answer:
-      "Yes. Zidwell allows role-based access, so you can assign your accountant or operations team to handle specific tasks.",
-  },
-  {
-    question: "Is there a mobile app?",
-    answer:
-      "For now, no. But Zidwell works well on your phone through your web browser, with a tablet, or a computer. A native mobile app for iOS and Android is in development, might be available in 2026.",
-  },
-  {
-    question: "Who do I contact for support?",
-    answer:
-      "We offer live chat support in-app and via email. Our support team is available Monday to Saturday, 9am to 7pm.",
+      "Once your ZidCoin balance reaches 3,000 ZC (equivalent to ₦3,000), you can cash out by using it to purchase airtime or data for yourself.",
   },
 ];
 
-function FaqItem({
-  question,
-  answer,
-}: {
-  question: string;
-  answer: string;
-}) {
-  const [open, setOpen] = useState(false);
-
+const FAQ = () => {
   return (
-    <section
-    
-      className=" bg-white/10 border border-gray-400 backdrop-blur-md rounded-xl px-5 py-3 cursor-pointer transition-all duration-300 ease-in-out"
-      onClick={() => setOpen(!open)}
-    >
-      <div className="flex justify-between items-center">
-        <h3 className=" font-semibold">{question}</h3>
-        <span className="text-[#C29307] text-xl">{open ? "−" : "+"}</span>
+    <section id="faq" className="py-20 md:py-32">
+      <div className="container mx-auto px-4">
+        {/* Section Header */}
+        <div className="max-w-3xl mx-auto text-center mb-16">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
+            Frequently Asked <span className="text-[#C29307]">Questions</span>
+          </h2>
+          <p className="text-lg text-gray-500 dark:text-gray-400">
+            Got questions? We've got answers.
+          </p>
+        </div>
+
+        {/* FAQ Accordion */}
+        <div className="max-w-3xl mx-auto">
+          <Accordion type="single" collapsible className="space-y-4">
+            {faqs.map((faq, index) => (
+              <AccordionItem
+                key={index}
+                value={`item-${index}`}
+                className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] px-6 data-[state=open]:shadow-[6px_6px_0px_#111827] dark:data-[state=open]:shadow-[6px_6px_0px_#fbbf24] data-[state=open]:-translate-x-0.5 data-[state=open]:-translate-y-0.5 transition-all"
+              >
+                <AccordionTrigger className="text-left font-bold hover:no-underline py-6 text-gray-900 dark:text-gray-50">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-gray-500 dark:text-gray-400 pb-6">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
       </div>
-      {open && <p className=" mt-3 transition-all duration-300 ease-in-out">{answer}</p>}
     </section>
   );
-}
+};
 
-function Faq() {
-  return (
-    <section id="faq" data-aos="fade-down" className="md:px-48 md:py-14 py-10 p-6 bg-gray-50">
-      <div className="flex flex-col justify-start gap-3 w-full  py-10">
-        <h1 className="text-[32px] md:text-[40px]  text-center  font-bold ">
-          Frequently Asked <span className="text-[#C29307]">Questions</span>
-        </h1>
-        <p className="text-gray-500 text-center ">
-          Find answers to common questions about Zidwell
-          bill payment services. 
-        </p>
-      </div>
-
-      <div className="grid gap-6 mt-4">
-        {faqData.map((faq, index) => (
-          <FaqItem key={index} question={faq.question} answer={faq.answer} />
-        ))}
-      </div>
-
-    
-    </section>
-  );
-}
-
-export default Faq;
+export default FAQ;

@@ -14,7 +14,7 @@ const ReturningForm = () => {
   const [bankStatement, setBankStatement] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const {userData} = useUserContextData()
+  const { userData } = useUserContextData();
   const handleFileChange = (file: File | null) => {
     setBankStatement(file);
   };
@@ -156,7 +156,6 @@ const ReturningForm = () => {
           </p>
         </div>
       </Card>
-
 
       {/* Upload Form */}
       <form onSubmit={handleSubmit}>

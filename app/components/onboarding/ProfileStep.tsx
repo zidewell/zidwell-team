@@ -21,15 +21,15 @@ interface ProfileStepProps {
 
 export const ProfileStep = ({ data, onUpdate, onNext }: ProfileStepProps) => {
   const [errors, setErrors] = useState<Partial<ProfileData>>({});
-const {userData, setUserData} = useUserContextData()
+  const { userData, setUserData } = useUserContextData();
   const handleInputChange = (field: keyof ProfileData, value: string) => {
     onUpdate({ [field]: value });
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
-    const calculateAge = (dob: string): number => {
+  const calculateAge = (dob: string): number => {
     const birthDate = new Date(dob);
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -45,7 +45,6 @@ const {userData, setUserData} = useUserContextData()
     return age;
   };
 
-
   const validateForm = () => {
     const newErrors: Partial<ProfileData> = {};
 
@@ -55,12 +54,11 @@ const {userData, setUserData} = useUserContextData()
     // else if (!/\S+@\S+\.\S+/.test(data.email)) newErrors.email = "Email is invalid";
     // if (!data.phone.trim()) newErrors.phone = "Phone number is required";
 
-      if (!data.dateOfBirth) {
+    if (!data.dateOfBirth) {
       newErrors.dateOfBirth = "Date of birth is required";
     } else if (calculateAge(data.dateOfBirth) < 18) {
       newErrors.dateOfBirth = "You must be at least 18 years old";
     }
-
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -73,17 +71,14 @@ const {userData, setUserData} = useUserContextData()
   };
 
   useEffect(() => {
-  const stored = localStorage.getItem("userData");
-  if (stored && !userData) {
-    setUserData(JSON.parse(stored));
-  }
-}, []);
-
- 
+    const stored = localStorage.getItem("userData");
+    if (stored && !userData) {
+      setUserData(JSON.parse(stored));
+    }
+  }, []);
 
   return (
     <div className="space-y-6">
-      
       {/* <div className="text-center mb-8">
         <div className="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4">
           <User className="w-8 h-8 text-primary-foreground" />
@@ -115,7 +110,7 @@ const {userData, setUserData} = useUserContextData()
           <Input
             id="lastName"
             placeholder="Doe"
-             disabled
+            disabled
             value={userData?.lastName}
             // onChange={(e) => handleInputChange("lastName", e.target.value)}
             // className={errors.lastName ? "border-destructive" : ""}
@@ -133,7 +128,7 @@ const {userData, setUserData} = useUserContextData()
               id="email"
               type="email"
               placeholder="john@example.com"
-               disabled
+              disabled
               // className={`pl-10 ${errors.email ? "border-destructive" : ""}`}
               className={`pl-10 `}
               value={userData?.email}
@@ -148,13 +143,13 @@ const {userData, setUserData} = useUserContextData()
         <div className="space-y-2">
           <Label htmlFor="phone">Phone Number *</Label>
           <div className="relative">
-            <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /> 
+            <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
               id="phone"
               type="tel"
               placeholder="+234 (091) 123-4567"
-               disabled
-               className={`pl-10 `}
+              disabled
+              className={`pl-10 `}
               // className={`pl-10 ${errors.phone ? "border-destructive" : ""}`}
               value={userData?.phone}
               // onChange={(e) => handleInputChange("phone", e.target.value)}
@@ -172,19 +167,24 @@ const {userData, setUserData} = useUserContextData()
             <Input
               id="dateOfBirth"
               type="date"
-              className={`pl-10 ${errors.dateOfBirth ? "border-destructive" : ""}`}
+              className={`pl-10 ${
+                errors.dateOfBirth ? "border-destructive" : ""
+              }`}
               value={data.dateOfBirth}
               onChange={(e) => handleInputChange("dateOfBirth", e.target.value)}
             />
           </div>
-         {errors.dateOfBirth && (
+          {errors.dateOfBirth && (
             <p className="text-sm text-destructive">{errors.dateOfBirth}</p>
           )}
         </div>
       </div>
 
       <div className="flex justify-end pt-6">
-        <Button onClick={handleNext} className="bg-[#C29307] hover:opacity-100 transition-smooth">
+        <Button
+          onClick={handleNext}
+          className="bg-[#C29307] hover:opacity-100 transition-smooth"
+        >
           Continue
         </Button>
       </div>

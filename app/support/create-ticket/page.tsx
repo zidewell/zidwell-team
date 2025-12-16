@@ -223,7 +223,11 @@ export default function CreateTicketPage() {
                 )}
               </div>
 
-              <Button type="submit" disabled={isSubmitting} className="w-full bg-[#C29307]">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-[#C29307]"
+              >
                 {isSubmitting ? "Creating Ticket..." : "Submit Ticket"}
               </Button>
             </form>

@@ -54,7 +54,7 @@ export default function TransactionDetailsPage() {
     }
   }, [params.id, transactions]);
 
-  console.log(transaction, "transaction")
+  console.log(transaction, "transaction");
 
   // Function to determine if transaction amount should be negative
   const isOutflow = (transactionType: string) => {
@@ -107,10 +107,11 @@ export default function TransactionDetailsPage() {
     const senderInfo = transaction.external_response?.data?.customer;
     const receiverInfo = transaction.external_response?.data?.transaction;
     const merchantInfo = transaction.external_response?.data?.merchant;
-    
+
     // Determine if it's a withdrawal or deposit
     const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
-    const isVirtualAccountDeposit = transaction.type?.toLowerCase() === "virtual_account_deposit";
+    const isVirtualAccountDeposit =
+      transaction.type?.toLowerCase() === "virtual_account_deposit";
 
     // For withdrawals: sender is the platform, receiver is the customer
     // For deposits: sender is the customer, receiver is the platform
@@ -122,14 +123,14 @@ export default function TransactionDetailsPage() {
         name: senderInfo?.senderName || "DIGITAL/Lohloh Abbalolo",
         accountNumber: senderInfo?.accountNumber || "N/A",
         bankName: senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A"
+        bankCode: senderInfo?.bankCode || "N/A",
       };
-      
+
       receiverData = {
         name: senderInfo?.recipientName || "N/A",
-        accountNumber: senderInfo?.accountNumber || "N/A", 
+        accountNumber: senderInfo?.accountNumber || "N/A",
         bankName: senderInfo?.bankName || "N/A",
-        accountType: "External Account"
+        accountType: "External Account",
       };
     } else if (isVirtualAccountDeposit) {
       // Virtual Account Deposit: Customer sends money to platform
@@ -137,29 +138,39 @@ export default function TransactionDetailsPage() {
         name: senderInfo?.senderName || "N/A",
         accountNumber: senderInfo?.accountNumber || "N/A",
         bankName: senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A"
+        bankCode: senderInfo?.bankCode || "N/A",
       };
-      
+
       receiverData = {
         name: receiverInfo?.aliasAccountName || "DIGITAL/Lohloh Abbalolo",
         accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
         accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
-        reference: receiverInfo?.aliasAccountReference || "N/A"
+        reference: receiverInfo?.aliasAccountReference || "N/A",
       };
     } else {
       // Other transaction types (fallback)
       senderData = {
         name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
-        accountNumber: transaction?.sender?.accountNumber || senderInfo?.accountNumber || "N/A",
-        bankName: transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A"
+        accountNumber:
+          transaction?.sender?.accountNumber ||
+          senderInfo?.accountNumber ||
+          "N/A",
+        bankName:
+          transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
+        bankCode: senderInfo?.bankCode || "N/A",
       };
-      
+
       receiverData = {
-        name: transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
-        accountNumber: transaction?.receiver?.accountNumber || receiverInfo?.aliasAccountNumber || "N/A",
+        name:
+          transaction?.receiver?.name ||
+          receiverInfo?.aliasAccountName ||
+          "N/A",
+        accountNumber:
+          transaction?.receiver?.accountNumber ||
+          receiverInfo?.aliasAccountNumber ||
+          "N/A",
         accountType: receiverInfo?.aliasAccountType || "N/A",
-        reference: receiverInfo?.aliasAccountReference || "N/A"
+        reference: receiverInfo?.aliasAccountReference || "N/A",
       };
     }
 
@@ -343,20 +354,25 @@ export default function TransactionDetailsPage() {
               }">${transaction.status}</span>
             </div>
             ${
-              transaction.fee > 0 
+              transaction.fee > 0
                 ? `<div class="detail-row">
                     <span class="detail-label">Transaction Fee</span>
-                    <span class="detail-value">₦${Number(transaction.fee).toLocaleString("en-NG", {
+                    <span class="detail-value">₦${Number(
+                      transaction.fee
+                    ).toLocaleString("en-NG", {
                       minimumFractionDigits: 2,
                     })}</span>
                   </div>`
                 : ""
             }
             ${
-              transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount
+              transaction.total_deduction > 0 &&
+              transaction.total_deduction !== transaction.amount
                 ? `<div class="detail-row">
                     <span class="detail-label">Total Deduction</span>
-                    <span class="detail-value">₦${Number(transaction.total_deduction).toLocaleString("en-NG", {
+                    <span class="detail-value">₦${Number(
+                      transaction.total_deduction
+                    ).toLocaleString("en-NG", {
                       minimumFractionDigits: 2,
                     })}</span>
                   </div>`
@@ -367,14 +383,16 @@ export default function TransactionDetailsPage() {
 
         <!-- Sender Information -->
         <div class="section">
-          <div class="section-title">${isWithdrawal ? "From (Platform)" : "Sender Information"}</div>
+          <div class="section-title">${
+            isWithdrawal ? "From (Platform)" : "Sender Information"
+          }</div>
           <div class="details-card">
             <div class="detail-row">
               <span class="detail-label">Name</span>
               <span class="detail-value">${senderData.name}</span>
             </div>
             ${
-              !isWithdrawal 
+              !isWithdrawal
                 ? `<div class="detail-row">
                     <span class="detail-label">Account Number</span>
                     <span class="detail-value">${senderData.accountNumber}</span>
@@ -395,10 +413,14 @@ export default function TransactionDetailsPage() {
 
         <!-- Receiver Information -->
         <div class="section">
-          <div class="section-title">${isWithdrawal ? "To (Recipient)" : "Receiver Information"}</div>
+          <div class="section-title">${
+            isWithdrawal ? "To (Recipient)" : "Receiver Information"
+          }</div>
           <div class="details-card">
             <div class="detail-row">
-              <span class="detail-label">${isWithdrawal ? "Recipient Name" : "Account Name"}</span>
+              <span class="detail-label">${
+                isWithdrawal ? "Recipient Name" : "Account Name"
+              }</span>
               <span class="detail-value">${receiverData.name}</span>
             </div>
             <div class="detail-row">
@@ -519,14 +541,15 @@ export default function TransactionDetailsPage() {
 
   const amountInfo = formatAmount(transaction);
   const narration = getNarration(transaction);
-  
+
   // Extract transaction data based on transaction type
   const senderInfo = transaction.external_response?.data?.customer;
   const receiverInfo = transaction.external_response?.data?.transaction;
-  
+
   // Determine if it's a withdrawal or deposit
   const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
-  const isVirtualAccountDeposit = transaction.type?.toLowerCase() === "virtual_account_deposit";
+  const isVirtualAccountDeposit =
+    transaction.type?.toLowerCase() === "virtual_account_deposit";
 
   // Prepare display data for the UI
   let displaySenderData, displayReceiverData;
@@ -537,12 +560,12 @@ export default function TransactionDetailsPage() {
       name: senderInfo?.senderName || "N/A",
       // Don't include account details for platform in withdrawals
     };
-    
+
     displayReceiverData = {
       name: senderInfo?.recipientName || "N/A",
-      accountNumber: senderInfo?.accountNumber || "N/A", 
+      accountNumber: senderInfo?.accountNumber || "N/A",
       bankName: senderInfo?.bankName || "N/A",
-      accountType: "External Account"
+      accountType: "External Account",
     };
   } else if (isVirtualAccountDeposit) {
     // Virtual Account Deposit: Customer sends money to platform
@@ -550,29 +573,36 @@ export default function TransactionDetailsPage() {
       name: senderInfo?.senderName || "N/A",
       accountNumber: senderInfo?.accountNumber || "N/A",
       bankName: senderInfo?.bankName || "N/A",
-      bankCode: senderInfo?.bankCode || "N/A"
+      bankCode: senderInfo?.bankCode || "N/A",
     };
-    
+
     displayReceiverData = {
       name: receiverInfo?.aliasAccountName || "N/A",
       accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
       accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
-      reference: receiverInfo?.aliasAccountReference || "N/A"
+      reference: receiverInfo?.aliasAccountReference || "N/A",
     };
   } else {
     // Other transaction types (fallback)
     displaySenderData = {
       name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
-      accountNumber: transaction?.sender?.accountNumber || senderInfo?.accountNumber || "N/A",
+      accountNumber:
+        transaction?.sender?.accountNumber ||
+        senderInfo?.accountNumber ||
+        "N/A",
       bankName: transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
-      bankCode: senderInfo?.bankCode || "N/A"
+      bankCode: senderInfo?.bankCode || "N/A",
     };
-    
+
     displayReceiverData = {
-      name: transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
-      accountNumber: transaction?.receiver?.accountNumber || receiverInfo?.aliasAccountNumber || "N/A",
+      name:
+        transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
+      accountNumber:
+        transaction?.receiver?.accountNumber ||
+        receiverInfo?.aliasAccountNumber ||
+        "N/A",
       accountType: receiverInfo?.aliasAccountType || "N/A",
-      reference: receiverInfo?.aliasAccountReference || "N/A"
+      reference: receiverInfo?.aliasAccountReference || "N/A",
     };
   }
 
@@ -618,7 +648,9 @@ export default function TransactionDetailsPage() {
                   ) : (
                     <Download className="w-4 h-4" />
                   )}
-                  <span>{downloading ? "Downloading..." : "Download Receipt"}</span>
+                  <span>
+                    {downloading ? "Downloading..." : "Download Receipt"}
+                  </span>
                 </Button>
               )}
             </div>
@@ -633,7 +665,6 @@ export default function TransactionDetailsPage() {
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                       Amount
                     </h2>
-
                   </CardHeader>
                   <CardContent>
                     <div className="text-center">
@@ -683,7 +714,9 @@ export default function TransactionDetailsPage() {
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                        {isWithdrawal ? "From (Platform)" : "Sender Information"}
+                        {isWithdrawal
+                          ? "From (Platform)"
+                          : "Sender Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -714,7 +747,6 @@ export default function TransactionDetailsPage() {
                               {displaySenderData.bankName || "N/A"}
                             </span>
                           </div>
-                        
                         </>
                       )}
                     </CardContent>
@@ -727,7 +759,9 @@ export default function TransactionDetailsPage() {
                     <CardHeader className="flex flex-row items-center gap-2 pb-3">
                       <Building className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
                       <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                        {isWithdrawal ? "To (Recipient)" : "Receiver Information"}
+                        {isWithdrawal
+                          ? "To (Recipient)"
+                          : "Receiver Information"}
                       </h2>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -846,16 +880,20 @@ export default function TransactionDetailsPage() {
                       </div>
                     ) : null}
 
-                    {transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount ? (
+                    {transaction.total_deduction > 0 &&
+                    transaction.total_deduction !== transaction.amount ? (
                       <div className="flex items-center justify-between gap-1 xs:gap-2">
                         <span className="text-gray-600 text-sm sm:text-base">
                           Total Deduction
                         </span>
                         <span className="font-medium text-sm ">
                           ₦
-                          {Number(transaction.total_deduction).toLocaleString("en-NG", {
-                            minimumFractionDigits: 2,
-                          })}
+                          {Number(transaction.total_deduction).toLocaleString(
+                            "en-NG",
+                            {
+                              minimumFractionDigits: 2,
+                            }
+                          )}
                         </span>
                       </div>
                     ) : null}

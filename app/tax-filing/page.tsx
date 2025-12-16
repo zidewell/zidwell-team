@@ -50,7 +50,7 @@ const TaxFilingInfoPage = () => {
       ),
     },
     {
-      icon:  <File />,
+      icon: <File />,
       title: "Choose Your Filing Type",
       description: (
         <ul className="text-muted-foreground space-y-1">
@@ -111,7 +111,7 @@ const TaxFilingInfoPage = () => {
       ),
     },
     {
-      icon:   <ListChecks />,
+      icon: <ListChecks />,
       title: "Complete Your Tax Filing",
       description: (
         <p className="text-muted-foreground">
@@ -156,7 +156,8 @@ const TaxFilingInfoPage = () => {
                   Professional Tax Filing Services
                 </h1>
                 <p className="text-lg leading-relaxed">
-                  Let professionals handle your bookkeeping and tax filing while you grow your business.
+                  Let professionals handle your bookkeeping and tax filing while
+                  you grow your business.
                 </p>
               </div>
             </div>

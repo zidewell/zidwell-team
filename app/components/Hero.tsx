@@ -1,65 +1,85 @@
 import { useRouter } from "next/navigation";
-import { Button } from "./ui/button";
-import { ArrowRight, Zap, Shield } from "lucide-react";
+import { ArrowRight, Users } from "lucide-react";
+import GridBackground from "./Gridbackground";
+import { Button2 } from "./ui/button2";
 
 const Hero = () => {
   const router = useRouter();
-  return (
-    <section
-      data-aos="face-down"
-      className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 "
-    >
-      {/* background design */}
-      <div className="absolute h-full inset-0 bg-patterns"></div>
 
-      {/* Main content */}
-      <div className="container mx-auto">
-        <div className="text-center max-w-4xl mx-auto">
-          <div className="mb-8">
-            <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
-              <Zap className="w-4 h-4 mr-2" />
-              Smart finance tools for Nigerian businesses
+  return (
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+      <GridBackground />
+
+      <div className="container mx-auto px-4 py-20 relative z-10">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Badge */}
+          <div className="animate-fade-up inline-flex items-center gap-2 px-4 py-2 bg-[#C29307]/10 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] mb-8">
+            <span className="w-2 h-2 bg-[#C29307] rounded-full animate-pulse" />
+            <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+              Financial wellness for Businesses with a vision to grow
             </span>
           </div>
 
-          <h1 className="text-4xl md:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-            Fast & Easy to use Financial tools{" "}
-            <span className="text-[#C29307]">for small businesses</span>
+          {/* Main Heading */}
+          <h1 className="animate-fade-up-delay-1 text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black leading-tight mb-6 text-balance text-gray-900 dark:text-gray-50">
+            Money should not be the{" "}
+            <span className="relative inline-block">
+              <span className="relative z-10">hardest part</span>
+              <span className="absolute bottom-2 left-0 right-0 h-4 bg-[#C29307]/40 -z-0" />
+            </span>{" "}
+            of building a business.
           </h1>
 
-          <p className="md:text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-            {/* We created Zidwell to make sure small businesses have all the financial tools they need to run smoothly. Everything here works as it should, we had you in mind when creating this platform */}
-           Business is all about making Smart Moves. With Zidwell, you can take control of your business finances — pay bills, send invoices, manage business contracts, do your taxes, and even earn rewards per transaction. Now that's a smart move.
-            
+          {/* Subheading */}
+          <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 text-balance">
+            Zidwell helps individuals and growing businesses bring order,
+            clarity, and confidence to their finances. One smart wallet. One
+            platform. Real financial peace of mind.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Button
+          {/* CTA Buttons */}
+          <div className="animate-fade-up-delay-3 flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+            <Button2
               onClick={() => router.push("/auth/signup")}
-              size="lg"
-              className="bg-[#C29307] text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+              variant="hero"
+              size="xl"
             >
-              Make Smart Moves
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
+              Get Started Free
+              <ArrowRight className="ml-2" />
+            </Button2>
+            <Button2 variant="heroOutline" size="xl" className="cursor-pointer">
+              <Users className="mr-2" />
+              Join our Community
+            </Button2>
           </div>
 
-          <div className="flex flex-wrap justify-center items-center gap-8 text-sm text-gray-500">
-            <div className="flex items-center">
-              <span className="font-medium">✓ Instant Payments</span>
+          {/* Trust Indicators */}
+          <div className="animate-fade-up-delay-3 flex flex-wrap items-center justify-center gap-8 text-sm text-gray-500 dark:text-gray-400">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <span>No hidden fees</span>
             </div>
-            <div className="flex items-center">
-              <span className="font-medium">✓ Secure Transactions</span>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <span>Start for free</span>
             </div>
-            <div className="flex items-center">
-              <span className="font-medium">✓ 24/7 Support</span>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <span>Cancel anytime</span>
             </div>
           </div>
         </div>
-        {/* <div className="flex justify-center mt-16 items-center p-10">
 
-        <Image className="md:w-[400px] h-full w-full" src={payment} alt="payment ilustration"/>
-        </div> */}
+        {/* Floating Elements */}
+        <div className="absolute top-1/4 left-10 w-16 h-16 border-2 border-gray-900 dark:border-gray-50 bg-[#C29307] shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24] animate-float hidden lg:block" />
+        <div
+          className="absolute bottom-1/4 right-10 w-12 h-12 border-2 border-gray-900 dark:border-gray-50 bg-gray-50 dark:bg-gray-950 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] animate-float hidden lg:block"
+          style={{ animationDelay: "1s" }}
+        />
+        <div
+          className="absolute top-1/3 right-1/4 w-8 h-8 border-2 border-gray-900 dark:border-gray-50 bg-[#C29307]/50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] animate-float hidden lg:block"
+          style={{ animationDelay: "2s" }}
+        />
       </div>
     </section>
   );

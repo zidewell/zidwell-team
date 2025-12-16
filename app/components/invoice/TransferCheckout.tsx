@@ -76,7 +76,8 @@ function DetailRow({
   highlight,
   isValid = true,
 }: DetailRowProps) {
-  const isInvalidValue = !value || value === "Account details not provided" || value === "";
+  const isInvalidValue =
+    !value || value === "Account details not provided" || value === "";
 
   return (
     <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
@@ -108,7 +109,11 @@ function DetailRow({
 }
 
 // Utility functions
-const copyToClipboardUtil = async (text: string | undefined, fieldName: string, toast: any) => {
+const copyToClipboardUtil = async (
+  text: string | undefined,
+  fieldName: string,
+  toast: any
+) => {
   if (!text || text === "Account details not provided") {
     toast({
       title: "No data to copy",
@@ -159,9 +164,10 @@ export function TransferCheckout({
     "not_found" | "found" | "checking" | "error"
   >("not_found");
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
-  const [lastCheckResponse, setLastCheckResponse] = useState<PaymentCheckResponse | null>(null);
+  const [lastCheckResponse, setLastCheckResponse] =
+    useState<PaymentCheckResponse | null>(null);
   const [checkCount, setCheckCount] = useState(0);
-  
+
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
@@ -189,106 +195,113 @@ export function TransferCheckout({
     };
   }, []);
 
-  const checkPaymentStatus = useCallback(async (showMessages = true): Promise<boolean> => {
-    if (!payerInfo?.email) {
-      if (showMessages) {
-        toast({
-          title: "Information Required",
-          description: "Please provide your email to check payment status.",
-          variant: "destructive",
-        });
+  const checkPaymentStatus = useCallback(
+    async (showMessages = true): Promise<boolean> => {
+      if (!payerInfo?.email) {
+        if (showMessages) {
+          toast({
+            title: "Information Required",
+            description: "Please provide your email to check payment status.",
+            variant: "destructive",
+          });
+        }
+        return false;
       }
-      return false;
-    }
 
-    setIsCheckingPayment(true);
-    setPaymentStatus("checking");
-    setCheckCount(prev => prev + 1);
+      setIsCheckingPayment(true);
+      setPaymentStatus("checking");
+      setCheckCount((prev) => prev + 1);
 
-    try {
-      console.log("🔍 Checking payment with:", {
-        invoiceId: safeInvoiceDetails.invoiceId,
-        amount: safeInvoiceDetails.amount,
-        payerEmail: payerInfo.email,
-        checkCount: checkCount + 1,
-      });
-
-      const response = await fetch("/api/check-invoice-tranfer-payment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      try {
+        console.log("🔍 Checking payment with:", {
           invoiceId: safeInvoiceDetails.invoiceId,
           amount: safeInvoiceDetails.amount,
           payerEmail: payerInfo.email,
-        }),
-      });
+          checkCount: checkCount + 1,
+        });
 
-      console.log("✅ Response status:", response.status);
-      
-      const data: PaymentCheckResponse = await response.json();
-      console.log("✅ Response data:", data);
-      
-      setLastCheckTime(new Date());
-      setLastCheckResponse(data);
+        const response = await fetch("/api/check-invoice-tranfer-payment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            invoiceId: safeInvoiceDetails.invoiceId,
+            amount: safeInvoiceDetails.amount,
+            payerEmail: payerInfo.email,
+          }),
+        });
 
-      if (data.paymentExists) {
-        console.log("🎉 Payment found in:", data.foundIn);
-        setPaymentStatus("found");
-        setIsConfirmed(true);
+        console.log("✅ Response status:", response.status);
 
-        if (showMessages) {
-          let description = "Your payment has been successfully verified and processed.";
-          if (data.foundIn) {
-            description = `Payment confirmed (found in ${data.foundIn}).`;
+        const data: PaymentCheckResponse = await response.json();
+        console.log("✅ Response data:", data);
+
+        setLastCheckTime(new Date());
+        setLastCheckResponse(data);
+
+        if (data.paymentExists) {
+          console.log("🎉 Payment found in:", data.foundIn);
+          setPaymentStatus("found");
+          setIsConfirmed(true);
+
+          if (showMessages) {
+            let description =
+              "Your payment has been successfully verified and processed.";
+            if (data.foundIn) {
+              description = `Payment confirmed (found in ${data.foundIn}).`;
+            }
+
+            toast({
+              title: "🎉 Payment Verified!",
+              description,
+              duration: 5000,
+            });
           }
-          
-          toast({
-            title: "🎉 Payment Verified!",
-            description,
-            duration: 5000,
-          });
-        }
 
-        // Stop polling
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
+          // Stop polling
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
 
-        return true;
-      } else {
-        setPaymentStatus("not_found");
-        console.log("⚠️ Payment not found, suggestions:", data.suggestions);
+          return true;
+        } else {
+          setPaymentStatus("not_found");
+          console.log("⚠️ Payment not found, suggestions:", data.suggestions);
+
+          if (showMessages) {
+            toast({
+              title: "Payment Not Found Yet",
+              description:
+                data.message ||
+                "We haven't detected your payment yet. This is normal if you just completed the transfer.",
+              variant: "default",
+            });
+          }
+
+          return false;
+        }
+      } catch (error) {
+        console.error("❌ Payment check error:", error);
+        setPaymentStatus("error");
 
         if (showMessages) {
           toast({
-            title: "Payment Not Found Yet",
-            description: data.message || "We haven't detected your payment yet. This is normal if you just completed the transfer.",
-            variant: "default",
+            title: "Check Failed",
+            description:
+              "Unable to check payment status. Please try again in a moment.",
+            variant: "destructive",
           });
         }
 
         return false;
+      } finally {
+        setIsCheckingPayment(false);
       }
-    } catch (error) {
-      console.error("❌ Payment check error:", error);
-      setPaymentStatus("error");
-
-      if (showMessages) {
-        toast({
-          title: "Check Failed",
-          description: "Unable to check payment status. Please try again in a moment.",
-          variant: "destructive",
-        });
-      }
-
-      return false;
-    } finally {
-      setIsCheckingPayment(false);
-    }
-  }, [safeInvoiceDetails, payerInfo?.email, toast, checkCount]);
+    },
+    [safeInvoiceDetails, payerInfo?.email, toast, checkCount]
+  );
 
   const startPaymentPolling = useCallback(() => {
     if (pollIntervalRef.current) {
@@ -307,7 +320,8 @@ export function TransferCheckout({
     if (!payerInfo?.email) {
       toast({
         title: "Information Required",
-        description: "Please provide your email in the payment form before confirming.",
+        description:
+          "Please provide your email in the payment form before confirming.",
         variant: "destructive",
       });
       return;
@@ -315,22 +329,31 @@ export function TransferCheckout({
 
     // Start auto-polling when user confirms transfer
     startPaymentPolling();
-    
+
     // Show initial check
     await checkPaymentStatus(true);
-    
+
     if (onConfirmTransfer) {
       await onConfirmTransfer(payerInfo);
     }
-  }, [payerInfo, onConfirmTransfer, toast, checkPaymentStatus, startPaymentPolling]);
+  }, [
+    payerInfo,
+    onConfirmTransfer,
+    toast,
+    checkPaymentStatus,
+    startPaymentPolling,
+  ]);
 
-  const copyToClipboard = useCallback(async (text: string | undefined, fieldName: string) => {
-    const copied = await copyToClipboardUtil(text, fieldName, toast);
-    if (copied) {
-      setCopiedField(copied);
-      setTimeout(() => setCopiedField(null), 2000);
-    }
-  }, [toast]);
+  const copyToClipboard = useCallback(
+    async (text: string | undefined, fieldName: string) => {
+      const copied = await copyToClipboardUtil(text, fieldName, toast);
+      if (copied) {
+        setCopiedField(copied);
+        setTimeout(() => setCopiedField(null), 2000);
+      }
+    },
+    [toast]
+  );
 
   const handleManualCheck = useCallback(async () => {
     await checkPaymentStatus(true);
@@ -348,7 +371,8 @@ export function TransferCheckout({
     }
   }, [toast]);
 
-  const hasValidAccountDetails = safeBankDetails?.accountNumber &&
+  const hasValidAccountDetails =
+    safeBankDetails?.accountNumber &&
     safeBankDetails.accountNumber !== "Account details not provided" &&
     safeBankDetails.accountNumber !== "";
 
@@ -438,7 +462,10 @@ export function TransferCheckout({
           )}
         </div>
         <div className="text-4xl font-bold text-[#C29307] mb-2">
-          {formatCurrency(safeInvoiceDetails.amount, safeInvoiceDetails.currency)}
+          {formatCurrency(
+            safeInvoiceDetails.amount,
+            safeInvoiceDetails.currency
+          )}
         </div>
         <p className="text-sm text-muted-foreground">
           {safeInvoiceDetails.description}
@@ -467,7 +494,9 @@ export function TransferCheckout({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => copyToClipboard(safeInvoiceDetails.invoiceId, "Invoice ID")}
+            onClick={() =>
+              copyToClipboard(safeInvoiceDetails.invoiceId, "Invoice ID")
+            }
             className="hover:bg-[#C29307]/20"
             disabled={!safeInvoiceDetails.invoiceId}
           >
@@ -501,21 +530,33 @@ export function TransferCheckout({
             <DetailRow
               label="Bank Name"
               value={safeBankDetails.bankName || ""}
-              onCopy={() => copyToClipboard(safeBankDetails.bankName || "", "Bank Name")}
+              onCopy={() =>
+                copyToClipboard(safeBankDetails.bankName || "", "Bank Name")
+              }
               isCopied={copiedField === "Bank Name"}
               isValid={hasValidAccountDetails}
             />
             <DetailRow
               label="Account Name"
               value={safeBankDetails.accountName || ""}
-              onCopy={() => copyToClipboard(safeBankDetails.accountName || "", "Account Name")}
+              onCopy={() =>
+                copyToClipboard(
+                  safeBankDetails.accountName || "",
+                  "Account Name"
+                )
+              }
               isCopied={copiedField === "Account Name"}
               isValid={hasValidAccountDetails}
             />
             <DetailRow
               label="Account Number"
               value={safeBankDetails.accountNumber || ""}
-              onCopy={() => copyToClipboard(safeBankDetails.accountNumber || "", "Account Number")}
+              onCopy={() =>
+                copyToClipboard(
+                  safeBankDetails.accountNumber || "",
+                  "Account Number"
+                )
+              }
               isCopied={copiedField === "Account Number"}
               highlight
               isValid={hasValidAccountDetails}
@@ -642,7 +683,9 @@ export function TransferCheckout({
             </li>
             <li>• You can manually check status using the button above</li>
             {pollIntervalRef.current && (
-              <li>• <strong>Auto-checking active</strong> (every 30 seconds)</li>
+              <li>
+                • <strong>Auto-checking active</strong> (every 30 seconds)
+              </li>
             )}
           </ul>
           {lastCheckTime && (

@@ -14,8 +14,8 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { Textarea } from "@/app/components/ui/textarea";
 
-import { contractTemplates } from "../../data/contractTemplates"; 
-import { getTemplateContent } from "@/lib/templateContent"; 
+import { contractTemplates } from "../../data/contractTemplates";
+import { getTemplateContent } from "@/lib/templateContent";
 import { ToggleButton } from "@/app/components/ToggleButton";
 import { useParams, useRouter } from "next/navigation";
 import DashboardSidebar from "@/app/components/dashboard-sidebar";
@@ -34,17 +34,17 @@ const Page = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showContractSummary, setShowContractSummary] = useState(false);
-  const [template, setTemplate] = useState<any| null>(null);
+  const [template, setTemplate] = useState<any | null>(null);
   const [contractTitle, setContractTitle] = useState("");
   const [contractContent, setContractContent] = useState("");
   const [signeeEmail, setSigneeEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("draft");
   const { userData } = useUserContextData();
-  
+
   const [ageAgreement, setAgeAgreement] = useState(false);
   const [termsAgreement, setTermsAgreement] = useState(false);
-  
+
   const [errors, setErrors] = useState({
     contractTitle: "",
     signeeEmail: "",
@@ -63,7 +63,9 @@ const Page = () => {
 
   useEffect(() => {
     if (templateId && typeof templateId === "string" && userData) {
-      const foundTemplate = contractTemplates.find((t:any) => t.id === templateId);
+      const foundTemplate = contractTemplates.find(
+        (t: any) => t.id === templateId
+      );
       if (foundTemplate) {
         setTemplate(foundTemplate);
         setContractTitle(`New ${foundTemplate.title}`);
@@ -96,8 +98,10 @@ const Page = () => {
     if (!contractContent.trim())
       newErrors.contractContent = "Contract content cannot be empty.";
     if (status === "") newErrors.status = "Please select a status.";
-    if (!ageAgreement) newErrors.ageAgreement = "You must confirm you are 18 years or older.";
-    if (!termsAgreement) newErrors.termsAgreement = "You must agree to the contract terms.";
+    if (!ageAgreement)
+      newErrors.ageAgreement = "You must confirm you are 18 years or older.";
+    if (!termsAgreement)
+      newErrors.termsAgreement = "You must agree to the contract terms.";
 
     setErrors(newErrors);
     return !Object.values(newErrors).some((error) => error);
@@ -257,7 +261,9 @@ const Page = () => {
           <ContractSummary
             contractTitle={contractTitle}
             contractContent={contractContent}
-            initiatorName={`${userData?.firstName || ""} ${userData?.lastName || ""}`}
+            initiatorName={`${userData?.firstName || ""} ${
+              userData?.lastName || ""
+            }`}
             initiatorEmail={userData?.email || ""}
             signeeName={signeeEmail.split("@")[0]}
             signeeEmail={signeeEmail}
@@ -341,11 +347,15 @@ const Page = () => {
               <div className="lg:col-span-1">
                 <Card>
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg sm:text-xl">Contract Details</CardTitle>
+                    <CardTitle className="text-lg sm:text-xl">
+                      Contract Details
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <Label htmlFor="title" className="text-sm sm:text-base">Contract Title</Label>
+                      <Label htmlFor="title" className="text-sm sm:text-base">
+                        Contract Title
+                      </Label>
                       <Input
                         id="title"
                         value={contractTitle}
@@ -361,7 +371,12 @@ const Page = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="signeeEmail" className="text-sm sm:text-base">Client Email</Label>
+                      <Label
+                        htmlFor="signeeEmail"
+                        className="text-sm sm:text-base"
+                      >
+                        Client Email
+                      </Label>
                       <Input
                         id="signeeEmail"
                         value={signeeEmail}
@@ -377,7 +392,9 @@ const Page = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="status" className="text-sm sm:text-base">Status</Label>
+                      <Label htmlFor="status" className="text-sm sm:text-base">
+                        Status
+                      </Label>
                       <select
                         id="status"
                         value={status}
@@ -390,7 +407,9 @@ const Page = () => {
                         </option>
                       </select>
                       {errors.status && (
-                        <p className="text-red-500 text-xs sm:text-sm mt-1">{errors.status}</p>
+                        <p className="text-red-500 text-xs sm:text-sm mt-1">
+                          {errors.status}
+                        </p>
                       )}
                     </div>
 
@@ -403,7 +422,7 @@ const Page = () => {
                           error={errors.ageAgreement}
                         />
                       </div>
-                      
+
                       <div className="space-y-3">
                         <ToggleButton
                           isActive={termsAgreement}
@@ -420,7 +439,9 @@ const Page = () => {
               <div className="lg:col-span-2">
                 <Card className="h-full">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg sm:text-xl">Contract Content</CardTitle>
+                    <CardTitle className="text-lg sm:text-xl">
+                      Contract Content
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Textarea

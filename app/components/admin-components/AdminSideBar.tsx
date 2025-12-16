@@ -36,7 +36,11 @@ const navSections = [
     icon: LayoutDashboard,
     links: [
       { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-      { name: "Admin Management", href: "/admin/admin-management", icon: Users },
+      {
+        name: "Admin Management",
+        href: "/admin/admin-management",
+        icon: Users,
+      },
     ],
   },
   {
@@ -52,9 +56,17 @@ const navSections = [
     icon: Wallet,
     links: [
       { name: "Wallets", href: "/admin/wallets", icon: Wallet },
-      { name: "Transactions", href: "/admin/transactions", icon: FileChartColumnIncreasing },
+      {
+        name: "Transactions",
+        href: "/admin/transactions",
+        icon: FileChartColumnIncreasing,
+      },
       { name: "Funding Logs", href: "/admin/funding-logs", icon: CreditCard },
-      { name: "Reconciliation", href: "/admin/reconciliation", icon: RefreshCw },
+      {
+        name: "Reconciliation",
+        href: "/admin/reconciliation",
+        icon: RefreshCw,
+      },
     ],
   },
   {
@@ -71,7 +83,11 @@ const navSections = [
     title: "Support & System",
     icon: Headphones,
     links: [
-      { name: "Support & Disputes", href: "/admin/disputes-supports", icon: Headphones },
+      {
+        name: "Support & Disputes",
+        href: "/admin/disputes-supports",
+        icon: Headphones,
+      },
       { name: "Notifications", href: "/admin/notifications", icon: Bell },
       { name: "Audit logs", href: "/admin/audit-logs", icon: History },
     ],
@@ -89,12 +105,14 @@ export default function AdminSidebar() {
 
   // Auto-expand sections based on current route
   useEffect(() => {
-    const currentSection = navSections.find(section =>
-      section.links.some(link => pathname === link.href || pathname.startsWith(link.href + '/'))
+    const currentSection = navSections.find((section) =>
+      section.links.some(
+        (link) => pathname === link.href || pathname.startsWith(link.href + "/")
+      )
     );
-    
+
     if (currentSection) {
-      setExpandedSections(prev => new Set(prev).add(currentSection.title));
+      setExpandedSections((prev) => new Set(prev).add(currentSection.title));
     }
   }, [pathname]);
 
@@ -106,7 +124,7 @@ export default function AdminSidebar() {
         await fetch("/api/activity/last-logout", {
           method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             user_id: userData.id,
@@ -154,8 +172,8 @@ export default function AdminSidebar() {
       }
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Close mobile menu when route changes
@@ -179,7 +197,7 @@ export default function AdminSidebar() {
     if (href === "/admin") {
       return pathname === href;
     }
-    return pathname === href || pathname.startsWith(href + '/');
+    return pathname === href || pathname.startsWith(href + "/");
   };
 
   const NavItem = ({
@@ -199,7 +217,13 @@ export default function AdminSidebar() {
           : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
       }`}
     >
-      <Icon className={`w-4 h-4 ${isLinkActive(href) ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'}`} />
+      <Icon
+        className={`w-4 h-4 ${
+          isLinkActive(href)
+            ? "text-white"
+            : "text-gray-400 group-hover:text-gray-600"
+        }`}
+      />
       <span className="truncate">{name}</span>
     </Link>
   );
@@ -212,7 +236,7 @@ export default function AdminSidebar() {
     icon: any;
   }) => {
     const isExpanded = expandedSections.has(title);
-    
+
     return (
       <button
         onClick={() => toggleSection(title)}
@@ -248,10 +272,9 @@ export default function AdminSidebar() {
 
       {/* 🧭 Sidebar */}
       <div
-       className={`fixed inset-y-0 left-0 z-40 w-[280px] bg-white border-r border-gray-200 shadow-lg overflow-y-auto transform transition-transform duration-300 ease-in-out lg:translate-x-0  ${
+        className={`fixed inset-y-0 left-0 z-40 w-[280px] bg-white border-r border-gray-200 shadow-lg overflow-y-auto transform transition-transform duration-300 ease-in-out lg:translate-x-0  ${
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-      
       >
         {/* 🔝 Logo Section */}
         <div className="p-6 border-b border-gray-200 flex items-center gap-3 shrink-0 bg-white">
@@ -264,13 +287,13 @@ export default function AdminSidebar() {
               className="rounded object-contain"
               onError={(e) => {
                 // Fallback if logo doesn't exist
-                e.currentTarget.style.display = 'none';
+                e.currentTarget.style.display = "none";
               }}
             />
           </div>
           <div className="flex flex-col">
-            <Link 
-              href="/admin" 
+            <Link
+              href="/admin"
               className="text-xl font-bold text-gray-900 hover:text-gray-700 transition-colors"
               onClick={() => setIsMobileMenuOpen(false)}
             >
@@ -284,7 +307,6 @@ export default function AdminSidebar() {
         <div className="p-4 border-b border-gray-200 bg-blue-50">
           <Button
             onClick={handleBackToUserDashboard}
-  
             className="w-full cursor-pointer flex items-center justify-center gap-2 border  bg-white text-black  hover:text-white hover:bg-[#C29307]  transition-all duration-200"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -296,16 +318,13 @@ export default function AdminSidebar() {
         <nav className="flex-1 p-3 space-y-2 overflow-y-auto">
           {navSections.map((section) => (
             <div key={section.title} className="space-y-1">
-              <SectionHeader
-                title={section.title}
-                icon={section.icon}
-              />
+              <SectionHeader title={section.title} icon={section.icon} />
 
               {expandedSections.has(section.title) && (
                 <div className="ml-3 space-y-1 border-l-2 border-gray-100 ">
                   {section.links.map((link) => (
-                    <NavItem 
-                      key={link.href} 
+                    <NavItem
+                      key={link.href}
                       name={link.name}
                       href={link.href}
                       icon={link.icon}
@@ -322,12 +341,12 @@ export default function AdminSidebar() {
           <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-white border border-gray-200">
             <div className="w-8 h-8 bg-[#C29307] rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-semibold">
-                {userData?.email?.charAt(0).toUpperCase() || 'A'}
+                {userData?.email?.charAt(0).toUpperCase() || "A"}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {userData?.email || 'Admin User'}
+                {userData?.email || "Admin User"}
               </p>
               <p className="text-xs text-gray-500 truncate">Administrator</p>
             </div>

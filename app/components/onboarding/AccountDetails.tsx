@@ -66,15 +66,18 @@ export const AccountDetailsStep = ({
   return (
     <div className="w-full max-w-xl mx-auto bg-white rounded-xl shadow-sm p-6 border">
       <h2 className="text-2xl font-semibold mb-2 text-center">
-       Account Withdrawal Details
-
+        Account Withdrawal Details
       </h2>
       <p className="text-sm text-muted-foreground text-center mb-6">
-        Provide a bank account details that match your name, where you can withdraw your funds to whenever you want to withdraw from your Zidwell wallet.
+        Provide a bank account details that match your name, where you can
+        withdraw your funds to whenever you want to withdraw from your Zidwell
+        wallet.
       </p>
 
       {loading ? (
-        <p className="text-center text-sm text-gray-500">Loading bank list...</p>
+        <p className="text-center text-sm text-gray-500">
+          Loading bank list...
+        </p>
       ) : (
         <div className="space-y-4">
           {/* Bank Name */}
@@ -107,7 +110,10 @@ export const AccountDetailsStep = ({
                   banks.map((bank) => (
                     <SelectItem
                       key={bank.code}
-                      value={JSON.stringify({ name: bank.name, code: bank.code })}
+                      value={JSON.stringify({
+                        name: bank.name,
+                        code: bank.code,
+                      })}
                     >
                       {bank.name}
                     </SelectItem>

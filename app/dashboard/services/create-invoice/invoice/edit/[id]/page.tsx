@@ -41,7 +41,7 @@ interface InvoiceForm {
   payment_type: "single" | "multiple";
   allow_multiple_payments: boolean;
   redirect_url?: string;
-  target_quantity: number; 
+  target_quantity: number;
 }
 
 export default function Page() {
@@ -50,8 +50,6 @@ export default function Page() {
   const [form, setForm] = useState<InvoiceForm | null>(null);
   const [loading, setLoading] = useState(false);
   const firstErrorRef = useRef<HTMLInputElement | null>(null);
-
-
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -63,8 +61,8 @@ export default function Page() {
         }
         const data = await res.json();
 
-        console.log(data)
-        
+        console.log(data);
+
         // Transform the data to match our form structure
         const transformedData: InvoiceForm = {
           client_name: data.client_name || "",
@@ -94,7 +92,7 @@ export default function Page() {
             quantity: Number(item.quantity) || 0,
             unitPrice: Number(item.unit_price) || 0,
             total: Number(item.total_amount) || 0,
-          }))
+          })),
         };
 
         setForm(transformedData);
@@ -107,56 +105,62 @@ export default function Page() {
     if (id) fetchInvoice();
   }, [id]);
 
-
-    console.log(form)
+  console.log(form);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
   ) => {
     if (!form) return;
     const { name, value, type } = e.target;
-    
+
     // Handle checkbox separately
-    if (type === 'checkbox') {
+    if (type === "checkbox") {
       const checked = (e.target as HTMLInputElement).checked;
-      setForm(prev => prev ? { ...prev, [name]: checked } : null);
+      setForm((prev) => (prev ? { ...prev, [name]: checked } : null));
     } else {
-      setForm(prev => prev ? { ...prev, [name]: value } : null);
+      setForm((prev) => (prev ? { ...prev, [name]: value } : null));
     }
   };
 
   const updateItem = (index: number, field: keyof InvoiceItem, value: any) => {
     if (!form) return;
-    
+
     const updatedItems = [...form.invoice_items];
-    const updatedItem:any = { ...updatedItems[index] };
-    
+    const updatedItem: any = { ...updatedItems[index] };
+
     updatedItem[field] = value;
-    
+
     // Recalculate total if quantity or unitPrice changes
     if (field === "quantity" || field === "unitPrice") {
-      updatedItem.total = Number(updatedItem.quantity) * Number(updatedItem.unitPrice);
+      updatedItem.total =
+        Number(updatedItem.quantity) * Number(updatedItem.unitPrice);
     }
-    
+
     updatedItems[index] = updatedItem;
-    
+
     // Recalculate totals
-    const subtotal = updatedItems.reduce((sum, item) => sum + Number(item.total), 0);
+    const subtotal = updatedItems.reduce(
+      (sum, item) => sum + Number(item.total),
+      0
+    );
     const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
-    const totalAmount = form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
-    
-    setForm({ 
-      ...form, 
+    const totalAmount =
+      form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
+
+    setForm({
+      ...form,
       invoice_items: updatedItems,
       subtotal,
       fee_amount: feeAmount,
-      total_amount: totalAmount
+      total_amount: totalAmount,
     });
   };
 
   const addItem = () => {
     if (!form) return;
-    
+
     const newItem: InvoiceItem = {
       id: `temp-${Date.now()}`,
       description: "",
@@ -164,29 +168,33 @@ export default function Page() {
       unitPrice: 0,
       total: 0,
     };
-    
+
     setForm({
       ...form,
-      invoice_items: [...form.invoice_items, newItem]
+      invoice_items: [...form.invoice_items, newItem],
     });
   };
 
   const removeItem = (index: number) => {
     if (!form) return;
-    
+
     const updatedItems = form.invoice_items.filter((_, i) => i !== index);
-    
+
     // Recalculate totals
-    const subtotal = updatedItems.reduce((sum, item) => sum + Number(item.total), 0);
+    const subtotal = updatedItems.reduce(
+      (sum, item) => sum + Number(item.total),
+      0
+    );
     const feeAmount = form.fee_option === "customer" ? subtotal * 0.035 : 0;
-    const totalAmount = form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
-    
+    const totalAmount =
+      form.fee_option === "customer" ? subtotal + feeAmount : subtotal;
+
     setForm({
       ...form,
       invoice_items: updatedItems,
       subtotal,
       fee_amount: feeAmount,
-      total_amount: totalAmount
+      total_amount: totalAmount,
     });
   };
 
@@ -214,13 +222,13 @@ export default function Page() {
         allow_multiple_payments: form.allow_multiple_payments,
         target_quantity: form.target_quantity, // ADDED: Include target quantity
         // Transform invoice items to match database schema
-        invoice_items: form.invoice_items.map(item => ({
+        invoice_items: form.invoice_items.map((item) => ({
           id: item.id,
           item_description: item.description,
           quantity: item.quantity,
           unit_price: item.unitPrice,
           total_amount: item.total,
-        }))
+        })),
       };
 
       const res = await fetch(`/api/invoice/${id}`, {
@@ -287,7 +295,10 @@ export default function Page() {
               {/* Business Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="business_name" className="block font-medium mb-2">
+                  <label
+                    htmlFor="business_name"
+                    className="block font-medium mb-2"
+                  >
                     Business Name
                   </label>
                   <Input
@@ -299,7 +310,10 @@ export default function Page() {
                 </div>
 
                 <div>
-                  <label htmlFor="invoice_id" className="block font-medium mb-2">
+                  <label
+                    htmlFor="invoice_id"
+                    className="block font-medium mb-2"
+                  >
                     Invoice ID
                   </label>
                   <Input
@@ -314,7 +328,10 @@ export default function Page() {
               {/* Client Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="client_name" className="block font-medium mb-2">
+                  <label
+                    htmlFor="client_name"
+                    className="block font-medium mb-2"
+                  >
                     Client Name
                   </label>
                   <Input
@@ -326,7 +343,10 @@ export default function Page() {
                 </div>
 
                 <div>
-                  <label htmlFor="client_email" className="block font-medium mb-2">
+                  <label
+                    htmlFor="client_email"
+                    className="block font-medium mb-2"
+                  >
                     Client Email
                   </label>
                   <Input
@@ -341,7 +361,10 @@ export default function Page() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="client_phone" className="block font-medium mb-2">
+                  <label
+                    htmlFor="client_phone"
+                    className="block font-medium mb-2"
+                  >
                     Client Phone
                   </label>
                   <Input
@@ -368,7 +391,10 @@ export default function Page() {
               {/* Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="issue_date" className="block font-medium mb-2">
+                  <label
+                    htmlFor="issue_date"
+                    className="block font-medium mb-2"
+                  >
                     Issue Date
                   </label>
                   <Input
@@ -397,7 +423,10 @@ export default function Page() {
               {/* Payment Settings */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <label htmlFor="payment_type" className="block font-medium mb-2">
+                  <label
+                    htmlFor="payment_type"
+                    className="block font-medium mb-2"
+                  >
                     Payment Type
                   </label>
                   <select
@@ -413,7 +442,10 @@ export default function Page() {
                 </div>
 
                 <div>
-                  <label htmlFor="fee_option" className="block font-medium mb-2">
+                  <label
+                    htmlFor="fee_option"
+                    className="block font-medium mb-2"
+                  >
                     Fee Option
                   </label>
                   <select
@@ -429,7 +461,10 @@ export default function Page() {
                 </div>
 
                 <div>
-                  <label htmlFor="target_quantity" className="block font-medium mb-2">
+                  <label
+                    htmlFor="target_quantity"
+                    className="block font-medium mb-2"
+                  >
                     Target Quantity
                   </label>
                   <Input
@@ -457,7 +492,10 @@ export default function Page() {
                   onChange={handleChange}
                   className="w-4 h-4 text-[#C29307] border-gray-300 rounded focus:ring-[#C29307]"
                 />
-                <label htmlFor="allow_multiple_payments" className="font-medium">
+                <label
+                  htmlFor="allow_multiple_payments"
+                  className="font-medium"
+                >
                   Allow Multiple Payments
                 </label>
               </div>
@@ -466,17 +504,27 @@ export default function Page() {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <label className="block font-medium">Invoice Items</label>
-                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addItem}
+                  >
                     + Add Item
                   </Button>
                 </div>
-                
+
                 {form.invoice_items.map((item, index) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-3 mb-3 items-center">
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-12 gap-3 mb-3 items-center"
+                  >
                     <div className="col-span-5">
                       <Input
                         value={item.description}
-                        onChange={(e) => updateItem(index, "description", e.target.value)}
+                        onChange={(e) =>
+                          updateItem(index, "description", e.target.value)
+                        }
                         placeholder="Item description"
                       />
                     </div>
@@ -484,7 +532,9 @@ export default function Page() {
                       <Input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                        onChange={(e) =>
+                          updateItem(index, "quantity", Number(e.target.value))
+                        }
                         placeholder="Qty"
                         min="1"
                       />
@@ -493,7 +543,9 @@ export default function Page() {
                       <Input
                         type="number"
                         value={item.unitPrice}
-                        onChange={(e) => updateItem(index, "unitPrice", Number(e.target.value))}
+                        onChange={(e) =>
+                          updateItem(index, "unitPrice", Number(e.target.value))
+                        }
                         placeholder="Price"
                         min="0"
                         step="0.01"
@@ -519,7 +571,7 @@ export default function Page() {
                     </div>
                   </div>
                 ))}
-                
+
                 {/* Totals Summary */}
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                   <div className="flex justify-between text-sm">
@@ -528,18 +580,25 @@ export default function Page() {
                   </div>
                   {form.fee_amount > 0 && (
                     <div className="flex justify-between text-sm mt-1">
-                      <span>Processing Fee ({form.fee_option === 'customer' ? '2%' : 'Absorbed'}):</span>
+                      <span>
+                        Processing Fee (
+                        {form.fee_option === "customer" ? "2%" : "Absorbed"}):
+                      </span>
                       <span>₦{form.fee_amount.toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold mt-2 pt-2 border-t">
                     <span>Total Amount:</span>
-                    <span className="text-[#C29307]">₦{form.total_amount.toLocaleString()}</span>
+                    <span className="text-[#C29307]">
+                      ₦{form.total_amount.toLocaleString()}
+                    </span>
                   </div>
                   {form.allow_multiple_payments && (
                     <div className="flex justify-between text-sm mt-2 pt-2 border-t">
                       <span>Target Quantity:</span>
-                      <span className="font-medium">{form.target_quantity}</span>
+                      <span className="font-medium">
+                        {form.target_quantity}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -562,7 +621,10 @@ export default function Page() {
 
               {/* Redirect URL */}
               <div>
-                <label htmlFor="redirect_url" className="block font-medium mb-2">
+                <label
+                  htmlFor="redirect_url"
+                  className="block font-medium mb-2"
+                >
                   Redirect URL (Optional)
                 </label>
                 <Input

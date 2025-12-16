@@ -55,9 +55,7 @@ export default function page() {
                 height={500}
               />
             ) : (
-              
-                          <RecieptManager />
-             
+              <RecieptManager />
             )}
           </div>
         </main>

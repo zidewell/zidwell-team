@@ -44,20 +44,18 @@ export default function BalanceCard() {
     }
   };
 
+  const handleEyeClick = () => {
+    const newShowBalance = !showBalance;
+    setShowBalance(newShowBalance);
+    localStorage.setItem("showBalance", JSON.stringify(newShowBalance));
+  };
 
-const handleEyeClick = () => {
-  const newShowBalance = !showBalance;
-  setShowBalance(newShowBalance);
-  localStorage.setItem("showBalance", JSON.stringify(newShowBalance));
-};
-
-useEffect(() => {
-  const storedShowBalance = localStorage.getItem("showBalance");
-  if (storedShowBalance !== null) {
-    setShowBalance(JSON.parse(storedShowBalance));
-  }
-}, []);
-
+  useEffect(() => {
+    const storedShowBalance = localStorage.getItem("showBalance");
+    if (storedShowBalance !== null) {
+      setShowBalance(JSON.parse(storedShowBalance));
+    }
+  }, []);
 
   return (
     <Card
@@ -125,18 +123,19 @@ useEffect(() => {
             </Button> */}
             <Button
               variant="outline"
-              onClick={() => router.push("dashboard/fund-account/transfer-page")}
+              onClick={() =>
+                router.push("dashboard/fund-account/transfer-page")
+              }
               className="md:px-8 md:py-3 bg-transparent"
             >
               <Receipt className="w-4 h-4 mr-2" />
-             Transfer Cash
+              Transfer Cash
             </Button>
           </div>
 
           {userData?.referralCode && (
-
             // pointer-events-none opacity-50
-           
+
             <div className="bg-gray-100 p-4 rounded-lg text-center ">
               <p className="text-gray-700 text-sm mb-2 font-semibold">
                 Invite friends & earn rewards 🎉
@@ -160,7 +159,6 @@ useEffect(() => {
                 Share your link and earn bonuses when friends sign up!
               </p>
             </div>
-          
           )}
         </div>
       </CardContent>

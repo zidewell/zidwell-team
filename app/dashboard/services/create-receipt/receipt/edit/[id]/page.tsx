@@ -7,7 +7,7 @@ import { Button } from "@/app/components/ui/button";
 import Swal from "sweetalert2";
 import Loader from "@/app/components/Loader";
 import DashboardSidebar from "@/app/components/dashboard-sidebar";
-import DashboardHeader from "@/app/components/dashboard-hearder"; 
+import DashboardHeader from "@/app/components/dashboard-hearder";
 
 interface ReceiptItem {
   item: string;
@@ -102,9 +102,8 @@ export default function Page() {
       newErrors.payment_for = "Payment description is required";
 
     if (!form.bill_to.trim()) newErrors.bill_to = "Bill To is required";
-    if (!form.customer_note.trim()) newErrors.bill_to = "Customer note is required";
-
- 
+    if (!form.customer_note.trim())
+      newErrors.bill_to = "Customer note is required";
 
     setErrors(newErrors);
 
@@ -136,24 +135,26 @@ export default function Page() {
       return Swal.fire("Error", result.message || "Failed to update", "error");
     }
 
-    Swal.fire("Success", result.message || "Receipt updated successfully", "success");
+    Swal.fire(
+      "Success",
+      result.message || "Receipt updated successfully",
+      "success"
+    );
   };
 
-    const [pageLoading, setPageLoading] = useState(true);
-  
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        setPageLoading(false);
-      }, 2500);
-  
-      return () => clearTimeout(timer);
-    }, []);
-  
-    if (pageLoading || !form) {
-      return <Loader />;
-    }
-  
+  const [pageLoading, setPageLoading] = useState(true);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading || !form) {
+    return <Loader />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 fade-in">
@@ -221,8 +222,6 @@ export default function Page() {
                 value={form.issue_date}
                 onChange={handleChange}
               />
-
-            
 
               <div className="space-y-2">
                 {form.receipt_items.map((item, index) => (

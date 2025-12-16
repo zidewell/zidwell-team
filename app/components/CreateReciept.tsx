@@ -85,7 +85,7 @@ function CreateReceipt() {
     return form.receipt_items.reduce((total, item) => {
       const quantity = Number(item.quantity) || 0;
       const price = Number(item.price) || 0;
-      return total + (quantity * price);
+      return total + quantity * price;
     }, 0);
   };
 
@@ -154,13 +154,19 @@ function CreateReceipt() {
     } else {
       form.receipt_items.forEach((item, index) => {
         if (!item.item.trim()) {
-          newErrors[`item_${index}`] = `Item ${index + 1} description is required.`;
+          newErrors[`item_${index}`] = `Item ${
+            index + 1
+          } description is required.`;
         }
         if (!item.quantity || Number(item.quantity) <= 0) {
-          newErrors[`quantity_${index}`] = `Item ${index + 1} quantity must be greater than 0.`;
+          newErrors[`quantity_${index}`] = `Item ${
+            index + 1
+          } quantity must be greater than 0.`;
         }
         if (!item.price || Number(item.price) <= 0) {
-          newErrors[`price_${index}`] = `Item ${index + 1} price must be greater than 0.`;
+          newErrors[`price_${index}`] = `Item ${
+            index + 1
+          } price must be greater than 0.`;
         }
       });
     }
@@ -206,7 +212,7 @@ function CreateReceipt() {
       // SUCCESS: Show custom modal
       setSavedReceiptId(form.receiptId);
       setShowSuccessModal(true);
-      
+
       return true;
     } catch (err) {
       console.error("Failed to send receipt:", err);
@@ -242,7 +248,7 @@ function CreateReceipt() {
   const handleDeduct = async (): Promise<boolean> => {
     return new Promise((resolve) => {
       const pinString = pin.join("");
-      
+
       fetch("/api/pay-app-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -289,11 +295,11 @@ function CreateReceipt() {
   // Function to process payment and submit receipt
   const processPaymentAndSubmit = async () => {
     setLoading(true);
-    
+
     try {
       // First process payment
       const paymentSuccess = await handleDeduct();
-      
+
       if (paymentSuccess) {
         // If payment successful, send receipt
         await handleSubmit();
@@ -309,7 +315,9 @@ function CreateReceipt() {
   // Function to show receipt summary first
   const handleGenerateReceipt = () => {
     if (!validateForm()) {
-      console.error("Validation Failed: Please correct the errors before generating the receipt.");
+      console.error(
+        "Validation Failed: Please correct the errors before generating the receipt."
+      );
       return;
     }
 
@@ -328,10 +336,12 @@ function CreateReceipt() {
     setPdfLoading(true);
     try {
       // Your PDF generation logic here
-      const response = await fetch(`/api/generate-receipt-pdf?receiptId=${savedReceiptId}`);
+      const response = await fetch(
+        `/api/generate-receipt-pdf?receiptId=${savedReceiptId}`
+      );
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
       a.download = `receipt-${savedReceiptId}.pdf`;
       document.body.appendChild(a);
@@ -375,8 +385,10 @@ function CreateReceipt() {
       <ReceiptSummary
         receiptData={form}
         totalAmount={calculateTotal()}
-        initiatorName={`${userData?.firstName || ''} ${userData?.lastName || ''}`}
-        initiatorEmail={userData?.email || ''}
+        initiatorName={`${userData?.firstName || ""} ${
+          userData?.lastName || ""
+        }`}
+        initiatorEmail={userData?.email || ""}
         amount={100}
         confirmReceipt={showReceiptSummary}
         onBack={() => setShowReceiptSummary(false)}

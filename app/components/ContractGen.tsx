@@ -4,10 +4,20 @@
 import { useEffect, useState } from "react";
 import { FileText, Download, Eye, Search } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/app/components/ui/card";
 import { Input } from "@/app/components/ui/input";
 import { Badge } from "@/app/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 import { ContractTemplateCard } from "@/app/components/ContractsTemplates";
 import { useRouter } from "next/navigation";
 import { CreateNewView } from "@/app/components/CreateNewView";
@@ -16,7 +26,7 @@ import ContractsPreview from "@/app/components/previews/ContractsPreview";
 import Swal from "sweetalert2";
 import Loader from "@/app/components/Loader";
 import ContractList from "@/app/components/ContractLIst";
-import { contractTemplates as allTemplates } from "../dashboard/services/simple-agreement/data/contractTemplates"; 
+import { contractTemplates as allTemplates } from "../dashboard/services/simple-agreement/data/contractTemplates";
 
 // Define local interface for the component
 interface ContractTemplateType {
@@ -28,13 +38,15 @@ interface ContractTemplateType {
 }
 
 // Use a subset of templates for the UI
-const contractTemplates: ContractTemplateType[] = allTemplates.slice(0, 6).map((template:any) => ({
-  id: template.id,
-  title: template.title,
-  description: template.description,
-  icon: template.icon,
-  category: template.category
-}));
+const contractTemplates: ContractTemplateType[] = allTemplates
+  .slice(0, 6)
+  .map((template: any) => ({
+    id: template.id,
+    title: template.title,
+    description: template.description,
+    icon: template.icon,
+    category: template.category,
+  }));
 
 export default function ContractGen() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -79,7 +91,9 @@ export default function ContractGen() {
   }, [userData]);
 
   const handleUseTemplate = (templateId: string) => {
-    router.push(`/dashboard/services/simple-agreement/contract-editor/${templateId}`);
+    router.push(
+      `/dashboard/services/simple-agreement/contract-editor/${templateId}`
+    );
   };
 
   const filteredContracts = contracts?.filter((contract) => {
@@ -89,7 +103,7 @@ export default function ContractGen() {
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     const matchesStatus =
-      selectedStatus === "All" || 
+      selectedStatus === "All" ||
       status.toLowerCase() === selectedStatus.toLowerCase();
     return matchesSearch && matchesStatus;
   });
@@ -97,7 +111,7 @@ export default function ContractGen() {
   const signedContracts = contracts.filter(
     (con) => con.status?.toLowerCase() === "signed"
   ).length;
-  
+
   const pendingContracts = contracts.filter(
     (con) => con.status?.toLowerCase() === "pending"
   ).length;
@@ -197,9 +211,9 @@ export default function ContractGen() {
             </CardContent>
           </Card>
 
-          <ContractList 
-            contracts={filteredContracts} 
-            loading={loading} 
+          <ContractList
+            contracts={filteredContracts}
+            loading={loading}
             // onRefresh={() => userData?.email && fetchContracts(userData.email)}
           />
         </TabsContent>
@@ -207,7 +221,9 @@ export default function ContractGen() {
         <TabsContent value="templates" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl font-bold">Contract Templates</CardTitle>
+              <CardTitle className="text-xl font-bold">
+                Contract Templates
+              </CardTitle>
               <p className="text-sm text-gray-600 mt-2">
                 Choose from our professionally designed contract templates
               </p>
@@ -222,7 +238,7 @@ export default function ContractGen() {
                   />
                 ))}
               </div>
-              
+
               {/* Show more templates button */}
               <div className="mt-8 text-center">
                 <Button
@@ -240,7 +256,9 @@ export default function ContractGen() {
         <TabsContent value="create" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-xl font-bold">Create New Contract</CardTitle>
+              <CardTitle className="text-xl font-bold">
+                Create New Contract
+              </CardTitle>
               <p className="text-sm text-gray-600">
                 Select a template to start creating your contract
               </p>

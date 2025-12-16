@@ -20,15 +20,12 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function UserTicketsPage() {
   const { user } = useUserContextData();
-  console.log(user)
+  console.log(user);
   const {
     data: tickets,
     error,
     isLoading,
-  } = useSWR(
-    user ? `/api/support/tickets?user_id=${user?.id}` : null,
-    fetcher
-  );
+  } = useSWR(user ? `/api/support/tickets?user_id=${user?.id}` : null, fetcher);
 
   const renderStatusBadge = (status: string) => {
     const statusConfig: any = {
@@ -166,7 +163,9 @@ export default function UserTicketsPage() {
                 <div className="text-center py-8">
                   <p className="text-gray-500">No tickets found.</p>
                   <Link href="/support/create-ticket">
-                    <Button className="mt-4 bg-[#C29307]">Create Your First Ticket</Button>
+                    <Button className="mt-4 bg-[#C29307]">
+                      Create Your First Ticket
+                    </Button>
                   </Link>
                 </div>
               )}

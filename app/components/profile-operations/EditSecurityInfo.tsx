@@ -24,8 +24,6 @@ interface SecuritySettings {
   loginAlerts: boolean;
 }
 
-
-
 const initialSecurity: SecuritySettings = {
   twoFactorEnabled: true,
   emailNotifications: true,
@@ -33,98 +31,91 @@ const initialSecurity: SecuritySettings = {
   loginAlerts: true,
 };
 
-
-
 function EditSecurityInfo() {
+  const [security, setSecurity] = useState<SecuritySettings>(initialSecurity);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const { userData } = useUserContextData();
 
-    
-      const [security, setSecurity] = useState<SecuritySettings>(initialSecurity);
-      const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-      const [showNewPassword, setShowNewPassword] = useState(false);
-      const [loading, setLoading] = useState(false);
-      const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-      const [currentPassword, setCurrentPassword] = useState("");
-      const [newPassword, setNewPassword] = useState("");
-      const [confirmPassword, setConfirmPassword] = useState("");
-    const {userData} = useUserContextData()
-    
-    
-      const handleSecurityChange = (
-        field: keyof SecuritySettings,
-        value: boolean
-      ) => {
-        setSecurity((prev) => ({ ...prev, [field]: value }));
-      };
-   const changeUserPassword = async () => {
-  if (!currentPassword || !newPassword || !confirmPassword) {
-    return Swal.fire({
-      icon: "warning",
-      title: "Please fill in all password fields",
-    });
-  }
-
-  if (newPassword !== confirmPassword) {
-    return Swal.fire({
-      icon: "error",
-      title: "New password and confirmation do not match",
-    });
-  }
-setLoading(true)
-  try {
-   
-  
-    if (!userData?.email) {
+  const handleSecurityChange = (
+    field: keyof SecuritySettings,
+    value: boolean
+  ) => {
+    setSecurity((prev) => ({ ...prev, [field]: value }));
+  };
+  const changeUserPassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
       return Swal.fire({
-        icon: "error",
-        title: "User not authenticated",
+        icon: "warning",
+        title: "Please fill in all password fields",
       });
     }
 
-    // ✅ Re-authenticate the user with their current password
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: userData?.email,
-      password: currentPassword,
-    });
-
-    if (signInError) {
+    if (newPassword !== confirmPassword) {
       return Swal.fire({
         icon: "error",
-        title: "Current password is incorrect",
+        title: "New password and confirmation do not match",
       });
     }
+    setLoading(true);
+    try {
+      if (!userData?.email) {
+        return Swal.fire({
+          icon: "error",
+          title: "User not authenticated",
+        });
+      }
 
-    // ✅ Update the password
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
+      // ✅ Re-authenticate the user with their current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userData?.email,
+        password: currentPassword,
+      });
 
-    if (updateError) {
-      return Swal.fire({
+      if (signInError) {
+        return Swal.fire({
+          icon: "error",
+          title: "Current password is incorrect",
+        });
+      }
+
+      // ✅ Update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        return Swal.fire({
+          icon: "error",
+          title: "Error updating password",
+          text: updateError.message,
+        });
+      }
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+
+      Swal.fire({
+        icon: "success",
+        title: "Password updated successfully",
+      });
+
+      setLoading(false);
+    } catch (err) {
+      setLoading(false);
+      Swal.fire({
         icon: "error",
-        title: "Error updating password",
-        text: updateError.message,
+        title: "Something went wrong",
+        text: (err as Error).message,
       });
     }
-
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-
-    Swal.fire({
-      icon: "success",
-      title: "Password updated successfully",
-    });
-
-    setLoading(false)
-  } catch (err) {
-     setLoading(false)
-    Swal.fire({
-      icon: "error",
-      title: "Something went wrong",
-      text: (err as Error).message,
-    });
-  }
-};
+  };
   return (
     <>
       <Card>
@@ -217,10 +208,13 @@ setLoading(true)
           </div>
 
           {/* Update Button */}
-          <Button disabled={loading} className="bg-[#C29307] hover:opacity-100 transition-smooth" onClick={changeUserPassword}>
-            
-             {loading ? "updating..." : "Update Password"}
-            </Button>
+          <Button
+            disabled={loading}
+            className="bg-[#C29307] hover:opacity-100 transition-smooth"
+            onClick={changeUserPassword}
+          >
+            {loading ? "updating..." : "Update Password"}
+          </Button>
         </CardContent>
       </Card>
 

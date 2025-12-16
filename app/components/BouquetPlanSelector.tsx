@@ -20,10 +20,7 @@ export default function BouquePlanSelector({
     return (
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          <Card
-            key={i}
-            className="border-gray-200 animate-pulse rounded-xl"
-          >
+          <Card key={i} className="border-gray-200 animate-pulse rounded-xl">
             <CardHeader>
               <div className="h-6 bg-gray-200 rounded w-1/2 mx-auto"></div>
             </CardHeader>

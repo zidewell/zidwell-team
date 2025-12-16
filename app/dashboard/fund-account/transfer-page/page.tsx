@@ -30,7 +30,7 @@ export default function page() {
 
               <div>
                 <h1 className="md:text-3xl text-2xl font-bold mb-2 text-gray-900">
-                  Transfer From Balance 
+                  Transfer From Balance
                 </h1>
                 <p className="text-muted-foreground text-sm md:text-base">
                   Transfer money from your wallet directly into your bank

@@ -5,7 +5,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { CreditCard, Banknote } from "lucide-react";
-import { useToast } from "@/app/hooks/use-toast"; 
+import { useToast } from "@/app/hooks/use-toast";
 import { PayWithTransferModal } from "./PayWithTransferModal";
 
 // Types
@@ -33,7 +33,7 @@ const validateEmail = (email: string): boolean => {
 
 const validatePhone = (phone: string): boolean => {
   const phoneRegex = /^[0-9]{10,15}$/;
-  return phoneRegex.test(phone.replace(/\D/g, ''));
+  return phoneRegex.test(phone.replace(/\D/g, ""));
 };
 
 const validatePayerInfo = (payerInfo: PayerInfo): string | null => {
@@ -52,37 +52,39 @@ const validatePayerInfo = (payerInfo: PayerInfo): string | null => {
   return null;
 };
 
-export default function PaymentForm({ 
-  invoiceId, 
+export default function PaymentForm({
+  invoiceId,
   amount,
   initiatorAccountName,
   initiatorAccountNumber,
   initiatorBankName,
-   status,
-  allow_multiple_payments = false
+  status,
+  allow_multiple_payments = false,
 }: PaymentFormProps) {
   const [payerInfo, setPayerInfo] = useState<PayerInfo>({
     fullName: "",
     email: "",
-    phone: ""
+    phone: "",
   });
   const [isGeneratingPayment, setIsGeneratingPayment] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"card" | "transfer" | null>(null);
-  
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
+    "card" | "transfer" | null
+  >(null);
+
   const { toast } = useToast();
 
   const handlePayerInfoChange = (field: keyof PayerInfo, value: string) => {
-    setPayerInfo(prev => ({
+    setPayerInfo((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
   const handlePaymentMethodSelect = (method: "card" | "transfer") => {
     const validationError = validatePayerInfo(payerInfo);
-    
+
     if (validationError) {
       toast({
         title: "Validation Error",
@@ -91,9 +93,9 @@ export default function PaymentForm({
       });
       return;
     }
-    
+
     setSelectedPaymentMethod(method);
-    
+
     if (method === "transfer") {
       setShowTransferModal(true);
     } else {
@@ -105,10 +107,10 @@ export default function PaymentForm({
     setIsGeneratingPayment(true);
 
     try {
-      const response = await fetch('/api/generate-payment-link', {
-        method: 'POST',
+      const response = await fetch("/api/generate-payment-link", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           invoiceId: invoiceId,
@@ -124,7 +126,7 @@ export default function PaymentForm({
       }
 
       const data = await response.json();
-      
+
       if (data.success && data.paymentUrl) {
         toast({
           title: "Redirecting to Payment",
@@ -138,15 +140,17 @@ export default function PaymentForm({
       } else {
         toast({
           title: "Payment Error",
-          description: data.error || 'Failed to generate payment link. Please try again.',
+          description:
+            data.error || "Failed to generate payment link. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error('Payment generation error:', error);
+      console.error("Payment generation error:", error);
       toast({
         title: "Connection Error",
-        description: "An error occurred. Please check your connection and try again.",
+        description:
+          "An error occurred. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
@@ -159,7 +163,9 @@ export default function PaymentForm({
       {/* Payer Information Form */}
       {showPaymentForm && (
         <div className="mb-6 p-6 bg-muted/30 rounded-lg border">
-          <h3 className="font-semibold text-foreground mb-4">Your Information</h3>
+          <h3 className="font-semibold text-foreground mb-4">
+            Your Information
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name *</Label>
@@ -168,7 +174,9 @@ export default function PaymentForm({
                 type="text"
                 placeholder="Enter your full name"
                 value={payerInfo.fullName}
-                onChange={(e) => handlePayerInfoChange('fullName', e.target.value)}
+                onChange={(e) =>
+                  handlePayerInfoChange("fullName", e.target.value)
+                }
                 required
               />
             </div>
@@ -179,7 +187,7 @@ export default function PaymentForm({
                 type="email"
                 placeholder="Enter your email"
                 value={payerInfo.email}
-                onChange={(e) => handlePayerInfoChange('email', e.target.value)}
+                onChange={(e) => handlePayerInfoChange("email", e.target.value)}
                 required
               />
             </div>
@@ -190,7 +198,7 @@ export default function PaymentForm({
                 type="tel"
                 placeholder="Enter your phone number"
                 value={payerInfo.phone}
-                onChange={(e) => handlePayerInfoChange('phone', e.target.value)}
+                onChange={(e) => handlePayerInfoChange("phone", e.target.value)}
                 required
               />
             </div>
@@ -198,7 +206,9 @@ export default function PaymentForm({
 
           {/* Payment Method Selection */}
           <div className="mt-6">
-            <h3 className="font-semibold text-foreground mb-4">Select Payment Method</h3>
+            <h3 className="font-semibold text-foreground mb-4">
+              Select Payment Method
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Button
                 type="button"
@@ -210,7 +220,9 @@ export default function PaymentForm({
                 <CreditCard className="h-8 w-8" />
                 <div className="text-center">
                   <div className="font-semibold">Pay with Card</div>
-                  <div className="text-xs text-muted-foreground">Visa, Mastercard, etc.</div>
+                  <div className="text-xs text-muted-foreground">
+                    Visa, Mastercard, etc.
+                  </div>
                 </div>
               </Button>
 
@@ -224,17 +236,16 @@ export default function PaymentForm({
                 <Banknote className="h-8 w-8" />
                 <div className="text-center">
                   <div className="font-semibold">Bank Transfer</div>
-                  <div className="text-xs text-muted-foreground">Direct bank transfer</div>
+                  <div className="text-xs text-muted-foreground">
+                    Direct bank transfer
+                  </div>
                 </div>
               </Button>
             </div>
           </div>
 
           <div className="flex gap-3 mt-6">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowPaymentForm(false)}
-            >
+            <Button variant="outline" onClick={() => setShowPaymentForm(false)}>
               Cancel
             </Button>
           </div>
@@ -254,19 +265,21 @@ export default function PaymentForm({
       />
 
       {/* Pay Now Button */}
-     {!showPaymentForm && (
-  <div className="mb-6">
-    <Button 
-      size="lg" 
-      className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
-      onClick={() => setShowPaymentForm(true)}
-      disabled={status === "paid" && allow_multiple_payments === false}
-    >
-      <CreditCard className="h-5 w-5 mr-2" />
-      {status === "paid" && allow_multiple_payments === false ? "Payment Completed" : "Pay Now"}
-    </Button>
-  </div>
-)}
+      {!showPaymentForm && (
+        <div className="mb-6">
+          <Button
+            size="lg"
+            className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
+            onClick={() => setShowPaymentForm(true)}
+            disabled={status === "paid" && allow_multiple_payments === false}
+          >
+            <CreditCard className="h-5 w-5 mr-2" />
+            {status === "paid" && allow_multiple_payments === false
+              ? "Payment Completed"
+              : "Pay Now"}
+          </Button>
+        </div>
+      )}
     </>
   );
 }

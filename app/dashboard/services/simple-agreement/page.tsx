@@ -38,17 +38,18 @@ export default function page() {
                 </p>
               </div>
             </div>
-           {typeof window !== 'undefined' && window.location.hostname.includes("zidwell.com") ? (
-  <Image
-    src={"/coming-soon.png"}
-    alt="coming soon"
-    className="w-full object-contain"
-    width={500}
-    height={500}
-  />
-) : (
-  <ContractGen />
-)}
+            {typeof window !== "undefined" &&
+            window.location.hostname.includes("zidwell.com") ? (
+              <Image
+                src={"/coming-soon.png"}
+                alt="coming soon"
+                className="w-full object-contain"
+                width={500}
+                height={500}
+              />
+            ) : (
+              <ContractGen />
+            )}
           </div>
         </main>
       </div>

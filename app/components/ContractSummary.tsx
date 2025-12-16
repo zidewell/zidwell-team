@@ -35,9 +35,10 @@ export default function ContractSummary({
   dateCreated = new Date().toLocaleDateString(),
 }: ContractSummaryProps) {
   // Truncate contract content for preview
-  const truncatedContent = contractContent.length > 200 
-    ? contractContent.substring(0, 200) + "..."
-    : contractContent;
+  const truncatedContent =
+    contractContent.length > 200
+      ? contractContent.substring(0, 200) + "..."
+      : contractContent;
 
   return (
     <AnimatePresence>
@@ -61,16 +62,18 @@ export default function ContractSummary({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-2xl w-full mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-             
               {/* Header */}
               <div className="flex flex-col items-center border-b pb-4">
-                <div className="text-gray-500 text-sm">Contract Generation Fee</div>
+                <div className="text-gray-500 text-sm">
+                  Contract Generation Fee
+                </div>
                 <div className="text-3xl font-bold text-gray-900">
-                  ₦{typeof amount === 'number' ? amount.toLocaleString() : amount}
+                  ₦
+                  {typeof amount === "number"
+                    ? amount.toLocaleString()
+                    : amount}
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
-                  {contractType}
-                </div>
+                <div className="text-sm text-gray-600 mt-1">{contractType}</div>
               </div>
 
               {/* CONTRACT DETAILS Section */}
@@ -81,15 +84,19 @@ export default function ContractSummary({
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Contract Title</span>
-                    <span className="text-gray-900 font-medium text-right">{contractTitle}</span>
+                    <span className="text-gray-900 font-medium text-right">
+                      {contractTitle}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Status</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      status === 'draft' 
-                        ? 'bg-yellow-100 text-yellow-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        status === "draft"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-blue-100 text-blue-800"
+                      }`}
+                    >
                       {status.charAt(0).toUpperCase() + status.slice(1)}
                     </span>
                   </div>
@@ -110,7 +117,9 @@ export default function ContractSummary({
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                     <div>
                       <span className="text-gray-500 block text-xs">Name</span>
-                      <span className="text-gray-900 font-medium">{initiatorName}</span>
+                      <span className="text-gray-900 font-medium">
+                        {initiatorName}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
@@ -127,7 +136,9 @@ export default function ContractSummary({
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                     <div>
                       <span className="text-gray-500 block text-xs">Name</span>
-                      <span className="text-gray-900 font-medium">{signeeName || "Not specified"}</span>
+                      <span className="text-gray-900 font-medium">
+                        {signeeName || "Not specified"}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
@@ -148,7 +159,9 @@ export default function ContractSummary({
                   </pre>
                 </div>
                 <div className="text-xs text-gray-500 mt-1 text-center">
-                  {contractContent.length > 200 ? "Content truncated - full contract will be sent" : "Full contract content"}
+                  {contractContent.length > 200
+                    ? "Content truncated - full contract will be sent"
+                    : "Full contract content"}
                 </div>
               </div>
 
@@ -171,10 +184,16 @@ export default function ContractSummary({
                 <div className="space-y-1">
                   <p className="font-medium">Important Information</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>This contract will be sent to the signee for electronic signature</li>
+                    <li>
+                      This contract will be sent to the signee for electronic
+                      signature
+                    </li>
                     <li>Once sent, the contract cannot be edited</li>
                     <li>You will be notified when the contract is signed</li>
-                    <li>The ₦{amount} fee covers contract generation and management</li>
+                    <li>
+                      The ₦{amount} fee covers contract generation and
+                      management
+                    </li>
                   </ul>
                 </div>
               </div>

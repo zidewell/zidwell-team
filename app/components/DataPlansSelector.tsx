@@ -74,8 +74,10 @@ export default function DataPlanSelector({
   const filteredPlans = plans.filter((plan) => {
     const desc = plan.plan.toLowerCase();
     if (activeTab === "Daily") return desc.includes("day");
-    if (activeTab === "Weekly") return desc.includes("7day") || desc.includes("week");
-    if (activeTab === "Monthly") return desc.includes("30day") || desc.includes("month");
+    if (activeTab === "Weekly")
+      return desc.includes("7day") || desc.includes("week");
+    if (activeTab === "Monthly")
+      return desc.includes("30day") || desc.includes("month");
     if (activeTab === "2Months") return desc.includes("2month");
     return false;
   });

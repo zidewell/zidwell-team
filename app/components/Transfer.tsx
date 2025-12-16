@@ -29,7 +29,7 @@ import {
 } from "./ui/select";
 import PinPopOver from "./PinPopOver";
 import TransactionSummary from "./TransactionSummary";
-import confetti from 'canvas-confetti';
+import confetti from "canvas-confetti";
 
 interface Bank {
   name: string;
@@ -96,7 +96,7 @@ export default function Transfer() {
       particleCount: 150,
       spread: 70,
       origin: { y: 0.6 },
-      colors: ['#C29307', '#ffd700', '#ffed4e', '#ffffff', '#fbbf24'],
+      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
 
     // Side bursts
@@ -106,14 +106,14 @@ export default function Transfer() {
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ['#C29307', '#ffd700', '#ffed4e'],
+        colors: ["#C29307", "#ffd700", "#ffed4e"],
       });
       confetti({
         particleCount: 80,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ['#C29307', '#ffd700', '#ffed4e'],
+        colors: ["#C29307", "#ffd700", "#ffed4e"],
       });
     }, 150);
 
@@ -123,7 +123,7 @@ export default function Transfer() {
         particleCount: 100,
         spread: 100,
         origin: { y: 0.8 },
-        colors: ['#C29307', '#ffd700', '#ffed4e'],
+        colors: ["#C29307", "#ffd700", "#ffed4e"],
       });
     }, 300);
   };
@@ -424,7 +424,7 @@ export default function Transfer() {
           confirmButtonColor: "#C29307",
           timer: 5000,
           timerProgressBar: true,
-          background: '#fefefe',
+          background: "#fefefe",
           didOpen: () => {
             // Additional confetti when the modal opens
             setTimeout(() => {
@@ -432,18 +432,17 @@ export default function Transfer() {
                 particleCount: 50,
                 spread: 60,
                 origin: { y: 0.3 },
-                colors: ['#C29307', '#ffd700']
+                colors: ["#C29307", "#ffd700"],
               });
             }, 100);
-          }
+          },
         }).then((result) => {
-     
-        if (result.isConfirmed) {
-          window.location.reload();
-        }
+          if (result.isConfirmed) {
+            window.location.reload();
+          }
 
-         window.location.reload();
-      });
+          window.location.reload();
+        });
 
         // Reset form
         setAmount("");
@@ -457,7 +456,6 @@ export default function Transfer() {
         setErrors({});
         setSaveAccount(false);
         setSelectedSavedAccount(null);
-        
       } else {
         Swal.fire({
           icon: "error",
@@ -673,171 +671,171 @@ export default function Transfer() {
               </>
             )}
 
-           {/* Other Bank */}
-{transferType === "other-bank" && (
-  <>
-    {/* Saved Accounts Dropdown */}
-    {savedAccounts.length > 0 && (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">
-            Saved Accounts
-          </Label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSavedAccounts(!showSavedAccounts)}
-            className="flex items-center gap-1"
-          >
-            <Bookmark className="h-4 w-4" />
-            {showSavedAccounts ? "Hide" : "Show"} Saved
-          </Button>
-        </div>
+            {/* Other Bank */}
+            {transferType === "other-bank" && (
+              <>
+                {/* Saved Accounts Dropdown */}
+                {savedAccounts.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">
+                        Saved Accounts
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSavedAccounts(!showSavedAccounts)}
+                        className="flex items-center gap-1"
+                      >
+                        <Bookmark className="h-4 w-4" />
+                        {showSavedAccounts ? "Hide" : "Show"} Saved
+                      </Button>
+                    </div>
 
-        {showSavedAccounts && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
-            {savedAccounts.map((account) => (
-              <div
-                key={account.id}
-                onClick={() => handleSelectSavedAccount(account)}
-                className={`p-2 rounded cursor-pointer transition-colors ${
-                  selectedSavedAccount?.id === account.id
-                    ? "bg-blue-100 border border-blue-300"
-                    : "bg-white hover:bg-gray-50 border"
-                }`}
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900 text-sm">
-                      {account.account_name}
-                    </p>
-                    <p className="text-xs text-gray-600">
-                      {account.account_number} • {account.bank_name}
-                    </p>
+                    {showSavedAccounts && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                        {savedAccounts.map((account) => (
+                          <div
+                            key={account.id}
+                            onClick={() => handleSelectSavedAccount(account)}
+                            className={`p-2 rounded cursor-pointer transition-colors ${
+                              selectedSavedAccount?.id === account.id
+                                ? "bg-blue-100 border border-blue-300"
+                                : "bg-white hover:bg-gray-50 border"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-900 text-sm">
+                                  {account.account_name}
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                  {account.account_number} • {account.bank_name}
+                                </p>
+                              </div>
+                              {account.is_default && (
+                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {account.is_default && (
-                    <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2">
-                      Default
-                    </span>
+                )}
+
+                <div className="space-y-1">
+                  <Label>Select Bank Name</Label>
+
+                  <Popover open={open} onOpenChange={setOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className="w-full flex justify-between items-center border rounded px-3 py-2 text-sm"
+                        aria-expanded={open}
+                      >
+                        {bankName || "Search bank..."}
+                        <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                      </button>
+                    </PopoverTrigger>
+
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search bank..."
+                          value={search}
+                          onValueChange={setSearch}
+                          autoFocus
+                        />
+                        <CommandList>
+                          <CommandEmpty>No bank found.</CommandEmpty>
+                          <CommandGroup>
+                            {filteredBanks.map((bank) => (
+                              <CommandItem
+                                key={bank.code}
+                                onSelect={() => handleSelectBank(bank)}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    bankCode === bank.code
+                                      ? "opacity-100"
+                                      : "opacity-0"
+                                  )}
+                                />
+                                {bank.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+
+                  {errors.otherBank && (
+                    <p className="text-red-600 text-sm">{errors.otherBank}</p>
                   )}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    )}
 
-    <div className="space-y-1">
-      <Label>Select Bank Name</Label>
+                <div className="space-y-1">
+                  <Label>Account Number</Label>
+                  <Input
+                    type="number"
+                    maxLength={10}
+                    value={accountNumber}
+                    onChange={handleAccountNumberChange}
+                    placeholder="10-digit account number"
+                  />
+                  {errors.accountNumber && (
+                    <p className="text-red-600 text-sm">
+                      {errors.accountNumber}
+                    </p>
+                  )}
+                </div>
 
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="w-full flex justify-between items-center border rounded px-3 py-2 text-sm"
-            aria-expanded={open}
-          >
-            {bankName || "Search bank..."}
-            <ChevronsUpDown className="h-4 w-4 opacity-50" />
-          </button>
-        </PopoverTrigger>
+                {lookupLoading && (
+                  <p className="text-[#C29307] text-sm flex items-center gap-2">
+                    <Loader2 className="animate-spin" /> Verifying account...
+                  </p>
+                )}
+                {accountName && !errors.accountNumber && (
+                  <div className="space-y-2">
+                    <p className="text-green-600 text-sm font-semibold">
+                      Account Name: {accountName}
+                    </p>
 
-        <PopoverContent className="w-full p-0">
-          <Command>
-            <CommandInput
-              placeholder="Search bank..."
-              value={search}
-              onValueChange={setSearch}
-              autoFocus
-            />
-            <CommandList>
-              <CommandEmpty>No bank found.</CommandEmpty>
-              <CommandGroup>
-                {filteredBanks.map((bank) => (
-                  <CommandItem
-                    key={bank.code}
-                    onSelect={() => handleSelectBank(bank)}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        bankCode === bank.code
-                          ? "opacity-100"
-                          : "opacity-0"
-                      )}
-                    />
-                    {bank.name}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-
-      {errors.otherBank && (
-        <p className="text-red-600 text-sm">{errors.otherBank}</p>
-      )}
-    </div>
-
-    <div className="space-y-1">
-      <Label>Account Number</Label>
-      <Input
-        type="number"
-        maxLength={10}
-        value={accountNumber}
-        onChange={handleAccountNumberChange}
-        placeholder="10-digit account number"
-      />
-      {errors.accountNumber && (
-        <p className="text-red-600 text-sm">
-          {errors.accountNumber}
-        </p>
-      )}
-    </div>
-
-    {lookupLoading && (
-      <p className="text-[#C29307] text-sm flex items-center gap-2">
-        <Loader2 className="animate-spin" /> Verifying account...
-      </p>
-    )}
-    {accountName && !errors.accountNumber && (
-      <div className="space-y-2">
-        <p className="text-green-600 text-sm font-semibold">
-          Account Name: {accountName}
-        </p>
-
-        {/* Save Account Toggle - Only show when user manually enters account number (not from saved accounts) */}
-        {!selectedSavedAccount && 
-         accountNumber.length === 10 && 
-         accountName && (
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-            <span className="text-sm font-medium text-gray-700">
-              Save to beneficiaries
-            </span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={saveAccount}
-                onChange={(e) => setSaveAccount(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div
-                className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
+                    {/* Save Account Toggle - Only show when user manually enters account number (not from saved accounts) */}
+                    {!selectedSavedAccount &&
+                      accountNumber.length === 10 &&
+                      accountName && (
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                          <span className="text-sm font-medium text-gray-700">
+                            Save to beneficiaries
+                          </span>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={saveAccount}
+                              onChange={(e) => setSaveAccount(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div
+                              className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
                 peer-checked:after:translate-x-full peer-checked:after:border-white 
                 after:content-[''] after:absolute after:top-0.5 after:left-0.5 
                 after:bg-white after:border-gray-300 after:border after:rounded-full 
                 after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C29307]"
-              ></div>
-            </label>
-          </div>
-        )}
-      </div>
-    )}
-  </>
-)}
+                            ></div>
+                          </label>
+                        </div>
+                      )}
+                  </div>
+                )}
+              </>
+            )}
 
             {/* P2P */}
             {transferType === "p2p" && (

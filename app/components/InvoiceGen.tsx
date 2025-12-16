@@ -33,7 +33,13 @@ export interface Invoice {
   client_phone?: string;
   bill_to?: string;
   issue_date: string;
-  status: "draft" | "unpaid" | "paid" | "overdue" | "cancelled" | "partially_paid";
+  status:
+    | "draft"
+    | "unpaid"
+    | "paid"
+    | "overdue"
+    | "cancelled"
+    | "partially_paid";
   payment_type: "single" | "multiple";
   fee_option: "absorbed" | "customer";
   unit: number;
@@ -58,7 +64,7 @@ export default function InvoiceGen() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("all"); 
+  const [selectedStatus, setSelectedStatus] = useState("all");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("invoices");
   const { userData } = useUserContextData();
@@ -126,7 +132,7 @@ export default function InvoiceGen() {
   const paidInvoice = invoices.filter(
     (inv) => inv.status?.toLowerCase() === "paid"
   ).length;
-  
+
   const unpaidInvoice = invoices.filter(
     (inv) => inv.status?.toLowerCase() === "unpaid"
   ).length;
@@ -147,9 +153,11 @@ export default function InvoiceGen() {
     const status = item.status?.toLowerCase().trim() || "";
 
     const statusMatch =
-      selectedStatus === "all" ? true : 
-      selectedStatus === "partially paid" ? status === "partially_paid" :
-      status === selectedStatus.toLowerCase();
+      selectedStatus === "all"
+        ? true
+        : selectedStatus === "partially paid"
+        ? status === "partially_paid"
+        : status === selectedStatus.toLowerCase();
 
     const searchMatch =
       searchTerm === "" ||
@@ -169,20 +177,19 @@ export default function InvoiceGen() {
     }
   };
 
-    const [pageLoading, setPageLoading] = useState(true);
-  
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        setPageLoading(false);
-      }, 2500);
-  
-      return () => clearTimeout(timer);
-    }, []);
-  
-    if (pageLoading) {
-      return <Loader />;
-    }
-  
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPageLoading(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return <Loader />;
+  }
 
   if (loading && invoices.length === 0) {
     return <Loader />;
@@ -211,7 +218,8 @@ export default function InvoiceGen() {
                   ₦{totalReceivedAmount.toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  (Paid: ₦{paidAmount.toLocaleString()} + Partial: ₦{partiallyPaidAmount.toLocaleString()})
+                  (Paid: ₦{paidAmount.toLocaleString()} + Partial: ₦
+                  {partiallyPaidAmount.toLocaleString()})
                 </p>
               </div>
             </CardContent>
@@ -260,11 +268,13 @@ export default function InvoiceGen() {
             <Card className="border-red-200 bg-red-50">
               <CardContent className="p-4">
                 <p className="text-red-700 text-sm">{error}</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="mt-2"
-                  onClick={() => userData?.email && fetchInvoice(userData.email)}
+                  onClick={() =>
+                    userData?.email && fetchInvoice(userData.email)
+                  }
                 >
                   Retry
                 </Button>
@@ -298,13 +308,22 @@ export default function InvoiceGen() {
                           <Button
                             key={status}
                             variant={
-                              selectedStatus === (status === "Partially Paid" ? "partially paid" : lowercase)
+                              selectedStatus ===
+                              (status === "Partially Paid"
+                                ? "partially paid"
+                                : lowercase)
                                 ? "default"
                                 : "outline"
                             }
                             size="sm"
                             className="hover:bg-[#C29307] hover:text-white border hover:shadow-xl transition-all duration-300"
-                            onClick={() => setSelectedStatus(status === "Partially Paid" ? "partially paid" : lowercase)}
+                            onClick={() =>
+                              setSelectedStatus(
+                                status === "Partially Paid"
+                                  ? "partially paid"
+                                  : lowercase
+                              )
+                            }
                           >
                             {status}
                           </Button>
@@ -326,7 +345,10 @@ export default function InvoiceGen() {
                       {isMenuOpen && (
                         <div className="absolute right-0 top-full z-10 bg-white shadow-md rounded-lg mt-2 p-2 border border-gray-200 w-48">
                           {statusOptions.map((status) => {
-                            const displayStatus = status === "Partially Paid" ? "partially paid" : status.toLowerCase();
+                            const displayStatus =
+                              status === "Partially Paid"
+                                ? "partially paid"
+                                : status.toLowerCase();
                             return (
                               <button
                                 key={status}
@@ -354,7 +376,9 @@ export default function InvoiceGen() {
                 <div className="w-full sm:w-auto">
                   <Button
                     className="w-full sm:w-auto hover:bg-black bg-[#C29307] hover:shadow-xl transition-all duration-300"
-                    onClick={() => router.push("/dashboard/services/create-invoice/create")}
+                    onClick={() =>
+                      router.push("/dashboard/services/create-invoice/create")
+                    }
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     New Invoice

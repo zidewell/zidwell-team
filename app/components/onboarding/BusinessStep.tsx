@@ -153,8 +153,6 @@ export const BusinessStep = ({
           </div>
         </div>
 
-       
-
         {/* Registration Number */}
         <div className="space-y-2">
           <Label htmlFor="registrationNumber">Registration Number</Label>
@@ -205,22 +203,22 @@ export const BusinessStep = ({
         </div> */}
       </div>
 
-       {/* Business Description */}
-        <div className="space-y-2">
-          <Label htmlFor="businessDescription">Business Description</Label>
-          <div className="relative">
-            <FileText className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Textarea
-              id="businessDescription"
-              placeholder="Briefly describe your business"
-              className="pl-10"
-              value={data.businessDescription}
-              onChange={(e) =>
-                handleInputChange("businessDescription", e.target.value)
-              }
-            />
-          </div>
+      {/* Business Description */}
+      <div className="space-y-2">
+        <Label htmlFor="businessDescription">Business Description</Label>
+        <div className="relative">
+          <FileText className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Textarea
+            id="businessDescription"
+            placeholder="Briefly describe your business"
+            className="pl-10"
+            value={data.businessDescription}
+            onChange={(e) =>
+              handleInputChange("businessDescription", e.target.value)
+            }
+          />
         </div>
+      </div>
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-6">
@@ -246,7 +244,7 @@ export const BusinessStep = ({
           {isFormComplete && (
             <Button
               onClick={onNext}
-             className="bg-[#C29307] hover:opacity-100 transition-smooth"
+              className="bg-[#C29307] hover:opacity-100 transition-smooth"
             >
               Continue
               <ArrowRight className="w-4 h-4" />

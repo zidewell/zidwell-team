@@ -29,16 +29,16 @@ export default function SubscriptionManagement() {
 
   const fetchSubscription = async () => {
     if (!userData?.id) return;
-    
+
     try {
       const response = await fetch(`/api/subscriptions/user/${userData.id}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setSubscription(data.subscription);
       }
     } catch (error) {
-      console.error('Error fetching subscription:', error);
+      console.error("Error fetching subscription:", error);
     } finally {
       setLoading(false);
     }
@@ -46,58 +46,62 @@ export default function SubscriptionManagement() {
 
   const handleCancelSubscription = async () => {
     const result = await Swal.fire({
-      title: 'Cancel Auto-Renewal?',
-      text: 'Your subscription will remain active until the end of the billing period, but will not automatically renew.',
-      icon: 'warning',
+      title: "Cancel Auto-Renewal?",
+      text: "Your subscription will remain active until the end of the billing period, but will not automatically renew.",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Yes, cancel it!',
-      cancelButtonText: 'Keep Auto-Renewal'
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, cancel it!",
+      cancelButtonText: "Keep Auto-Renewal",
     });
 
     if (result.isConfirmed) {
       try {
-        const response = await fetch('/api/subscriptions/cancel-auto-renew', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/subscriptions/cancel-auto-renew", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             userId: userData?.id,
-            subscriptionId: subscription?.id
+            subscriptionId: subscription?.id,
           }),
         });
 
         const data = await response.json();
 
         if (data.success) {
-          setSubscription(prev => prev ? { ...prev, auto_renew: false } : null);
-          Swal.fire('Cancelled!', 'Auto-renewal has been disabled.', 'success');
+          setSubscription((prev) =>
+            prev ? { ...prev, auto_renew: false } : null
+          );
+          Swal.fire("Cancelled!", "Auto-renewal has been disabled.", "success");
         }
       } catch (error) {
-        Swal.fire('Error!', 'Failed to cancel auto-renewal.', 'error');
+        Swal.fire("Error!", "Failed to cancel auto-renewal.", "error");
       }
     }
   };
 
   const handleRenewSubscription = async () => {
     try {
-      const response = await fetch('/api/subscriptions/enable-auto-renew', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/subscriptions/enable-auto-renew", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
-          subscriptionId: subscription?.id
+          subscriptionId: subscription?.id,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setSubscription(prev => prev ? { ...prev, auto_renew: true } : null);
-        Swal.fire('Success!', 'Auto-renewal has been enabled.', 'success');
+        setSubscription((prev) =>
+          prev ? { ...prev, auto_renew: true } : null
+        );
+        Swal.fire("Success!", "Auto-renewal has been enabled.", "success");
       }
     } catch (error) {
-      Swal.fire('Error!', 'Failed to enable auto-renewal.', 'error');
+      Swal.fire("Error!", "Failed to enable auto-renewal.", "error");
     }
   };
 
@@ -113,9 +117,11 @@ export default function SubscriptionManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-600 mb-4">You don't have an active subscription.</p>
-          <Button 
-            onClick={() => window.location.href = '/pricing'}
+          <p className="text-gray-600 mb-4">
+            You don't have an active subscription.
+          </p>
+          <Button
+            onClick={() => (window.location.href = "/pricing")}
             className="bg-[#C29307] hover:bg-[#a67a05]"
           >
             View Plans
@@ -126,7 +132,7 @@ export default function SubscriptionManagement() {
   }
 
   const isExpired = new Date(subscription.expires_at) < new Date();
-  const isActive = subscription.status === 'active' && !isExpired;
+  const isActive = subscription.status === "active" && !isExpired;
 
   return (
     <Card>
@@ -139,26 +145,36 @@ export default function SubscriptionManagement() {
       <CardContent className="space-y-4">
         <div className="flex justify-between items-center">
           <div>
-            <h3 className="text-lg font-semibold">{subscription.plan_name} Plan</h3>
-            <p className="text-gray-600">₦{subscription.amount} every 30 days</p>
+            <h3 className="text-lg font-semibold">
+              {subscription.plan_name} Plan
+            </h3>
+            <p className="text-gray-600">
+              ₦{subscription.amount} every 30 days
+            </p>
           </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            isActive 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {isExpired ? 'Expired' : subscription.status}
+          <span
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isActive
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {isExpired ? "Expired" : subscription.status}
           </span>
         </div>
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-500" />
-            <span>Started: {new Date(subscription.starts_at).toLocaleDateString()}</span>
+            <span>
+              Started: {new Date(subscription.starts_at).toLocaleDateString()}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <Calendar className="w-4 h-4 text-gray-500" />
-            <span>Expires: {new Date(subscription.expires_at).toLocaleDateString()}</span>
+            <span>
+              Expires: {new Date(subscription.expires_at).toLocaleDateString()}
+            </span>
           </div>
         </div>
 
@@ -170,7 +186,9 @@ export default function SubscriptionManagement() {
                 <li key={index}>• {feature}</li>
               ))}
               {subscription.features.length > 3 && (
-                <li className="text-blue-600">+ {subscription.features.length - 3} more features</li>
+                <li className="text-blue-600">
+                  + {subscription.features.length - 3} more features
+                </li>
               )}
             </ul>
           </div>
@@ -178,20 +196,27 @@ export default function SubscriptionManagement() {
 
         <div className="flex gap-2 pt-4">
           {subscription.auto_renew ? (
-            <Button variant="outline" onClick={handleCancelSubscription} className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelSubscription}
+              className="flex items-center gap-2"
+            >
               <X className="w-4 h-4" />
               Cancel Auto-Renewal
             </Button>
           ) : (
-            <Button onClick={handleRenewSubscription} className="flex items-center gap-2">
+            <Button
+              onClick={handleRenewSubscription}
+              className="flex items-center gap-2"
+            >
               <RefreshCw className="w-4 h-4" />
               Enable Auto-Renewal
             </Button>
           )}
-          
-          <Button 
-            variant="outline" 
-            onClick={() => window.location.href = '/pricing'}
+
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = "/pricing")}
           >
             Change Plan
           </Button>
@@ -200,7 +225,8 @@ export default function SubscriptionManagement() {
         {isExpired && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
             <p className="text-yellow-800 text-sm">
-              Your subscription has expired. Renew to continue enjoying premium features.
+              Your subscription has expired. Renew to continue enjoying premium
+              features.
             </p>
           </div>
         )}

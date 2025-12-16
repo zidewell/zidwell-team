@@ -1,12 +1,24 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  Bold, Italic, Underline, List, ListOrdered, 
-  Heading1, Heading2, Heading3, Link, Image as ImageIcon,
-  AlignLeft, AlignCenter, AlignRight, Undo, Redo,
-  Type
-} from 'lucide-react';
+import {
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  Heading1,
+  Heading2,
+  Heading3,
+  Link,
+  Image as ImageIcon,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Undo,
+  Redo,
+  Type,
+} from "lucide-react";
 
 interface RichTextEditorProps {
   value: string;
@@ -14,7 +26,9 @@ interface RichTextEditorProps {
   placeholder?: string;
   className?: string;
   height?: number;
-  onImagesAdded?: (images: Array<{ file: File; placeholderId: string }>) => void;
+  onImagesAdded?: (
+    images: Array<{ file: File; placeholderId: string }>
+  ) => void;
 }
 
 const RichTextEditor: React.FC<RichTextEditorProps> = ({
@@ -26,14 +40,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   onImagesAdded,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [history, setHistory] = useState<string[]>([value || `<p>${placeholder}</p>`]);
+  const [history, setHistory] = useState<string[]>([
+    value || `<p>${placeholder}</p>`,
+  ]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [pendingImages, setPendingImages] = useState<Array<{ file: File; placeholderId: string }>>([]);
+  const [pendingImages, setPendingImages] = useState<
+    Array<{ file: File; placeholderId: string }>
+  >([]);
 
   // Initialize editor with content
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
-      if (value && value.trim() !== '') {
+      if (value && value.trim() !== "") {
         editorRef.current.innerHTML = value;
       } else {
         editorRef.current.innerHTML = `<p>${placeholder}</p>`;
@@ -51,24 +69,28 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const handleInput = () => {
     if (!editorRef.current) return;
-    
+
     const content = editorRef.current.innerHTML;
-    
+
     if (content !== history[historyIndex]) {
       saveToHistory(content);
     }
-    
+
     onChange(content);
   };
 
-  const execCommand = (command: string, value: string = '', showUI: boolean = false) => {
+  const execCommand = (
+    command: string,
+    value: string = "",
+    showUI: boolean = false
+  ) => {
     if (!editorRef.current) return;
-    
+
     editorRef.current.focus();
-    
+
     const selection = window.getSelection();
     if (!selection?.rangeCount) {
-      document.execCommand('insertParagraph');
+      document.execCommand("insertParagraph");
       const newSelection = window.getSelection();
       if (newSelection?.rangeCount) {
         document.execCommand(command, showUI, value);
@@ -86,15 +108,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
+      reader.onerror = (error) => reject(error);
     });
   };
 
   // Image upload handler
   const handleImageUpload = () => {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/*');
+    const input = document.createElement("input");
+    input.setAttribute("type", "file");
+    input.setAttribute("accept", "image/*");
     input.click();
 
     input.onchange = async () => {
@@ -102,7 +124,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       if (!file || !editorRef.current) return;
 
       // Validate file type
-      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const validTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
       if (!validTypes.includes(file.type)) {
         alert(`Invalid file type. Supported: JPEG, PNG, GIF, WebP`);
         return;
@@ -111,22 +139,28 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
       // Validate file size (max 5MB)
       const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
-        alert(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum is 5MB.`);
+        alert(
+          `File too large: ${(file.size / 1024 / 1024).toFixed(
+            1
+          )}MB. Maximum is 5MB.`
+        );
         return;
       }
 
       try {
         // Create a unique placeholder ID
-        const placeholderId = `img_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-        
+        const placeholderId = `img_${Date.now()}_${Math.random()
+          .toString(36)
+          .substring(7)}`;
+
         // Convert image to base64 for preview
         const base64 = await fileToBase64(file);
-        
+
         console.log("Inserting image with placeholder:", placeholderId);
-        
+
         // Insert base64 image as a temporary placeholder
         execCommand(
-          'insertHTML', 
+          "insertHTML",
           `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #C29307;opacity:0.8;" />`
         );
 
@@ -134,7 +168,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         const newImage = { file, placeholderId };
         const updatedPendingImages = [...pendingImages, newImage];
         setPendingImages(updatedPendingImages);
-        
+
         // Notify parent component about new images
         if (onImagesAdded) {
           onImagesAdded(updatedPendingImages);
@@ -144,12 +178,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           filename: file.name,
           size: file.size,
           type: file.type,
-          placeholderId
+          placeholderId,
         });
-
       } catch (error) {
-        console.error('Image processing error:', error);
-        alert('Failed to process image. Please try again.');
+        console.error("Image processing error:", error);
+        alert("Failed to process image. Please try again.");
       }
     };
   };
@@ -157,20 +190,27 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Function to replace placeholder with actual URL after upload
   const replaceImagePlaceholder = (placeholderId: string, finalUrl: string) => {
     if (!editorRef.current) return;
-    
+
     const editor = editorRef.current;
-    const img = editor.querySelector(`img[data-placeholder-id="${placeholderId}"]`) as HTMLImageElement;
-    
+    const img = editor.querySelector(
+      `img[data-placeholder-id="${placeholderId}"]`
+    ) as HTMLImageElement;
+
     if (img) {
-      img.setAttribute('src', finalUrl);
-      img.removeAttribute('data-placeholder-id');
+      img.setAttribute("src", finalUrl);
+      img.removeAttribute("data-placeholder-id");
       // Use setAttribute for style to ensure it works
-      img.setAttribute('style', 'max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:1px solid #e5e7eb;opacity:1;');
-      
+      img.setAttribute(
+        "style",
+        "max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:1px solid #e5e7eb;opacity:1;"
+      );
+
       // Remove from pending images
-      const updatedPendingImages = pendingImages.filter(img => img.placeholderId !== placeholderId);
+      const updatedPendingImages = pendingImages.filter(
+        (img) => img.placeholderId !== placeholderId
+      );
       setPendingImages(updatedPendingImages);
-      
+
       // Update the editor content
       handleInput();
     }
@@ -179,19 +219,19 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Function to clear all pending images (on cancel)
   const clearPendingImages = () => {
     if (!editorRef.current) return;
-    
+
     const editor = editorRef.current;
-    const placeholders = editor.querySelectorAll('img[data-placeholder-id]');
-    placeholders.forEach(img => img.remove());
-    
+    const placeholders = editor.querySelectorAll("img[data-placeholder-id]");
+    placeholders.forEach((img) => img.remove());
+
     setPendingImages([]);
     handleInput();
   };
 
   const insertLink = () => {
-    const url = prompt('Enter URL:');
+    const url = prompt("Enter URL:");
     if (url) {
-      execCommand('createLink', url);
+      execCommand("createLink", url);
     }
   };
 
@@ -218,27 +258,27 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   };
 
   const formatBlock = (tag: string) => {
-    execCommand('formatBlock', tag);
+    execCommand("formatBlock", tag);
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    
+
     // Check if clipboard contains files/images
     const items = e.clipboardData.items;
     let hasImage = false;
-    
+
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
+      if (items[i].type.indexOf("image") !== -1) {
         const file = items[i].getAsFile();
         if (file) {
           // Handle image paste by creating a file input
-          const input = document.createElement('input');
-          input.setAttribute('type', 'file');
+          const input = document.createElement("input");
+          input.setAttribute("type", "file");
           const dataTransfer = new DataTransfer();
           dataTransfer.items.add(file);
           input.files = dataTransfer.files;
-          
+
           // Trigger image upload
           handleImageUpload();
           hasImage = true;
@@ -246,46 +286,49 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
       }
     }
-    
+
     if (!hasImage) {
       // Get plain text from clipboard
-      const text = e.clipboardData.getData('text/plain');
-      document.execCommand('insertText', false, text);
+      const text = e.clipboardData.getData("text/plain");
+      document.execCommand("insertText", false, text);
       handleInput();
     }
   };
 
   const clearFormatting = () => {
     if (!editorRef.current) return;
-    
+
     editorRef.current.focus();
     const selection = window.getSelection();
     if (!selection?.rangeCount) return;
-    
+
     const range = selection.getRangeAt(0);
     const content = range.extractContents();
-    const textNode = document.createTextNode(content.textContent || '');
-    
+    const textNode = document.createTextNode(content.textContent || "");
+
     range.deleteContents();
     range.insertNode(textNode);
-    
+
     selection.removeAllRanges();
     const newRange = document.createRange();
     newRange.selectNode(textNode);
     newRange.collapse(false);
     selection.addRange(newRange);
-    
+
     handleInput();
   };
 
   const handleFocus = () => {
-    if (editorRef.current && editorRef.current.innerHTML === `<p>${placeholder}</p>`) {
-      editorRef.current.innerHTML = '';
+    if (
+      editorRef.current &&
+      editorRef.current.innerHTML === `<p>${placeholder}</p>`
+    ) {
+      editorRef.current.innerHTML = "";
     }
   };
 
   const handleBlur = () => {
-    if (editorRef.current && editorRef.current.innerHTML.trim() === '') {
+    if (editorRef.current && editorRef.current.innerHTML.trim() === "") {
       editorRef.current.innerHTML = `<p>${placeholder}</p>`;
     }
   };
@@ -297,7 +340,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         {/* Headings */}
         <button
           type="button"
-          onClick={() => formatBlock('h1')}
+          onClick={() => formatBlock("h1")}
           className="p-2 rounded hover:bg-gray-200"
           title="Heading 1"
         >
@@ -305,7 +348,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => formatBlock('h2')}
+          onClick={() => formatBlock("h2")}
           className="p-2 rounded hover:bg-gray-200"
           title="Heading 2"
         >
@@ -313,7 +356,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => formatBlock('h3')}
+          onClick={() => formatBlock("h3")}
           className="p-2 rounded hover:bg-gray-200"
           title="Heading 3"
         >
@@ -325,7 +368,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         {/* Text formatting */}
         <button
           type="button"
-          onClick={() => execCommand('bold')}
+          onClick={() => execCommand("bold")}
           className="p-2 rounded hover:bg-gray-200"
           title="Bold"
         >
@@ -333,7 +376,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => execCommand('italic')}
+          onClick={() => execCommand("italic")}
           className="p-2 rounded hover:bg-gray-200"
           title="Italic"
         >
@@ -341,7 +384,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => execCommand('underline')}
+          onClick={() => execCommand("underline")}
           className="p-2 rounded hover:bg-gray-200"
           title="Underline"
         >
@@ -353,7 +396,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         {/* Lists */}
         <button
           type="button"
-          onClick={() => execCommand('insertUnorderedList')}
+          onClick={() => execCommand("insertUnorderedList")}
           className="p-2 rounded hover:bg-gray-200"
           title="Bullet List"
         >
@@ -361,7 +404,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => execCommand('insertOrderedList')}
+          onClick={() => execCommand("insertOrderedList")}
           className="p-2 rounded hover:bg-gray-200"
           title="Numbered List"
         >
@@ -373,7 +416,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         {/* Alignment */}
         <button
           type="button"
-          onClick={() => execCommand('justifyLeft')}
+          onClick={() => execCommand("justifyLeft")}
           className="p-2 rounded hover:bg-gray-200"
           title="Align Left"
         >
@@ -381,7 +424,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => execCommand('justifyCenter')}
+          onClick={() => execCommand("justifyCenter")}
           className="p-2 rounded hover:bg-gray-200"
           title="Align Center"
         >
@@ -389,7 +432,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => execCommand('justifyRight')}
+          onClick={() => execCommand("justifyRight")}
           className="p-2 rounded hover:bg-gray-200"
           title="Align Right"
         >
@@ -461,19 +504,20 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         onFocus={handleFocus}
         onBlur={handleBlur}
         className="w-full p-4 border border-t-0 border-gray-300 rounded-b-lg focus:outline-none focus:ring-1 focus:ring-[#C29307] focus:border-[#C29307] overflow-y-auto bg-white"
-        style={{ 
+        style={{
           height: `${height - 50}px`,
-          minHeight: '200px'
+          minHeight: "200px",
         }}
         suppressContentEditableWarning
       />
-      
+
       {/* Pending images info */}
       {pendingImages.length > 0 && (
         <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
           <div className="flex items-center justify-between">
             <span>
-              ⚠️ {pendingImages.length} image{pendingImages.length > 1 ? 's' : ''} pending upload
+              ⚠️ {pendingImages.length} image
+              {pendingImages.length > 1 ? "s" : ""} pending upload
             </span>
             <button
               type="button"
@@ -483,10 +527,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               Clear all
             </button>
           </div>
-          <p className="text-xs mt-1">Images will be uploaded when you submit the notification.</p>
+          <p className="text-xs mt-1">
+            Images will be uploaded when you submit the notification.
+          </p>
         </div>
       )}
-      
+
       <style jsx global>{`
         /* Editor styles */
         .rich-text-editor [contenteditable] {
@@ -535,7 +581,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
 
         .rich-text-editor [contenteditable] a {
-          color: #C29307;
+          color: #c29307;
           text-decoration: none;
         }
 
@@ -552,12 +598,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         }
 
         .rich-text-editor [contenteditable] img[data-placeholder-id] {
-          border: 2px dashed #C29307;
+          border: 2px dashed #c29307;
           opacity: 0.8;
         }
 
         .rich-text-editor [contenteditable] blockquote {
-          border-left: 3px solid #C29307;
+          border-left: 3px solid #c29307;
           margin: 1rem 0;
           padding-left: 1rem;
           font-style: italic;

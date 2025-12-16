@@ -73,11 +73,12 @@ export const KYCStep = ({
           Please verify your BVN and set a secure 4-digit PIN to unlock all
           features and complete your onboarding.
         </p>
-        
+
         {/* ✅ ADDED CBN REGULATIONS TEXT HERE */}
         <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-xs text-amber-800 text-center">
-            <strong>CBN Regulation:</strong> BVN verification is required before we can issue your virtual account number.
+            <strong>CBN Regulation:</strong> BVN verification is required before
+            we can issue your virtual account number.
           </p>
         </div>
       </div>
@@ -85,7 +86,9 @@ export const KYCStep = ({
       {/* BVN Field */}
       <div className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="documentNumber">Bank Verification Number (BVN) *</Label>
+          <Label htmlFor="documentNumber">
+            Bank Verification Number (BVN) *
+          </Label>
           <Input
             id="documentNumber"
             inputMode="numeric"
@@ -95,7 +98,9 @@ export const KYCStep = ({
             placeholder="Enter your 11-digit BVN"
             className="w-full border p-3 mb-4 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-[#C29307]"
             value={data.documentNumber}
-            onChange={(e) => handleInputChange("documentNumber", e.target.value)}
+            onChange={(e) =>
+              handleInputChange("documentNumber", e.target.value)
+            }
           />
         </div>
 
@@ -111,7 +116,9 @@ export const KYCStep = ({
             placeholder="Enter 4-digit PIN"
             className="w-full border p-3 mb-4 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-[#C29307]"
             value={data.transactionPin}
-            onChange={(e) => handleInputChange("transactionPin", e.target.value)}
+            onChange={(e) =>
+              handleInputChange("transactionPin", e.target.value)
+            }
           />
         </div>
       </div>
@@ -138,7 +145,8 @@ export const KYCStep = ({
       </div>
 
       <p className="text-xs text-gray-500 mt-4">
-        🔐 Your BVN and PIN are encrypted and securely stored. We never share your data with third parties.
+        🔐 Your BVN and PIN are encrypted and securely stored. We never share
+        your data with third parties.
       </p>
     </form>
   );

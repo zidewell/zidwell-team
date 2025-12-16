@@ -66,7 +66,9 @@ const TRANSACTIONS_PER_PAGE = 10;
 
 export default function TransactionHistory() {
   const [filter, setFilter] = useState("All transactions");
-  const [downloadingReceipts, setDownloadingReceipts] = useState<Set<string>>(new Set());
+  const [downloadingReceipts, setDownloadingReceipts] = useState<Set<string>>(
+    new Set()
+  );
   const [pageLoading, setPageLoading] = useState(true);
   const [durationFilter, setDurationFilter] = useState("all"); // Changed to "all" by default
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({
@@ -75,25 +77,30 @@ export default function TransactionHistory() {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [visibleTransactions, setVisibleTransactions] = useState(TRANSACTIONS_PER_PAGE);
+  const [visibleTransactions, setVisibleTransactions] = useState(
+    TRANSACTIONS_PER_PAGE
+  );
   const [downloadingStatement, setDownloadingStatement] = useState(false);
-  const [statementDateRange, setStatementDateRange] = useState<{ from: string; to: string }>({
+  const [statementDateRange, setStatementDateRange] = useState<{
+    from: string;
+    to: string;
+  }>({
     from: "",
     to: "",
   });
   const [showStatementModal, setShowStatementModal] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  
+
   const router = useRouter();
 
-  const { 
-    userData, 
-    loading, 
-    transactions, 
-    searchTerm, 
-    setSearchTerm, 
+  const {
+    userData,
+    loading,
+    transactions,
+    searchTerm,
+    setSearchTerm,
     fetchMoreTransactions,
-    setTransactions 
+    setTransactions,
   } = useUserContextData();
 
   // DEBUG: Add logging to see what's happening
@@ -114,107 +121,112 @@ export default function TransactionHistory() {
     return () => clearTimeout(timer);
   }, []);
 
-  const applyDurationFilter = useCallback((txs: any[]) => {
-    // console.log("Applying duration filter:", durationFilter, "to", txs.length, "transactions");
-    
-    if (durationFilter === "all") return txs;
-    
-    const now = new Date();
-    let startDate: Date;
-    
-    switch (durationFilter) {
-      case "today":
-        startDate = new Date(now.setHours(0, 0, 0, 0));
-        break;
-      case "yesterday":
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 1);
-        startDate.setHours(0, 0, 0, 0);
-        const yesterdayEnd = new Date(startDate);
-        yesterdayEnd.setHours(23, 59, 59, 999);
-        return txs.filter(tx => {
-          const txDate = new Date(tx.created_at);
-          return txDate >= startDate && txDate <= yesterdayEnd;
-        });
-      case "week":
-        startDate = new Date(now.setDate(now.getDate() - 7));
-        break;
-      case "last_week":
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 14);
-        const lastWeekEnd = new Date(now);
-        lastWeekEnd.setDate(lastWeekEnd.getDate() - 7);
-        lastWeekEnd.setHours(23, 59, 59, 999);
-        return txs.filter(tx => {
-          const txDate = new Date(tx.created_at);
-          return txDate >= startDate && txDate <= lastWeekEnd;
-        });
-      case "month":
-        startDate = new Date(now.setMonth(now.getMonth() - 1));
-        break;
-      case "last_month":
-        startDate = new Date(now);
-        startDate.setMonth(startDate.getMonth() - 2);
-        const lastMonthEnd = new Date(now);
-        lastMonthEnd.setMonth(lastMonthEnd.getMonth() - 1);
-        lastMonthEnd.setDate(0);
-        lastMonthEnd.setHours(23, 59, 59, 999);
-        return txs.filter(tx => {
-          const txDate = new Date(tx.created_at);
-          return txDate >= startDate && txDate <= lastMonthEnd;
-        });
-      case "3months":
-        startDate = new Date(now.setMonth(now.getMonth() - 3));
-        break;
-      case "6months":
-        startDate = new Date(now.setMonth(now.getMonth() - 6));
-        break;
-      case "year":
-        startDate = new Date(now.setFullYear(now.getFullYear() - 1));
-        break;
-      case "custom":
-        if (dateRange.from && dateRange.to) {
-          const from = new Date(dateRange.from);
-          from.setHours(0, 0, 0, 0);
-          const to = new Date(dateRange.to);
-          to.setHours(23, 59, 59, 999);
-          return txs.filter(tx => {
+  const applyDurationFilter = useCallback(
+    (txs: any[]) => {
+      // console.log("Applying duration filter:", durationFilter, "to", txs.length, "transactions");
+
+      if (durationFilter === "all") return txs;
+
+      const now = new Date();
+      let startDate: Date;
+
+      switch (durationFilter) {
+        case "today":
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          break;
+        case "yesterday":
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 1);
+          startDate.setHours(0, 0, 0, 0);
+          const yesterdayEnd = new Date(startDate);
+          yesterdayEnd.setHours(23, 59, 59, 999);
+          return txs.filter((tx) => {
             const txDate = new Date(tx.created_at);
-            return txDate >= from && txDate <= to;
+            return txDate >= startDate && txDate <= yesterdayEnd;
           });
-        }
-        return txs;
-      default:
-        return txs;
-    }
-    
-    const filtered = txs.filter(tx => {
-      const txDate = new Date(tx.created_at);
-      return txDate >= startDate && txDate <= now;
-    });
-    
-    // console.log("Filtered to:", filtered.length, "transactions");
-    return filtered;
-  }, [durationFilter, dateRange]);
+        case "week":
+          startDate = new Date(now.setDate(now.getDate() - 7));
+          break;
+        case "last_week":
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 14);
+          const lastWeekEnd = new Date(now);
+          lastWeekEnd.setDate(lastWeekEnd.getDate() - 7);
+          lastWeekEnd.setHours(23, 59, 59, 999);
+          return txs.filter((tx) => {
+            const txDate = new Date(tx.created_at);
+            return txDate >= startDate && txDate <= lastWeekEnd;
+          });
+        case "month":
+          startDate = new Date(now.setMonth(now.getMonth() - 1));
+          break;
+        case "last_month":
+          startDate = new Date(now);
+          startDate.setMonth(startDate.getMonth() - 2);
+          const lastMonthEnd = new Date(now);
+          lastMonthEnd.setMonth(lastMonthEnd.getMonth() - 1);
+          lastMonthEnd.setDate(0);
+          lastMonthEnd.setHours(23, 59, 59, 999);
+          return txs.filter((tx) => {
+            const txDate = new Date(tx.created_at);
+            return txDate >= startDate && txDate <= lastMonthEnd;
+          });
+        case "3months":
+          startDate = new Date(now.setMonth(now.getMonth() - 3));
+          break;
+        case "6months":
+          startDate = new Date(now.setMonth(now.getMonth() - 6));
+          break;
+        case "year":
+          startDate = new Date(now.setFullYear(now.getFullYear() - 1));
+          break;
+        case "custom":
+          if (dateRange.from && dateRange.to) {
+            const from = new Date(dateRange.from);
+            from.setHours(0, 0, 0, 0);
+            const to = new Date(dateRange.to);
+            to.setHours(23, 59, 59, 999);
+            return txs.filter((tx) => {
+              const txDate = new Date(tx.created_at);
+              return txDate >= from && txDate <= to;
+            });
+          }
+          return txs;
+        default:
+          return txs;
+      }
+
+      const filtered = txs.filter((tx) => {
+        const txDate = new Date(tx.created_at);
+        return txDate >= startDate && txDate <= now;
+      });
+
+      // console.log("Filtered to:", filtered.length, "transactions");
+      return filtered;
+    },
+    [durationFilter, dateRange]
+  );
 
   // Apply status filter and search term
   const filteredTransactions = transactions.filter((tx) => {
     const matchesFilter =
       filter === "All transactions" ||
       tx.status?.toLowerCase() === filter.toLowerCase();
-    
-    const matchesSearch = searchTerm === "" || 
+
+    const matchesSearch =
+      searchTerm === "" ||
       tx.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       tx.amount?.toString().includes(searchTerm);
-    
+
     return matchesFilter && matchesSearch;
   });
 
   // Apply duration filter
-  const durationFilteredTransactions = applyDurationFilter(filteredTransactions);
-  
+  const durationFilteredTransactions =
+    applyDurationFilter(filteredTransactions);
+
   // // DEBUG: Log filtered results
   // useEffect(() => {
   //   console.log("Filtered transactions:", filteredTransactions.length);
@@ -222,19 +234,25 @@ export default function TransactionHistory() {
   // }, [filteredTransactions, durationFilteredTransactions]);
 
   // Get currently visible transactions (for Load More)
-  const visibleTransactionsList = durationFilteredTransactions.slice(0, visibleTransactions);
+  const visibleTransactionsList = durationFilteredTransactions.slice(
+    0,
+    visibleTransactions
+  );
 
   // Function to handle Load More
   const handleLoadMore = async () => {
     if (!hasMore) return;
-    
+
     setLoadingMore(true);
     try {
       await fetchMoreTransactions?.(TRANSACTIONS_PER_PAGE);
-      setVisibleTransactions(prev => prev + TRANSACTIONS_PER_PAGE);
-      
+      setVisibleTransactions((prev) => prev + TRANSACTIONS_PER_PAGE);
+
       // Check if we've reached the end
-      if (durationFilteredTransactions.length <= visibleTransactions + TRANSACTIONS_PER_PAGE) {
+      if (
+        durationFilteredTransactions.length <=
+        visibleTransactions + TRANSACTIONS_PER_PAGE
+      ) {
         setHasMore(false);
       }
     } catch (error) {
@@ -264,17 +282,17 @@ export default function TransactionHistory() {
     // Validate date range
     const fromDate = new Date(statementDateRange.from);
     const toDate = new Date(statementDateRange.to);
-    
+
     if (fromDate > toDate) {
       alert("From date cannot be later than To date");
       return;
     }
 
     setDownloadingStatement(true);
-    
+
     try {
       // Filter transactions for the selected date range
-      const filteredForStatement = durationFilteredTransactions.filter(tx => {
+      const filteredForStatement = durationFilteredTransactions.filter((tx) => {
         const txDate = new Date(tx.created_at);
         return txDate >= fromDate && txDate <= toDate;
       });
@@ -287,7 +305,8 @@ export default function TransactionHistory() {
         transactions: filteredForStatement,
         user: {
           id: userData?.id,
-          name: `${userData?.firstName} ${userData?.lastName}` || "Account Holder",
+          name:
+            `${userData?.firstName} ${userData?.lastName}` || "Account Holder",
           email: userData?.email,
         },
       };
@@ -296,18 +315,20 @@ export default function TransactionHistory() {
       // console.log('Transactions included:', filteredForStatement.length);
 
       // Call API to generate statement PDF
-      const response = await fetch('/api/generate-statement', {
-        method: 'POST',
+      const response = await fetch("/api/generate-statement", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(statementData),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('API Error:', errorText);
-        throw new Error(`Failed to generate statement: ${response.status} ${response.statusText}`);
+        console.error("API Error:", errorText);
+        throw new Error(
+          `Failed to generate statement: ${response.status} ${response.statusText}`
+        );
       }
 
       // Download PDF
@@ -315,12 +336,12 @@ export default function TransactionHistory() {
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
       a.href = url;
-      
+
       // Generate filename from dates
-      const fromDateStr = statementDateRange.from.replace(/-/g, '');
-      const toDateStr = statementDateRange.to.replace(/-/g, '');
+      const fromDateStr = statementDateRange.from.replace(/-/g, "");
+      const toDateStr = statementDateRange.to.replace(/-/g, "");
       a.download = `bank-statement-${fromDateStr}-${toDateStr}.pdf`;
-      
+
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -330,7 +351,8 @@ export default function TransactionHistory() {
 
       // Success notification
       const notification = document.createElement("div");
-      notification.className = "fixed top-4 right-4 bg-[#C29307] text-white px-4 py-2 rounded-lg shadow-lg z-50";
+      notification.className =
+        "fixed top-4 right-4 bg-[#C29307] text-white px-4 py-2 rounded-lg shadow-lg z-50";
       notification.innerHTML = `
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,14 +362,17 @@ export default function TransactionHistory() {
         </div>
       `;
       document.body.appendChild(notification);
-      
+
       setTimeout(() => {
         document.body.removeChild(notification);
       }, 3000);
-
     } catch (error: any) {
-      console.error('Error downloading statement:', error);
-      alert(`Error: ${error.message || "Failed to download statement. Please try again."}`);
+      console.error("Error downloading statement:", error);
+      alert(
+        `Error: ${
+          error.message || "Failed to download statement. Please try again."
+        }`
+      );
     } finally {
       setDownloadingStatement(false);
     }
@@ -380,9 +405,9 @@ export default function TransactionHistory() {
   // Function to handle downloading receipt
   const handleDownloadReceipt = async (transaction: any) => {
     const transactionId = transaction.id;
-    
+
     // Add to downloading set
-    setDownloadingReceipts(prev => new Set(prev).add(transactionId));
+    setDownloadingReceipts((prev) => new Set(prev).add(transactionId));
 
     const amountInfo = formatAmount(transaction);
     const narration = getNarration(transaction);
@@ -391,10 +416,11 @@ export default function TransactionHistory() {
     const senderInfo = transaction.external_response?.data?.customer;
     const receiverInfo = transaction.external_response?.data?.transaction;
     const merchantInfo = transaction.external_response?.data?.merchant;
-    
+
     // Determine if it's a withdrawal or deposit
     const isWithdrawal = transaction.type?.toLowerCase() === "withdrawal";
-    const isVirtualAccountDeposit = transaction.type?.toLowerCase() === "virtual_account_deposit";
+    const isVirtualAccountDeposit =
+      transaction.type?.toLowerCase() === "virtual_account_deposit";
 
     // For withdrawals: sender is the platform, receiver is the customer
     // For deposits: sender is the customer, receiver is the platform
@@ -406,14 +432,14 @@ export default function TransactionHistory() {
         name: senderInfo?.senderName || "DIGITAL/Lohloh Abbalolo",
         accountNumber: senderInfo?.accountNumber || "N/A",
         bankName: senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A"
+        bankCode: senderInfo?.bankCode || "N/A",
       };
-      
+
       receiverData = {
         name: senderInfo?.recipientName || "N/A",
-        accountNumber: senderInfo?.accountNumber || "N/A", 
+        accountNumber: senderInfo?.accountNumber || "N/A",
         bankName: senderInfo?.bankName || "N/A",
-        accountType: "External Account"
+        accountType: "External Account",
       };
     } else if (isVirtualAccountDeposit) {
       // Virtual Account Deposit: Customer sends money to platform
@@ -421,29 +447,39 @@ export default function TransactionHistory() {
         name: senderInfo?.senderName || "N/A",
         accountNumber: senderInfo?.accountNumber || "N/A",
         bankName: senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A"
+        bankCode: senderInfo?.bankCode || "N/A",
       };
-      
+
       receiverData = {
         name: receiverInfo?.aliasAccountName || "DIGITAL/Lohloh Abbalolo",
         accountNumber: receiverInfo?.aliasAccountNumber || "N/A",
         accountType: receiverInfo?.aliasAccountType || "VIRTUAL",
-        reference: receiverInfo?.aliasAccountReference || "N/A"
+        reference: receiverInfo?.aliasAccountReference || "N/A",
       };
     } else {
       // Other transaction types (fallback)
       senderData = {
         name: transaction?.sender?.name || senderInfo?.senderName || "N/A",
-        accountNumber: transaction?.sender?.accountNumber || senderInfo?.accountNumber || "N/A",
-        bankName: transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
-        bankCode: senderInfo?.bankCode || "N/A"
+        accountNumber:
+          transaction?.sender?.accountNumber ||
+          senderInfo?.accountNumber ||
+          "N/A",
+        bankName:
+          transaction?.sender?.bankName || senderInfo?.bankName || "N/A",
+        bankCode: senderInfo?.bankCode || "N/A",
       };
-      
+
       receiverData = {
-        name: transaction?.receiver?.name || receiverInfo?.aliasAccountName || "N/A",
-        accountNumber: transaction?.receiver?.accountNumber || receiverInfo?.aliasAccountNumber || "N/A",
+        name:
+          transaction?.receiver?.name ||
+          receiverInfo?.aliasAccountName ||
+          "N/A",
+        accountNumber:
+          transaction?.receiver?.accountNumber ||
+          receiverInfo?.aliasAccountNumber ||
+          "N/A",
         accountType: receiverInfo?.aliasAccountType || "N/A",
-        reference: receiverInfo?.aliasAccountReference || "N/A"
+        reference: receiverInfo?.aliasAccountReference || "N/A",
       };
     }
 
@@ -452,7 +488,9 @@ export default function TransactionHistory() {
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Transaction Receipt - ${transaction.reference || transaction.id}</title>
+    <title>Transaction Receipt - ${
+      transaction.reference || transaction.id
+    }</title>
     <style>
       body {
         font-family: Arial, sans-serif;
@@ -562,7 +600,9 @@ export default function TransactionHistory() {
           Reference: ${transaction.reference || transaction.id}
         </p>
         <p style="color:#9ca3af;margin:0;font-size:12px;">
-          ${new Date(transaction.created_at).toLocaleDateString()} • ${new Date(transaction.created_at).toLocaleTimeString()}
+          ${new Date(transaction.created_at).toLocaleDateString()} • ${new Date(
+      transaction.created_at
+    ).toLocaleTimeString()}
         </p>
       </div>
 
@@ -624,20 +664,25 @@ export default function TransactionHistory() {
             }">${transaction.status}</span>
           </div>
           ${
-            transaction.fee > 0 
+            transaction.fee > 0
               ? `<div class="detail-row">
                   <span class="detail-label">Transaction Fee</span>
-                  <span class="detail-value">₦${Number(transaction.fee).toLocaleString("en-NG", {
+                  <span class="detail-value">₦${Number(
+                    transaction.fee
+                  ).toLocaleString("en-NG", {
                     minimumFractionDigits: 2,
                   })}</span>
                 </div>`
               : ""
           }
           ${
-            transaction.total_deduction > 0 && transaction.total_deduction !== transaction.amount
+            transaction.total_deduction > 0 &&
+            transaction.total_deduction !== transaction.amount
               ? `<div class="detail-row">
                   <span class="detail-label">Total Deduction</span>
-                  <span class="detail-value">₦${Number(transaction.total_deduction).toLocaleString("en-NG", {
+                  <span class="detail-value">₦${Number(
+                    transaction.total_deduction
+                  ).toLocaleString("en-NG", {
                     minimumFractionDigits: 2,
                   })}</span>
                 </div>`
@@ -648,7 +693,9 @@ export default function TransactionHistory() {
 
       <!-- Sender Information -->
       <div class="section">
-        <div class="section-title">${isWithdrawal ? "From (Platform)" : "Sender Information"}</div>
+        <div class="section-title">${
+          isWithdrawal ? "From (Platform)" : "Sender Information"
+        }</div>
         <div class="details-card">
           <div class="detail-row">
             <span class="detail-label">Name</span>
@@ -679,10 +726,14 @@ export default function TransactionHistory() {
 
       <!-- Receiver Information -->
       <div class="section">
-        <div class="section-title">${isWithdrawal ? "To (Recipient)" : "Receiver Information"}</div>
+        <div class="section-title">${
+          isWithdrawal ? "To (Recipient)" : "Receiver Information"
+        }</div>
         <div class="details-card">
           <div class="detail-row">
-            <span class="detail-label">${isWithdrawal ? "Recipient Name" : "Account Name"}</span>
+            <span class="detail-label">${
+              isWithdrawal ? "Recipient Name" : "Account Name"
+            }</span>
             <span class="detail-value">${receiverData.name}</span>
           </div>
           <div class="detail-row">
@@ -721,21 +772,21 @@ export default function TransactionHistory() {
 
     try {
       // Call your PDF generation API
-      const response = await fetch('/api/generate-pdf', {
-        method: 'POST',
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ html: receiptHTML }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+        throw new Error("Failed to generate PDF");
       }
 
       // Convert the response to a blob
       const pdfBlob = await response.blob();
-      
+
       // Create download link for PDF
       const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
@@ -747,9 +798,8 @@ export default function TransactionHistory() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error("Error generating PDF:", error);
       // Fallback to HTML download if PDF generation fails
       const blob = new Blob([receiptHTML], { type: "text/html" });
       const url = URL.createObjectURL(blob);
@@ -762,11 +812,11 @@ export default function TransactionHistory() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      
-      alert('PDF generation failed. Downloading as HTML instead.');
+
+      alert("PDF generation failed. Downloading as HTML instead.");
     } finally {
       // Remove from downloading set
-      setDownloadingReceipts(prev => {
+      setDownloadingReceipts((prev) => {
         const newSet = new Set(prev);
         newSet.delete(transactionId);
         return newSet;
@@ -783,7 +833,9 @@ export default function TransactionHistory() {
       display: `₦${amount.toLocaleString("en-NG", {
         minimumFractionDigits: 2,
       })}`,
-      signedDisplay: `${isOutflowTransaction ? "-" : "+"}₦${amount.toLocaleString("en-NG", {
+      signedDisplay: `${
+        isOutflowTransaction ? "-" : "+"
+      }₦${amount.toLocaleString("en-NG", {
         minimumFractionDigits: 2,
       })}`,
       isOutflow: isOutflowTransaction,
@@ -803,14 +855,14 @@ export default function TransactionHistory() {
 
   // Get today's date in YYYY-MM-DD format
   const getToday = () => {
-    return new Date().toISOString().split('T')[0];
+    return new Date().toISOString().split("T")[0];
   };
 
   // Get date 30 days ago in YYYY-MM-DD format
   const getLastMonth = () => {
     const date = new Date();
     date.setDate(date.getDate() - 30);
-    return date.toISOString().split('T')[0];
+    return date.toISOString().split("T")[0];
   };
 
   // Format date for display
@@ -858,15 +910,15 @@ export default function TransactionHistory() {
                 <Filter className="w-4 h-4" />
                 <span className="hidden xs:inline">Filters</span>
               </Button>
-              
+
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowStatementModal(true);
                   // Set default statement range to last 30 days
-                  setStatementDateRange({ 
-                    from: getLastMonth(), 
-                    to: getToday() 
+                  setStatementDateRange({
+                    from: getLastMonth(),
+                    to: getToday(),
                   });
                 }}
                 className="flex items-center gap-2"
@@ -882,16 +934,20 @@ export default function TransactionHistory() {
         {showFilters && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-gray-900">Filter Transactions</h3>
+              <h3 className="font-semibold text-gray-900">
+                Filter Transactions
+              </h3>
               <Button variant="ghost" size="sm" onClick={handleResetFilters}>
                 Reset All
               </Button>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Status Filter */}
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700">Status</label>
+                <label className="text-sm font-medium mb-2 block text-gray-700">
+                  Status
+                </label>
                 <select
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
@@ -906,7 +962,9 @@ export default function TransactionHistory() {
 
               {/* Duration Filter */}
               <div>
-                <label className="text-sm font-medium mb-2 block text-gray-700">Time Period</label>
+                <label className="text-sm font-medium mb-2 block text-gray-700">
+                  Time Period
+                </label>
                 <select
                   value={durationFilter}
                   onChange={(e) => {
@@ -917,7 +975,7 @@ export default function TransactionHistory() {
                   }}
                   className="w-full border rounded-md px-3 py-2 text-gray-700 bg-white"
                 >
-                  {durationOptions.map(option => (
+                  {durationOptions.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
@@ -928,24 +986,34 @@ export default function TransactionHistory() {
               {/* Custom Date Range */}
               {durationFilter === "custom" && (
                 <div>
-                  <label className="text-sm font-medium mb-2 block text-gray-700">Custom Date Range</label>
+                  <label className="text-sm font-medium mb-2 block text-gray-700">
+                    Custom Date Range
+                  </label>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="flex-1">
-                      <label className="text-xs text-gray-500 mb-1 block">From</label>
+                      <label className="text-xs text-gray-500 mb-1 block">
+                        From
+                      </label>
                       <input
                         type="date"
                         value={dateRange.from}
-                        onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+                        onChange={(e) =>
+                          setDateRange({ ...dateRange, from: e.target.value })
+                        }
                         className="w-full border rounded-md px-3 py-2 text-gray-700 bg-white"
                         max={dateRange.to || getToday()}
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="text-xs text-gray-500 mb-1 block">To</label>
+                      <label className="text-xs text-gray-500 mb-1 block">
+                        To
+                      </label>
                       <input
                         type="date"
                         value={dateRange.to}
-                        onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+                        onChange={(e) =>
+                          setDateRange({ ...dateRange, to: e.target.value })
+                        }
                         className="w-full border rounded-md px-3 py-2 text-gray-700 bg-white"
                         min={dateRange.from}
                         max={getToday()}
@@ -963,11 +1031,18 @@ export default function TransactionHistory() {
                 {filter !== "All transactions" && ` with status: ${filter}`}
                 {durationFilter !== "all" && (
                   <span>
-                    {" "}for {durationOptions.find(opt => opt.value === durationFilter)?.label.toLowerCase()}
+                    {" "}
+                    for{" "}
+                    {durationOptions
+                      .find((opt) => opt.value === durationFilter)
+                      ?.label.toLowerCase()}
                   </span>
                 )}
                 {dateRange.from && dateRange.to && (
-                  <span>: {formatDateDisplay(dateRange.from)} to {formatDateDisplay(dateRange.to)}</span>
+                  <span>
+                    : {formatDateDisplay(dateRange.from)} to{" "}
+                    {formatDateDisplay(dateRange.to)}
+                  </span>
                 )}
               </p>
             </div>
@@ -999,12 +1074,11 @@ export default function TransactionHistory() {
           </div>
         ) : (
           <>
-          
             {/* Transaction List */}
             {visibleTransactionsList.map((tx) => {
               const amountInfo = formatAmount(tx);
               const isDownloading = isDownloadingReceipt(tx.id);
-              
+
               return (
                 <div
                   key={tx.id}
@@ -1050,8 +1124,8 @@ export default function TransactionHistory() {
                         <div className="flex items-center gap-2">
                           <div
                             className={`w-2 h-2 rounded-full ${
-                              statusConfig[tx.status?.toLowerCase()]?.dotColor ||
-                              "bg-gray-400"
+                              statusConfig[tx.status?.toLowerCase()]
+                                ?.dotColor || "bg-gray-400"
                             }`}
                           />
                           <span
@@ -1148,31 +1222,33 @@ export default function TransactionHistory() {
             })}
 
             {/* Load More Button */}
-            {visibleTransactions < durationFilteredTransactions.length && hasMore && (
-              <div className="text-center mt-6">
-                <Button
-                  variant="outline"
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  className="px-8"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    <>
-                      Load More
-                      <ChevronDown className="w-4 h-4 ml-2" />
-                    </>
-                  )}
-                </Button>
-                <p className="text-gray-500 text-sm mt-2">
-                  Showing {visibleTransactions} of {durationFilteredTransactions.length} transactions
-                </p>
-              </div>
-            )}
+            {visibleTransactions < durationFilteredTransactions.length &&
+              hasMore && (
+                <div className="text-center mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="px-8"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        Load More
+                        <ChevronDown className="w-4 h-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-gray-500 text-sm mt-2">
+                    Showing {visibleTransactions} of{" "}
+                    {durationFilteredTransactions.length} transactions
+                  </p>
+                </div>
+              )}
           </>
         )}
       </CardContent>
@@ -1183,7 +1259,9 @@ export default function TransactionHistory() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Download Bank Statement</h3>
+                <h3 className="text-xl font-bold text-gray-900">
+                  Download Bank Statement
+                </h3>
                 <button
                   onClick={() => setShowStatementModal(false)}
                   className="text-gray-400 hover:text-gray-500"
@@ -1194,21 +1272,26 @@ export default function TransactionHistory() {
 
               <div className="space-y-4">
                 <p className="text-gray-600 text-sm">
-                  Select a date range to download your transaction statement as PDF
+                  Select a date range to download your transaction statement as
+                  PDF
                 </p>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium mb-1 block text-gray-700">From Date</label>
+                    <label className="text-sm font-medium mb-1 block text-gray-700">
+                      From Date
+                    </label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="date"
                         value={statementDateRange.from}
-                        onChange={(e) => setStatementDateRange(prev => ({
-                          ...prev,
-                          from: e.target.value
-                        }))}
+                        onChange={(e) =>
+                          setStatementDateRange((prev) => ({
+                            ...prev,
+                            from: e.target.value,
+                          }))
+                        }
                         className="w-full border rounded-md px-3 py-2 pl-10 text-gray-700 bg-white"
                         max={statementDateRange.to || getToday()}
                       />
@@ -1216,16 +1299,20 @@ export default function TransactionHistory() {
                   </div>
 
                   <div>
-                    <label className="text-sm font-medium mb-1 block text-gray-700">To Date</label>
+                    <label className="text-sm font-medium mb-1 block text-gray-700">
+                      To Date
+                    </label>
                     <div className="relative">
                       <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input
                         type="date"
                         value={statementDateRange.to}
-                        onChange={(e) => setStatementDateRange(prev => ({
-                          ...prev,
-                          to: e.target.value
-                        }))}
+                        onChange={(e) =>
+                          setStatementDateRange((prev) => ({
+                            ...prev,
+                            to: e.target.value,
+                          }))
+                        }
                         className="w-full border rounded-md px-3 py-2 pl-10 text-gray-700 bg-white"
                         min={statementDateRange.from}
                         max={getToday()}
@@ -1243,7 +1330,7 @@ export default function TransactionHistory() {
                       const to = getToday();
                       const fromDate = new Date();
                       fromDate.setDate(fromDate.getDate() - 7);
-                      const from = fromDate.toISOString().split('T')[0];
+                      const from = fromDate.toISOString().split("T")[0];
                       setStatementDateRange({ from, to });
                     }}
                   >
@@ -1256,7 +1343,7 @@ export default function TransactionHistory() {
                       const to = getToday();
                       const fromDate = new Date();
                       fromDate.setDate(fromDate.getDate() - 30);
-                      const from = fromDate.toISOString().split('T')[0];
+                      const from = fromDate.toISOString().split("T")[0];
                       setStatementDateRange({ from, to });
                     }}
                   >
@@ -1269,7 +1356,7 @@ export default function TransactionHistory() {
                       const to = getToday();
                       const fromDate = new Date();
                       fromDate.setMonth(fromDate.getMonth() - 3);
-                      const from = fromDate.toISOString().split('T')[0];
+                      const from = fromDate.toISOString().split("T")[0];
                       setStatementDateRange({ from, to });
                     }}
                   >
@@ -1280,7 +1367,9 @@ export default function TransactionHistory() {
                 {statementDateRange.from && statementDateRange.to && (
                   <div className="p-3 bg-blue-50 rounded-md border border-blue-100">
                     <p className="text-sm text-blue-800">
-                      Selected range: {formatDateDisplay(statementDateRange.from)} to {formatDateDisplay(statementDateRange.to)}
+                      Selected range:{" "}
+                      {formatDateDisplay(statementDateRange.from)} to{" "}
+                      {formatDateDisplay(statementDateRange.to)}
                     </p>
                   </div>
                 )}
@@ -1288,7 +1377,11 @@ export default function TransactionHistory() {
                 <div className="pt-4 border-t">
                   <Button
                     onClick={handleDownloadStatement}
-                    disabled={!statementDateRange.from || !statementDateRange.to || downloadingStatement}
+                    disabled={
+                      !statementDateRange.from ||
+                      !statementDateRange.to ||
+                      downloadingStatement
+                    }
                     className="w-full bg-[#C29307] hover:bg-[#b28a06]"
                   >
                     {downloadingStatement ? (

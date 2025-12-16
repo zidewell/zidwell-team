@@ -19,7 +19,6 @@ export default function FundAccountMethods() {
   const [showCurrent, setShowCurrent] = useState(false);
   const { userData, balance, lifetimeBalance } = useUserContextData();
 
-
   const generateVirtualAccountNumber = async () => {
     if (!userData) return null;
     const payload = {
@@ -196,7 +195,9 @@ export default function FundAccountMethods() {
                   {copyText ? "Copied" : <CopyIcon className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-sm text-gray-500">{details?.bank_details.bank_name}</p>
+              <p className="text-sm text-gray-500">
+                {details?.bank_details.bank_name}
+              </p>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">

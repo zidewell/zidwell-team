@@ -130,10 +130,10 @@ export default function TaxFilingGen() {
                           <Button
                             key={status}
                             size="sm"
-                            variant="outline" 
+                            variant="outline"
                             className={`border transition-all duration-300 ${
                               isActive
-                                ? "bg-[#C29307] text-white hover:bg-[#b18205]" 
+                                ? "bg-[#C29307] text-white hover:bg-[#b18205]"
                                 : "hover:bg-[#C29307] hover:text-white"
                             }`}
                             onClick={() => setSelectedStatus(lowercase)}

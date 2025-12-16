@@ -62,7 +62,8 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Saved Drafts</h2>
             <p className="text-gray-600 text-sm mt-1">
-              You have {drafts.length} saved draft{drafts.length !== 1 ? "s" : ""}. Choose an action:
+              You have {drafts.length} saved draft
+              {drafts.length !== 1 ? "s" : ""}. Choose an action:
             </p>
           </div>
           <Button
@@ -139,7 +140,8 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
           {drafts.length > 3 && (
             <div className="text-center mb-6">
               <p className="text-gray-600">
-                ...and {drafts.length - 3} more draft{drafts.length - 3 !== 1 ? "s" : ""}
+                ...and {drafts.length - 3} more draft
+                {drafts.length - 3 !== 1 ? "s" : ""}
               </p>
               <Button
                 variant="link"
@@ -155,17 +157,15 @@ const DraftsModal: React.FC<DraftsModalProps> = ({
         {/* Footer */}
         <div className="sticky bottom-0 bg-white border-t p-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              variant="outline"
-              onClick={onStartFresh}
-              className="flex-1"
-            >
+            <Button variant="outline" onClick={onStartFresh} className="flex-1">
               Start Fresh
             </Button>
             {selectedDraftId && (
               <Button
                 onClick={() => {
-                  const selectedDraft = drafts.find(d => d.id === selectedDraftId);
+                  const selectedDraft = drafts.find(
+                    (d) => d.id === selectedDraftId
+                  );
                   if (selectedDraft) onLoadDraft(selectedDraft);
                 }}
                 className="flex-1 bg-[#C29307] hover:bg-[#b38606] text-white"

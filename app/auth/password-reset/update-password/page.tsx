@@ -13,7 +13,6 @@ const UpdatePassword = () => {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -70,9 +69,7 @@ const UpdatePassword = () => {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
-          {errors.password && (
-            <p className="text-red-500">{errors.password}</p>
-          )}
+          {errors.password && <p className="text-red-500">{errors.password}</p>}
           <Button
             className="bg-[#C29307] mt-4"
             type="submit"

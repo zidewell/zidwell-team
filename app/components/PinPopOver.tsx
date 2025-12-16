@@ -109,20 +109,25 @@ export default function PinPopOver({
 
               {/* Invoice Fee Information */}
               {invoiceFeeInfo && (
-                <div className={`mb-4 p-3 rounded-lg border ${
-                  invoiceFeeInfo.isFree 
-                    ? 'bg-green-50 border-green-200' 
-                    : 'bg-yellow-50 border-yellow-200'
-                }`}>
+                <div
+                  className={`mb-4 p-3 rounded-lg border ${
+                    invoiceFeeInfo.isFree
+                      ? "bg-green-50 border-green-200"
+                      : "bg-yellow-50 border-yellow-200"
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-semibold">
-                        {invoiceFeeInfo.isFree ? "🎉 Free Invoice" : "💰 Invoice Fee"}
+                        {invoiceFeeInfo.isFree
+                          ? "🎉 Free Invoice"
+                          : "💰 Invoice Fee"}
                       </p>
                       <p className="text-sm text-gray-600">
                         {invoiceFeeInfo.isFree ? (
                           <>
-                            Using free invoice ({invoiceFeeInfo.freeInvoicesLeft - 1} remaining)
+                            Using free invoice (
+                            {invoiceFeeInfo.freeInvoicesLeft - 1} remaining)
                           </>
                         ) : (
                           <>Fee: ₦{invoiceFeeInfo.feeAmount}</>
@@ -130,10 +135,14 @@ export default function PinPopOver({
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className={`text-xl font-bold ${
-                        invoiceFeeInfo.isFree ? 'text-green-600' : 'text-yellow-600'
-                      }`}>
-                        {invoiceFeeInfo.isFree ? 'FREE' : '₦100'}
+                      <p
+                        className={`text-xl font-bold ${
+                          invoiceFeeInfo.isFree
+                            ? "text-green-600"
+                            : "text-yellow-600"
+                        }`}
+                      >
+                        {invoiceFeeInfo.isFree ? "FREE" : "₦100"}
                       </p>
                       <p className="text-xs text-gray-500">
                         Total created: {invoiceFeeInfo.totalInvoicesCreated}
@@ -165,13 +174,13 @@ export default function PinPopOver({
                       ref={(el) => {
                         inputsRef.current[i] = el;
                       }}
-                      type="password" 
-                      inputMode="numeric" 
-                      pattern="[0-9]*" 
+                      type="password"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       maxLength={1}
                       value={digit}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/\D/g, ""); 
+                        const val = e.target.value.replace(/\D/g, "");
                         handleInput(i, val);
                       }}
                       onKeyDown={(e) => handleKeyDown(e, i)}
@@ -187,7 +196,9 @@ export default function PinPopOver({
                     type="submit"
                     className="hover:bg-[#C29307] w-full inline-flex justify-center whitespace-nowrap rounded-lg bg-[#C29307] px-3.5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring focus:ring-[#C29307] transition-colors duration-150"
                   >
-                    {invoiceFeeInfo?.isFree ? "Confirm Free Invoice" : "Confirm"}
+                    {invoiceFeeInfo?.isFree
+                      ? "Confirm Free Invoice"
+                      : "Confirm"}
                   </Button>
                 </div>
               </form>

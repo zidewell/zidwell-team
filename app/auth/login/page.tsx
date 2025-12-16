@@ -47,7 +47,7 @@ const LoginForm = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-      if (loading) return;
+    if (loading) return;
 
     setLoading(true);
 

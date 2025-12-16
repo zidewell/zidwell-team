@@ -62,12 +62,16 @@ export default function ReceiptSummary({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-2xl w-full mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-             
               {/* Header */}
               <div className="flex flex-col items-center border-b pb-4">
-                <div className="text-gray-500 text-sm">Receipt Generation Fee</div>
+                <div className="text-gray-500 text-sm">
+                  Receipt Generation Fee
+                </div>
                 <div className="text-3xl font-bold text-gray-900">
-                  ₦{typeof amount === 'number' ? amount.toLocaleString() : amount}
+                  ₦
+                  {typeof amount === "number"
+                    ? amount.toLocaleString()
+                    : amount}
                 </div>
                 <div className="text-sm text-gray-600 mt-1">
                   Professional Receipt
@@ -82,15 +86,21 @@ export default function ReceiptSummary({
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Receipt Number</span>
-                    <span className="text-gray-900 font-medium">{receiptData.receiptId}</span>
+                    <span className="text-gray-900 font-medium">
+                      {receiptData.receiptId}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Issue Date</span>
-                    <span className="text-gray-900">{receiptData.issue_date}</span>
+                    <span className="text-gray-900">
+                      {receiptData.issue_date}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Payment For</span>
-                    <span className="text-gray-900 text-right">{receiptData.payment_for}</span>
+                    <span className="text-gray-900 text-right">
+                      {receiptData.payment_for}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -105,7 +115,9 @@ export default function ReceiptSummary({
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                     <div>
                       <span className="text-gray-500 block text-xs">Name</span>
-                      <span className="text-gray-900 font-medium">{receiptData.from}</span>
+                      <span className="text-gray-900 font-medium">
+                        {receiptData.from}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
@@ -121,16 +133,24 @@ export default function ReceiptSummary({
                   </h3>
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                     <div>
-                      <span className="text-gray-500 block text-xs">Customer Name</span>
-                      <span className="text-gray-900 font-medium">{receiptData.name}</span>
+                      <span className="text-gray-500 block text-xs">
+                        Customer Name
+                      </span>
+                      <span className="text-gray-900 font-medium">
+                        {receiptData.name}
+                      </span>
                     </div>
                     <div>
                       <span className="text-gray-500 block text-xs">Email</span>
                       <span className="text-gray-900">{receiptData.email}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block text-xs">Bill To</span>
-                      <span className="text-gray-900">{receiptData.bill_to}</span>
+                      <span className="text-gray-500 block text-xs">
+                        Bill To
+                      </span>
+                      <span className="text-gray-900">
+                        {receiptData.bill_to}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -149,14 +169,19 @@ export default function ReceiptSummary({
                           {item.item} (Qty: {item.quantity})
                         </span>
                         <span className="text-gray-900 font-medium">
-                          ₦{(Number(item.quantity) * Number(item.price)).toLocaleString()}
+                          ₦
+                          {(
+                            Number(item.quantity) * Number(item.price)
+                          ).toLocaleString()}
                         </span>
                       </div>
                     ))}
                   </div>
                   <div className="border-t mt-3 pt-3 flex justify-between font-semibold">
                     <span className="text-gray-700">Total Amount</span>
-                    <span className="text-gray-900">₦{totalAmount.toLocaleString()}</span>
+                    <span className="text-gray-900">
+                      ₦{totalAmount.toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -194,7 +219,9 @@ export default function ReceiptSummary({
                   <ul className="list-disc list-inside space-y-1 text-xs">
                     <li>This receipt will be sent to the customer's email</li>
                     <li>Once sent, the receipt cannot be edited</li>
-                    <li>The ₦{amount} fee covers receipt generation and delivery</li>
+                    <li>
+                      The ₦{amount} fee covers receipt generation and delivery
+                    </li>
                     <li>Customer will receive a professional PDF receipt</li>
                   </ul>
                 </div>

@@ -29,18 +29,18 @@ import {
 import AdminLayout from "../components/admin-components/layout";
 import KPICard from "../components/admin-components/KPICard";
 import { Skeleton } from "../components/ui/skeleton";
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Minus, 
-  DollarSign, 
-  CreditCard, 
-  Wallet, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  DollarSign,
+  CreditCard,
+  Wallet,
   Receipt,
   Users,
   FileText,
   BarChart3,
-  RefreshCw
+  RefreshCw,
 } from "lucide-react";
 
 const fetcher = (url: string) =>
@@ -104,7 +104,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     setIsClient(true);
     // Only access localStorage after component mounts on client
-    const savedRange = localStorage.getItem("admin_dashboard_range") as RangeOption;
+    const savedRange = localStorage.getItem(
+      "admin_dashboard_range"
+    ) as RangeOption;
     if (savedRange) {
       setRange(savedRange);
     }
@@ -142,7 +144,7 @@ export default function AdminDashboard() {
   const totalOutflow = Number(summaryData?.totalOutflow ?? 0);
   const mainWalletBalance = Number(summaryData?.mainWalletBalance ?? 0);
   const nombaBalanceRaw = Number(summaryData?.nombaBalance ?? 0);
-  
+
   // NEW: App Revenue
   const totalAppRevenue = Number(summaryData?.totalAppRevenue ?? 0);
   const transactionFees = Number(summaryData?.transactionFees ?? 0);
@@ -159,7 +161,9 @@ export default function AdminDashboard() {
   const totalInvoiceRevenue = Number(summaryData?.totalInvoiceRevenue ?? 0);
 
   const totalTransactions = Number(summaryData?.totalTransactions ?? 0);
-  const successfulTransactions = Number(summaryData?.successfulTransactions ?? 0);
+  const successfulTransactions = Number(
+    summaryData?.successfulTransactions ?? 0
+  );
   const failedTransactions = Number(summaryData?.failedTransactions ?? 0);
   const pendingTransactions = Number(summaryData?.pendingTransactions ?? 0);
 
@@ -184,13 +188,25 @@ export default function AdminDashboard() {
 
   const inflowGrowth = calculateGrowth(totalInflow, prevTotalInflow);
   const outflowGrowth = calculateGrowth(totalOutflow, prevTotalOutflow);
-  const appRevenueGrowth = calculateGrowth(totalAppRevenue, prevTotalAppRevenue);
+  const appRevenueGrowth = calculateGrowth(
+    totalAppRevenue,
+    prevTotalAppRevenue
+  );
   const contractsGrowth = calculateGrowth(totalContracts, prevTotalContracts);
-  const pendingContractsGrowth = calculateGrowth(pendingContracts, prevPendingContracts);
-  const signedContractsGrowth = calculateGrowth(signedContracts, prevSignedContracts);
+  const pendingContractsGrowth = calculateGrowth(
+    pendingContracts,
+    prevPendingContracts
+  );
+  const signedContractsGrowth = calculateGrowth(
+    signedContracts,
+    prevSignedContracts
+  );
   const invoicesGrowth = calculateGrowth(totalInvoices, prevTotalInvoices);
   const paidInvoicesGrowth = calculateGrowth(paidInvoices, prevPaidInvoices);
-  const unpaidInvoicesGrowth = calculateGrowth(unpaidInvoices, prevUnpaidInvoices);
+  const unpaidInvoicesGrowth = calculateGrowth(
+    unpaidInvoices,
+    prevUnpaidInvoices
+  );
 
   const monthlyTransactions = summaryData?.monthlyTransactions ?? [];
   const monthlyInvoices = summaryData?.monthlyInvoices ?? [];
@@ -201,25 +217,32 @@ export default function AdminDashboard() {
   const contractsPieData = [
     { name: "Signed", value: signedContracts, color: CHART_COLORS.pie[0] },
     { name: "Pending", value: pendingContracts, color: CHART_COLORS.pie[2] },
-  ].filter(item => item.value > 0);
+  ].filter((item) => item.value > 0);
 
   const invoicesPieData = [
     { name: "Paid", value: paidInvoices, color: CHART_COLORS.pie[0] },
     { name: "Unpaid", value: unpaidInvoices, color: CHART_COLORS.pie[1] },
-  ].filter(item => item.value > 0);
+  ].filter((item) => item.value > 0);
 
   const cashflowPieData = [
     { name: "Inflow", value: totalInflow, color: CHART_COLORS.pie[0] },
     { name: "Outflow", value: totalOutflow, color: CHART_COLORS.pie[1] },
-  ].filter(item => item.value > 0);
+  ].filter((item) => item.value > 0);
 
   const revenueBreakdownData = [
-    { name: "Transaction Fees", value: transactionFees, color: CHART_COLORS.revenue },
+    {
+      name: "Transaction Fees",
+      value: transactionFees,
+      color: CHART_COLORS.revenue,
+    },
     { name: "Platform Fees", value: platformFees, color: "#84cc16" },
     { name: "Invoice Fees", value: invoiceFees, color: "#8b5cf6" },
-  ].filter(item => item.value > 0);
+  ].filter((item) => item.value > 0);
 
-  const recentActivity = summaryData?.latestTransactions?.slice(0, 5) ?? paginatedData?.transactions?.slice(0, 5) ?? [];
+  const recentActivity =
+    summaryData?.latestTransactions?.slice(0, 5) ??
+    paginatedData?.transactions?.slice(0, 5) ??
+    [];
   const hasNextPage = paginatedData?.transactions?.length === PAGE_LIMIT;
   const hasPrevPage = page > 1;
 
@@ -236,7 +259,9 @@ export default function AdminDashboard() {
   };
 
   const refresh = async () => {
-    await mutate(`/api/admin-apis/dashboard/summary?range=${range}&nocache=true`);
+    await mutate(
+      `/api/admin-apis/dashboard/summary?range=${range}&nocache=true`
+    );
     await mutate(`/api/admin-apis/transactions?page=${page}&range=${range}`);
   };
 
@@ -245,11 +270,11 @@ export default function AdminDashboard() {
   const formatCurrency = (value: number | string) => {
     const n = Number(value || 0);
     if (n === 0) return "₦0";
-    return n.toLocaleString("en-NG", { 
-      style: "currency", 
+    return n.toLocaleString("en-NG", {
+      style: "currency",
       currency: "NGN",
       minimumFractionDigits: 0,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     });
   };
 
@@ -257,12 +282,12 @@ export default function AdminDashboard() {
   const formatDateSafely = (dateString: string) => {
     if (!isClient) return dateString;
     try {
-      return new Date(dateString).toLocaleString('en-NG', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+      return new Date(dateString).toLocaleString("en-NG", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch {
       return dateString;
@@ -323,7 +348,9 @@ export default function AdminDashboard() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Dashboard</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              Admin Dashboard
+            </h2>
             <div className="mt-1 text-sm text-gray-500 flex items-center gap-2">
               <BarChart3 size={14} />
               <span>Range: {range === "total" ? "All time" : range}</span>
@@ -362,16 +389,16 @@ export default function AdminDashboard() {
 
         {/* KPI Row 1 - Financial */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard 
-            title="Total Inflow" 
+          <KPICard
+            title="Total Inflow"
             value={formatCurrency(totalInflow)}
             growth={<GrowthIndicator value={inflowGrowth} />}
             icon={<TrendingUp className="w-5 h-5 text-green-600" />}
             className="border-l-4 border-l-green-500"
             subtitle="Money coming into the platform"
           />
-          <KPICard 
-            title="Total Outflow" 
+          <KPICard
+            title="Total Outflow"
             value={formatCurrency(totalOutflow)}
             growth={<GrowthIndicator value={outflowGrowth} />}
             // icon={<TrendingDown className="w-5 h-5 text-red-600" />}
@@ -394,29 +421,29 @@ export default function AdminDashboard() {
 
         {/* KPI Row 2 - Revenue & Performance */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard 
-            title="Total App Revenue" 
+          <KPICard
+            title="Total App Revenue"
             // value={formatCurrency(totalAppRevenue)}
-            value={formatCurrency(nombaBalanceRaw-mainWalletBalance)}
+            value={formatCurrency(nombaBalanceRaw - mainWalletBalance)}
             growth={<GrowthIndicator value={appRevenueGrowth} />}
             icon={<DollarSign className="w-5 h-5 text-amber-600" />}
-            className="border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-white"
+            className="border-l-4 border-l-[#C29307] bg-gradient-to-r from-amber-50 to-white"
             subtitle="Total platform earnings"
           />
-          <KPICard 
-            title="Invoice Reveue" 
+          <KPICard
+            title="Invoice Reveue"
             value={formatCurrency(invoiceFees)}
             icon={<Receipt className="w-5 h-5 text-violet-600" />}
             subtitle="Revenue from invoices"
           />
-          <KPICard 
-            title="Total Users" 
+          <KPICard
+            title="Total Users"
             value={totalUsers.toLocaleString()}
             icon={<Users className="w-5 h-5 text-green-600" />}
             subtitle="Registered users"
           />
-          <KPICard 
-            title="Total Transactions" 
+          <KPICard
+            title="Total Transactions"
             value={totalTransactions.toLocaleString()}
             icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
             subtitle="All transactions"
@@ -425,29 +452,29 @@ export default function AdminDashboard() {
 
         {/* KPI Row 3 - Contract & Invoice Status */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard 
-            title="Total Contracts" 
+          <KPICard
+            title="Total Contracts"
             value={totalContracts.toLocaleString()}
             growth={<GrowthIndicator value={contractsGrowth} />}
             icon={<FileText className="w-5 h-5 text-blue-600" />}
             subtitle="Contracts issued"
           />
-          <KPICard 
-            title="Signed Contracts" 
+          <KPICard
+            title="Signed Contracts"
             value={signedContracts.toLocaleString()}
             growth={<GrowthIndicator value={signedContractsGrowth} />}
             icon={<FileText className="w-5 h-5 text-green-600" />}
             subtitle="Contracts signed"
           />
-          <KPICard 
-            title="Paid Invoices" 
+          <KPICard
+            title="Paid Invoices"
             value={paidInvoices.toLocaleString()}
             growth={<GrowthIndicator value={paidInvoicesGrowth} />}
             icon={<Receipt className="w-5 h-5 text-green-600" />}
             subtitle="Invoices paid"
           />
-          <KPICard 
-            title="Unpaid Invoices" 
+          <KPICard
+            title="Unpaid Invoices"
             value={unpaidInvoices.toLocaleString()}
             growth={<GrowthIndicator value={unpaidInvoicesGrowth} />}
             icon={<Receipt className="w-5 h-5 text-red-600" />}
@@ -460,24 +487,29 @@ export default function AdminDashboard() {
           {/* App Revenue Trend */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">💰 App Revenue Trend</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                💰 App Revenue Trend
+              </h3>
               <div className="text-sm text-gray-500">Filtered: {range}</div>
             </div>
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={monthlyAppRevenue}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis 
-                  dataKey="month" 
+                <XAxis
+                  dataKey="month"
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                 />
-                <YAxis 
+                <YAxis
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
-                  formatter={(value: number) => [formatCurrency(value), "Revenue"]}
+                  formatter={(value: number) => [
+                    formatCurrency(value),
+                    "Revenue",
+                  ]}
                   labelFormatter={(label) => `Month: ${label}`}
                 />
                 <Area
@@ -489,8 +521,16 @@ export default function AdminDashboard() {
                 />
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={CHART_COLORS.revenue} stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor={CHART_COLORS.revenue} stopOpacity={0}/>
+                    <stop
+                      offset="5%"
+                      stopColor={CHART_COLORS.revenue}
+                      stopOpacity={0.8}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor={CHART_COLORS.revenue}
+                      stopOpacity={0}
+                    />
                   </linearGradient>
                 </defs>
               </AreaChart>
@@ -500,7 +540,9 @@ export default function AdminDashboard() {
           {/* Revenue Distribution Pie Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">📊 Revenue Breakdown</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                📊 Revenue Breakdown
+              </h3>
               <div className="text-sm text-gray-500">Sources</div>
             </div>
             <div className="h-64">
@@ -512,7 +554,9 @@ export default function AdminDashboard() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }: any) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }: any) =>
+                        `${name}: ${(percent * 100).toFixed(0)}%`
+                      }
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
@@ -521,7 +565,12 @@ export default function AdminDashboard() {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => [formatCurrency(value), "Amount"]} />
+                    <Tooltip
+                      formatter={(value: number) => [
+                        formatCurrency(value),
+                        "Amount",
+                      ]}
+                    />
                     <Legend />
                   </PieChart>
                 </ResponsiveContainer>
@@ -539,24 +588,29 @@ export default function AdminDashboard() {
           {/* Transactions Trend */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">📈 Transactions Trend</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                📈 Transactions Trend
+              </h3>
               <div className="text-sm text-gray-500">Filtered: {range}</div>
             </div>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyTransactions}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis 
-                  dataKey="month" 
+                <XAxis
+                  dataKey="month"
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                 />
-                <YAxis 
+                <YAxis
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                   tickFormatter={(value) => formatCurrencyShort(value)}
                 />
                 <Tooltip
-                  formatter={(value: number) => [formatCurrency(value), "Amount"]}
+                  formatter={(value: number) => [
+                    formatCurrency(value),
+                    "Amount",
+                  ]}
                   labelFormatter={(label) => `Month: ${label}`}
                 />
                 <Line
@@ -565,7 +619,11 @@ export default function AdminDashboard() {
                   stroke={CHART_COLORS.inflow}
                   strokeWidth={3}
                   dot={{ fill: CHART_COLORS.inflow, strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, stroke: CHART_COLORS.inflow, strokeWidth: 2 }}
+                  activeDot={{
+                    r: 6,
+                    stroke: CHART_COLORS.inflow,
+                    strokeWidth: 2,
+                  }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -574,27 +632,28 @@ export default function AdminDashboard() {
           {/* Invoices Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">🧾 Invoices (Monthly)</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                🧾 Invoices (Monthly)
+              </h3>
               <div className="text-sm text-gray-500">Filtered: {range}</div>
             </div>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={monthlyInvoices}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis 
-                  dataKey="month" 
+                <XAxis
+                  dataKey="month"
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                 />
-                <YAxis 
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
+                <YAxis tick={{ fontSize: 12 }} tickLine={false} />
+                <Tooltip
+                  formatter={(value: number, name: string) => {
+                    if (name === "count") return [value, "Invoice Count"];
+                    return [formatCurrency(value), "Revenue"];
+                  }}
                 />
-                <Tooltip formatter={(value: number, name: string) => {
-                  if (name === "count") return [value, "Invoice Count"];
-                  return [formatCurrency(value), "Revenue"];
-                }} />
-                <Bar 
-                  dataKey="count" 
+                <Bar
+                  dataKey="count"
                   name="Invoice Count"
                   fill={CHART_COLORS.invoices}
                   radius={[4, 4, 0, 0]}
@@ -606,24 +665,23 @@ export default function AdminDashboard() {
           {/* Contracts Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">📄 Contracts (Monthly)</h3>
+              <h3 className="text-lg font-semibold text-gray-900">
+                📄 Contracts (Monthly)
+              </h3>
               <div className="text-sm text-gray-500">Filtered: {range}</div>
             </div>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={monthlyContracts}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis 
-                  dataKey="month" 
+                <XAxis
+                  dataKey="month"
                   tick={{ fontSize: 12 }}
                   tickLine={false}
                 />
-                <YAxis 
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                />
+                <YAxis tick={{ fontSize: 12 }} tickLine={false} />
                 <Tooltip />
-                <Bar 
-                  dataKey="count" 
+                <Bar
+                  dataKey="count"
                   fill={CHART_COLORS.contracts}
                   radius={[4, 4, 0, 0]}
                 />
@@ -635,7 +693,9 @@ export default function AdminDashboard() {
         {/* Recent Transactions */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-            <h3 className="text-lg font-semibold text-gray-900">🕒 Recent Transactions</h3>
+            <h3 className="text-lg font-semibold text-gray-900">
+              🕒 Recent Transactions
+            </h3>
             <div className="flex items-center gap-3">
               <div className="text-sm text-gray-500">Page: {page}</div>
               <div className="flex items-center gap-2">
@@ -689,7 +749,10 @@ export default function AdminDashboard() {
               <tbody className="divide-y divide-gray-200">
                 {recentActivity.length > 0 ? (
                   recentActivity.map((tx: any) => (
-                    <tr key={tx.id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={tx.id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
                       <td className="px-4 py-3">
                         <div className="text-sm font-medium text-gray-900">
                           {formatCurrency(tx.amount)}
@@ -704,26 +767,38 @@ export default function AdminDashboard() {
                         {tx.description || "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          (tx.type?.toLowerCase() || '').includes('fee') 
-                            ? 'bg-amber-100 text-amber-800'
-                            : (tx.type?.toLowerCase() || '').includes('deposit') || (tx.type?.toLowerCase() || '').includes('received')
-                            ? 'bg-green-100 text-green-800'
-                            : (tx.type?.toLowerCase() || '').includes('withdrawal') || (tx.type?.toLowerCase() || '').includes('sent')
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            (tx.type?.toLowerCase() || "").includes("fee")
+                              ? "bg-amber-100 text-amber-800"
+                              : (tx.type?.toLowerCase() || "").includes(
+                                  "deposit"
+                                ) ||
+                                (tx.type?.toLowerCase() || "").includes(
+                                  "received"
+                                )
+                              ? "bg-green-100 text-green-800"
+                              : (tx.type?.toLowerCase() || "").includes(
+                                  "withdrawal"
+                                ) ||
+                                (tx.type?.toLowerCase() || "").includes("sent")
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
                           {tx.type || "—"}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          tx.status === 'success' 
-                            ? 'bg-green-100 text-green-800'
-                            : tx.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            tx.status === "success"
+                              ? "bg-green-100 text-green-800"
+                              : tx.status === "pending"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
                           {tx.status || "—"}
                         </span>
                       </td>
@@ -734,7 +809,10 @@ export default function AdminDashboard() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    <td
+                      colSpan={5}
+                      className="px-4 py-8 text-center text-gray-500"
+                    >
                       No transactions found
                     </td>
                   </tr>
@@ -746,18 +824,25 @@ export default function AdminDashboard() {
 
         {/* Summary Stats Footer */}
         <div className="bg-gradient-to-r from-gray-50 to-white p-6 rounded-2xl shadow-sm border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Platform Performance Summary</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            📊 Platform Performance Summary
+          </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-xl border">
               <div className="text-sm text-gray-500">Total Users</div>
-              <div className="text-2xl font-bold text-gray-900">{totalUsers.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-gray-900">
+                {totalUsers.toLocaleString()}
+              </div>
             </div>
             <div className="bg-white p-4 rounded-xl border">
               <div className="text-sm text-gray-500">Success Rate</div>
               <div className="text-2xl font-bold text-gray-900">
-                {totalTransactions > 0 
-                  ? `${((successfulTransactions / totalTransactions) * 100).toFixed(1)}%`
-                  : '0%'}
+                {totalTransactions > 0
+                  ? `${(
+                      (successfulTransactions / totalTransactions) *
+                      100
+                    ).toFixed(1)}%`
+                  : "0%"}
               </div>
             </div>
             <div className="bg-white p-4 rounded-xl border">
@@ -772,24 +857,27 @@ export default function AdminDashboard() {
               <div className="text-sm text-gray-500">Transaction Value</div>
               <div className="text-2xl font-bold text-gray-900">
                 {totalTransactions > 0
-                  ? formatCurrency((totalInflow + totalOutflow) / totalTransactions)
+                  ? formatCurrency(
+                      (totalInflow + totalOutflow) / totalTransactions
+                    )
                   : formatCurrency(0)}
               </div>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="text-sm text-gray-600">
-              <span className="font-medium">Revenue Sources:</span> 
-              {revenueBreakdownData.length > 0 
-                ? revenueBreakdownData.map(r => ` ${r.name}`).join(', ')
-                : ' None detected'
-              }
+              <span className="font-medium">Revenue Sources:</span>
+              {revenueBreakdownData.length > 0
+                ? revenueBreakdownData.map((r) => ` ${r.name}`).join(", ")
+                : " None detected"}
             </div>
             <div className="text-sm text-gray-600">
-              <span className="font-medium">Data Range:</span> {range === "total" ? "All time" : range}
+              <span className="font-medium">Data Range:</span>{" "}
+              {range === "total" ? "All time" : range}
             </div>
             <div className="text-sm text-gray-600">
-              <span className="font-medium">Last Updated:</span> {new Date().toLocaleTimeString()}
+              <span className="font-medium">Last Updated:</span>{" "}
+              {new Date().toLocaleTimeString()}
             </div>
           </div>
         </div>

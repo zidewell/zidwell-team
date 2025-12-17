@@ -2,6 +2,7 @@
 
 import { Button } from "./ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { FileText, User, Mail, Calendar, Shield, Lock, AlertCircle } from "lucide-react";
 
 interface ContractSummaryProps {
   contractTitle: string;
@@ -10,12 +11,14 @@ interface ContractSummaryProps {
   initiatorEmail: string;
   receiverName: string;
   receiverEmail: string;
+  receiverPhone?: string;
   amount: number;
   confirmContract: boolean;
   onBack: () => void;
   onConfirm: () => void;
   contractType?: string;
   dateCreated?: string;
+  status?: string;
 }
 
 export default function ContractSummary({
@@ -25,12 +28,14 @@ export default function ContractSummary({
   initiatorEmail,
   receiverName,
   receiverEmail,
+  receiverPhone,
   amount,
   confirmContract,
   onBack,
   onConfirm,
   contractType = "Service Agreement",
   dateCreated = new Date().toLocaleDateString(),
+  status = "pending"
 }: ContractSummaryProps) {
   // Truncate contract content for preview
   const truncatedContent = contractContent.length > 200 
@@ -79,17 +84,17 @@ export default function ContractSummary({
                 <div className="bg-gray-50 rounded-lg p-4 space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Contract Title</span>
-                    <span className="text-gray-900 font-medium text-right">{contractTitle}</span>
+                    <span className="text-gray-900 font-medium text-right max-w-[60%]">
+                      {contractTitle || "Untitled Contract"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Contract Type</span>
+                    <span className="text-gray-900 capitalize">{contractType}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Status</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      status === 'draft' 
-                        ? 'bg-yellow-100 text-yellow-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </span>
+                    <span className="text-gray-900 capitalize">{status}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Date Created</span>
@@ -107,12 +112,12 @@ export default function ContractSummary({
                   </h3>
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                     <div>
-                      <span className="text-gray-500 block text-xs">Name</span>
-                      <span className="text-gray-900 font-medium">{initiatorName}</span>
+                      <span className="text-gray-500 block text-xs">Full Name</span>
+                      <span className="text-gray-900 font-medium">{initiatorName || "Not specified"}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block text-xs">Email</span>
-                      <span className="text-gray-900">{initiatorEmail}</span>
+                      <span className="text-gray-500 block text-xs">Email Address</span>
+                      <span className="text-gray-900 break-all">{initiatorEmail}</span>
                     </div>
                   </div>
                 </div>
@@ -120,59 +125,88 @@ export default function ContractSummary({
                 {/* SIGNEE Section */}
                 <div>
                   <h3 className="text-gray-700 text-sm font-semibold mb-2">
-                    Signee (Client)
+                    Signee (Recipient)
                   </h3>
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
                     <div>
-                      <span className="text-gray-500 block text-xs">Name</span>
+                      <span className="text-gray-500 block text-xs">Full Name</span>
                       <span className="text-gray-900 font-medium">{receiverName || "Not specified"}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500 block text-xs">Email</span>
-                      <span className="text-gray-900">{receiverEmail}</span>
+                      <span className="text-gray-500 block text-xs">Email Address</span>
+                      <span className="text-gray-900 break-all">{receiverEmail}</span>
                     </div>
+                    {receiverPhone && (
+                      <div>
+                        <span className="text-gray-500 block text-xs">Phone Number</span>
+                        <span className="text-gray-900">{receiverPhone}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
               {/* CONTRACT CONTENT PREVIEW */}
               <div>
-                <h3 className="text-gray-700 text-sm font-semibold mb-2">
-                  Contract Content Preview
-                </h3>
-                <div className="bg-gray-50 rounded-lg p-4 max-h-40 overflow-y-auto">
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-gray-700 text-sm font-semibold">
+                    Contract Preview
+                  </h3>
+                  <div className="text-xs text-gray-500">
+                    {contractContent.length > 200 
+                      ? `200/${contractContent.length} chars`
+                      : `${contractContent.length} chars`}
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
                     {truncatedContent}
                   </pre>
                 </div>
-                <div className="text-xs text-gray-500 mt-1 text-center">
-                  {contractContent.length > 200 ? "Content truncated - full contract will be sent" : "Full contract content"}
+                <div className="text-xs text-gray-500 text-center pt-2">
+                  {contractContent.length > 200 
+                    ? "Preview limited to 200 characters - full contract will be delivered"
+                    : "Full contract content shown above"}
+                </div>
+              </div>
+
+              {/* SECURITY FEATURES */}
+              <div>
+                <h3 className="text-gray-700 text-sm font-semibold mb-2">
+                  Security Features
+                </h3>
+                <div className="bg-gray-50 rounded-lg p-4 text-sm">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Shield className="h-4 w-4 text-green-600" />
+                        <span className="font-medium">Digital Signature</span>
+                      </div>
+                      <p className="text-gray-600 text-xs">Legally binding e-signature</p>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Lock className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium">Secure Delivery</span>
+                      </div>
+                      <p className="text-gray-600 text-xs">Encrypted contract transmission</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Important Notes */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700 flex items-start gap-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 mt-0.5 text-blue-500 flex-shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
+                <AlertCircle className="h-5 w-5 mt-0.5 text-blue-500 shrink-0" />
                 <div className="space-y-1">
                   <p className="font-medium">Important Information</p>
                   <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>This contract will be sent to the signee for electronic signature</li>
-                    <li>Once sent, the contract cannot be edited</li>
-                    <li>You will be notified when the contract is signed</li>
-                    <li>The ₦{amount} fee covers contract generation and management</li>
+                    <li>This contract will be sent to the recipient's email for electronic signature</li>
+                    <li>Recipient will need to enter a verification code to sign</li>
+                    <li>The ₦{amount} fee covers secure delivery, digital signing, and storage</li>
+                    <li>You will receive notifications when the contract is viewed and signed</li>
+                    <li>Once sent, the contract cannot be edited - please review carefully</li>
+                    <li>Signed contracts are stored securely with timestamped audit trail</li>
                   </ul>
                 </div>
               </div>
@@ -183,14 +217,16 @@ export default function ContractSummary({
                   variant="outline"
                   onClick={onBack}
                   className="border border-gray-300 text-gray-700 hover:bg-gray-100"
+               
                 >
                   Back to Edit
                 </Button>
                 <Button
                   onClick={onConfirm}
                   className="bg-[#C29307] text-white hover:bg-[#b38606] px-8"
+             
                 >
-                  Send for Signature
+                Send Contract
                 </Button>
               </div>
             </div>

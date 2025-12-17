@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! 
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 function generateContractHTML(contract: any, signeeName: string): string {
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+  const currentDate = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   return `
@@ -22,7 +22,7 @@ function generateContractHTML(contract: any, signeeName: string): string {
 <html>
 <head>
     <meta charset="utf-8">
-    <title>${contract.contract_title || 'Contract Agreement'}</title>
+    <title>${contract.contract_title || "Contract Agreement"}</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
         
@@ -179,13 +179,17 @@ function generateContractHTML(contract: any, signeeName: string): string {
     
     <div class="header">
         <div class="company-name">ZIDWELL CONTRACTS</div>
-        <h1 class="document-title">${contract.contract_title || 'Contract Agreement'}</h1>
+        <h1 class="document-title">${
+          contract.contract_title || "Contract Agreement"
+        }</h1>
         <div class="subtitle">Legally Binding Agreement</div>
     </div>
     
     <div class="content-section">
         <div class="section-title">CONTRACT TERMS & CONDITIONS</div>
-        <div class="contract-text">${contract.contract_text || 'No contract terms specified.'}</div>
+        <div class="contract-text">${
+          contract.contract_text || "No contract terms specified."
+        }</div>
     </div>
     
     <div class="signature-section">
@@ -202,7 +206,9 @@ function generateContractHTML(contract: any, signeeName: string): string {
             <div class="signature-box">
                 <div class="signature-line"></div>
                 <div class="signature-label">Company Representative</div>
-                <div class="signature-name">${contract.initiator_name || 'Zidwell Contracts'}</div>
+                <div class="signature-name">${
+                  contract.initiator_name || "Zidwell Contracts"
+                }</div>
                 <div class="signature-date">${currentDate}</div>
             </div>
         </div>
@@ -212,7 +218,7 @@ function generateContractHTML(contract: any, signeeName: string): string {
                 Electronically signed via Zidwell Contracts Platform
             </div>
             <div style="font-size: 11px; color: #a0aec0; margin-top: 5px;">
-                Document ID: ${contract.token || 'N/A'}
+                Document ID: ${contract.token || "N/A"}
             </div>
         </div>
     </div>
@@ -225,41 +231,49 @@ function generateContractHTML(contract: any, signeeName: string): string {
 </html>`;
 }
 
-async function generatePdfBuffer(contract: any, signeeName: string): Promise<Buffer> {
+async function generatePdfBuffer(
+  contract: any,
+  signeeName: string
+): Promise<Buffer> {
   let browser = null;
-  
+
   try {
     let executablePath: string;
     let browserArgs: string[];
 
-    if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+    if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
       // Use @sparticuz/chromium for production (Vercel)
-      console.log('Using @sparticuz/chromium for production');
+      console.log("Using @sparticuz/chromium for production");
       executablePath = await chromium.executablePath();
-      browserArgs = [...chromium.args, '--hide-scrollbars', '--disable-web-security'];
+      browserArgs = [
+        ...chromium.args,
+        "--hide-scrollbars",
+        "--disable-web-security",
+      ];
     } else {
       // Use local Chrome for development
-      console.log('Using local Chrome for development');
-      executablePath = process.env.CHROME_PATH || 
-        (process.platform === 'win32' 
-          ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-          : process.platform === 'darwin'
-          ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-          : '/usr/bin/google-chrome');
-      
+      console.log("Using local Chrome for development");
+      executablePath =
+        process.env.CHROME_PATH ||
+        (process.platform === "win32"
+          ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+          : process.platform === "darwin"
+          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          : "/usr/bin/google-chrome");
+
       browserArgs = [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
       ];
     }
 
-    console.log('Launching browser with executable path:', executablePath);
+    console.log("Launching browser with executable path:", executablePath);
 
     browser = await puppeteer.launch({
       executablePath,
@@ -268,41 +282,40 @@ async function generatePdfBuffer(contract: any, signeeName: string): Promise<Buf
     });
 
     const page = await browser.newPage();
-    
+
     // Generate HTML content
     const htmlContent = generateContractHTML(contract, signeeName);
-    
+
     // Set the HTML content
     await page.setContent(htmlContent, {
-      waitUntil: 'networkidle0'
+      waitUntil: "networkidle0",
     });
 
     // Generate PDF
     const pdf = await page.pdf({
-      format: 'A4',
+      format: "A4",
       printBackground: true,
       margin: {
-        top: '20mm',
-        right: '20mm',
-        bottom: '20mm',
-        left: '20mm'
-      }
+        top: "20mm",
+        right: "20mm",
+        bottom: "20mm",
+        left: "20mm",
+      },
     });
 
-    console.log('PDF generated successfully, size:', pdf.length, 'bytes');
+    console.log("PDF generated successfully, size:", pdf.length, "bytes");
 
     return Buffer.from(pdf);
-
   } catch (error) {
-    console.error('Error generating PDF with puppeteer:', error);
-    
+    console.error("Error generating PDF with puppeteer:", error);
+
     // Fallback to external PDF service if puppeteer fails
     try {
-      console.log('Trying external PDF service as fallback...');
+      console.log("Trying external PDF service as fallback...");
       return await generatePdfWithExternalService(contract, signeeName);
     } catch (fallbackError) {
-      console.error('External PDF service also failed:', fallbackError);
-      throw new Error('PDF generation failed: ' + (error as Error).message);
+      console.error("External PDF service also failed:", fallbackError);
+      throw new Error("PDF generation failed: " + (error as Error).message);
     }
   } finally {
     if (browser) {
@@ -312,31 +325,34 @@ async function generatePdfBuffer(contract: any, signeeName: string): Promise<Buf
 }
 
 // Fallback PDF generation using external service
-async function generatePdfWithExternalService(contract: any, signeeName: string): Promise<Buffer> {
+async function generatePdfWithExternalService(
+  contract: any,
+  signeeName: string
+): Promise<Buffer> {
   const htmlContent = generateContractHTML(contract, signeeName);
-  
+
   try {
     // Try HTML2PDF.app (free tier available)
-    const response = await fetch('https://api.html2pdf.app/v1/generate', {
-      method: 'POST',
+    const response = await fetch("https://api.html2pdf.app/v1/generate", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         html: htmlContent,
-        apiKey: process.env.HTML2PDF_API_KEY || 'demo',
+        apiKey: process.env.HTML2PDF_API_KEY || "demo",
       }),
     });
 
     if (response.ok) {
       const arrayBuffer = await response.arrayBuffer();
-      console.log('PDF generated successfully with external service');
+      console.log("PDF generated successfully with external service");
       return Buffer.from(arrayBuffer);
     } else {
       throw new Error(`External service returned ${response.status}`);
     }
   } catch (error) {
-    console.error('External PDF service failed:', error);
+    console.error("External PDF service failed:", error);
     // Ultimate fallback - return HTML as text
     return Buffer.from(htmlContent);
   }
@@ -344,7 +360,8 @@ async function generatePdfWithExternalService(contract: any, signeeName: string)
 
 export async function POST(request: Request) {
   try {
-    const { token, signeeEmail, signeeName, verificationCode } = await request.json();
+    const { token, signeeEmail, signeeName, verificationCode } =
+      await request.json();
 
     if (!token || !signeeEmail || !verificationCode) {
       return NextResponse.json(
@@ -404,15 +421,21 @@ export async function POST(request: Request) {
     const pdfBuffer = await generatePdfBuffer(contract, signeeName);
 
     // Determine file type and name
-    const isPdf = pdfBuffer.toString('utf8', 0, 4) === '%PDF';
-    const fileExtension = isPdf ? 'pdf' : 'html';
-    const fileName = `signed-contract-${contract.contract_title ? contract.contract_title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'contract'}.${fileExtension}`;
+    const isPdf = pdfBuffer.toString("utf8", 0, 4) === "%PDF";
+    const fileExtension = isPdf ? "pdf" : "html";
+    const fileName = `signed-contract-${
+      contract.contract_title
+        ? contract.contract_title.replace(/[^a-z0-9]/gi, "-").toLowerCase()
+        : "contract"
+    }.${fileExtension}`;
 
     // Send email with the signed contract
     await transporter.sendMail({
       from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
       to: `${contract.initiator_email}, ${signeeEmail}`,
-      subject: `✓ Contract Signed: ${contract.contract_title || 'Contract Agreement'}`,
+      subject: `✓ Contract Signed: ${
+        contract.contract_title || "Contract Agreement"
+      }`,
       html: `
         <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
           <div style="background: linear-gradient(135deg, #C29307, #a57c06); padding: 30px; text-align: center; color: white;">
@@ -422,7 +445,9 @@ export async function POST(request: Request) {
           
           <div style="padding: 30px;">
             <div style="background: #fefcf5; padding: 20px; border-radius: 10px; border-left: 4px solid #C29307; margin-bottom: 25px;">
-              <h2 style="color: #a57c06; margin: 0 0 10px 0;">${contract.contract_title || 'Contract Agreement'}</h2>
+              <h2 style="color: #a57c06; margin: 0 0 10px 0;">${
+                contract.contract_title || "Contract Agreement"
+              }</h2>
               <p style="margin: 0; color: #4a5568;">This contract has been officially signed and is now legally binding.</p>
             </div>
             
@@ -440,12 +465,16 @@ export async function POST(request: Request) {
             
             <div style="background: #fefcf5; padding: 15px; border-radius: 8px; border: 1px solid #f0e6c3; margin-bottom: 25px;">
               <div style="font-size: 12px; color: #C29307; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Contract ID</div>
-              <div style="font-size: 14px; font-family: monospace; color: #2d3748;">${contract.token}</div>
+              <div style="font-size: 14px; font-family: monospace; color: #2d3748;">${
+                contract.token
+              }</div>
             </div>
             
             <div style="background: #f0fff4; padding: 15px; border-radius: 8px; border-left: 4px solid #38a169;">
               <p style="margin: 0; color: #2f855a; font-weight: 500;">
-                📎 The signed contract ${isPdf ? 'PDF' : 'document'} is attached to this email. Please keep it for your records.
+                📎 The signed contract ${
+                  isPdf ? "PDF" : "document"
+                } is attached to this email. Please keep it for your records.
               </p>
             </div>
           </div>
@@ -470,7 +499,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { 
+      {
         success: true,
         message: "Contract signed and emailed successfully",
         data: {
@@ -478,25 +507,24 @@ export async function POST(request: Request) {
           signeeName: signeeName,
           signedAt: new Date().toISOString(),
           contractId: contract.token,
-          documentType: isPdf ? 'PDF' : 'HTML'
-        }
+          documentType: isPdf ? "PDF" : "HTML",
+        },
       },
       { status: 200 }
     );
-
   } catch (error) {
     console.error("Error in sign-contracts:", error);
-    
+
     let errorMessage = "Internal server error";
     if (error instanceof Error) {
       errorMessage = error.message;
     }
-    
+
     return NextResponse.json(
-      { 
+      {
         success: false,
         message: "Failed to process contract signing",
-        error: errorMessage 
+        error: errorMessage,
       },
       { status: 500 }
     );

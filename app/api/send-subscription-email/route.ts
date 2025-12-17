@@ -9,8 +9,11 @@ const supabase = createClient(
 );
 
 // Send confirmation email
-async function sendConfirmationEmail(email: string, fullName: string, amount: number) {
-
+async function sendConfirmationEmail(
+  email: string,
+  fullName: string,
+  amount: number
+) {
   await transporter.sendMail({
     from: `"Subscription Team" <${process.env.EMAIL_USER}>`,
     to: email,
@@ -41,8 +44,7 @@ export async function POST(req: NextRequest) {
     const subEmail = payload?.data?.meta?.email;
     const subFullName = payload?.data?.meta?.fullName || "Subscriber";
     const subPlanId = payload?.data?.meta?.planId;
-    const subAmount =
-      payload?.data?.meta?.amount ?? payload?.data?.amount ?? 0;
+    const subAmount = payload?.data?.meta?.amount ?? payload?.data?.amount ?? 0;
 
     // Save to Supabase
     if (subEmail && subPlanId) {

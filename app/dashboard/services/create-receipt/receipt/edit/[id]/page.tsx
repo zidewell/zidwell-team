@@ -139,15 +139,21 @@ export default function Page() {
     Swal.fire("Success", result.message || "Receipt updated successfully", "success");
   };
 
-  if (!form)
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader />
-      </div>
-    );
+    const [pageLoading, setPageLoading] = useState(true);
+  
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setPageLoading(false);
+      }, 2500);
+  
+      return () => clearTimeout(timer);
+    }, []);
+  
+    if (pageLoading || !form) {
+      return <Loader />;
+    }
+  
 
-
-    console.log(form)
 
   return (
     <div className="min-h-screen bg-gray-50 fade-in">

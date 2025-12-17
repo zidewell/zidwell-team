@@ -4,8 +4,8 @@ import useSWR from "swr";
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
-import AdminTable from "@/app/components/admin-components/AdminTable"; 
-import UserProfilePage from "@/app/components/admin-components/UserProfile"; 
+import AdminTable from "@/app/components/admin-components/AdminTable";
+import UserProfilePage from "@/app/components/admin-components/UserProfile";
 import AdminLayout from "@/app/components/admin-components/layout";
 import Loader from "@/app/components/Loader";
 import { Input } from "@/app/components/ui/input";
@@ -25,6 +25,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/app/components/ui/pagination";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -34,12 +35,22 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
+  const [balanceFilter, setBalanceFilter] = useState("all"); // NEW: Balance filter
   const [isClient, setIsClient] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("active");
+  const [exportLoading, setExportLoading] = useState(false);
   const itemsPerPage = 10;
 
+  // Balance thresholds
+  const LOW_BALANCE_THRESHOLD = 1000; // ₦1,000
+  const HIGH_BALANCE_THRESHOLD = 100000; // ₦100,000
+
+  // Fetch data based on active tab
   const { data, error, isLoading, mutate } = useSWR(
-    "/api/admin-apis/users",
+    activeTab === "pending" 
+      ? "/api/admin-apis/users/pending-users" 
+      : "/api/admin-apis/users",
     fetcher
   );
 
@@ -50,25 +61,34 @@ export default function UsersPage() {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, roleFilter, activityFilter]);
+  }, [searchTerm, statusFilter, roleFilter, activityFilter, activeTab, balanceFilter]);
 
-  // Process users data
-  const users = React.useMemo(() => {
-    if (!data) return [];
+  // Process users data for active users tab
+  const activeUsers = React.useMemo(() => {
+    if (!data || activeTab === "pending") return [];
     return (data?.users ?? data).map((user: any) => ({
       ...user,
       full_name: `${user.first_name} ${user.last_name}`,
-      balance: user.wallet_balance,
-      // Store raw dates and format in render functions
+      balance: user.wallet_balance || 0,
       created_at_raw: user.created_at,
       last_login_raw: user.last_login,
       last_logout_raw: user.last_logout,
-      // Check both status and is_blocked for blocked status
       is_blocked: user.is_blocked || user.status === 'blocked',
     }));
-  }, [data]);
+  }, [data, activeTab]);
 
-  // Helper functions for user activity (use raw dates)
+  // Process pending users data
+  const pendingUsers = React.useMemo(() => {
+    if (!data || activeTab === "active") return [];
+    return (data?.users ?? data).map((user: any) => ({
+      ...user,
+      full_name: `${user.first_name} ${user.last_name}`,
+      created_at_raw: user.created_at,
+      status: "pending",
+    }));
+  }, [data, activeTab]);
+
+  // Helper functions for user activity
   const isUserRecentlyActive = (user: any) => {
     const isActiveStatus = !user.is_blocked && user.status === 'active';
     const hasRecentLogin = user.last_login_raw;
@@ -104,16 +124,37 @@ export default function UsersPage() {
     return lastLogin < monthAgo;
   };
 
+  // Helper functions for balance filtering
+  const isLowBalance = (user: any) => {
+    const balance = Number(user.balance) || 0;
+    return balance <= LOW_BALANCE_THRESHOLD && balance >= 0;
+  };
+
+  const isHighBalance = (user: any) => {
+    const balance = Number(user.balance) || 0;
+    return balance >= HIGH_BALANCE_THRESHOLD;
+  };
+
+  const isNegativeBalance = (user: any) => {
+    const balance = Number(user.balance) || 0;
+    return balance < 0;
+  };
+
   // Calculate user counts
-  const activeUsers = users.filter(isUserRecentlyActive);
-  const activeToday = users.filter(isUserActiveToday);
-  const activeThisWeek = users.filter(isUserActiveThisWeek);
-  const inactiveUsers = users.filter(isUserInactive);
-  const blockedUsers = users.filter((user: any) => user.is_blocked);
-  const pendingUsersCount = data?.stats?.pending || 0;
+  const recentlyActiveUsers = activeUsers.filter(isUserRecentlyActive);
+  const activeTodayCount = activeUsers.filter(isUserActiveToday);
+  const activeThisWeekCount = activeUsers.filter(isUserActiveThisWeek);
+  const inactiveUsers = activeUsers.filter(isUserInactive);
+  const blockedUsers = activeUsers.filter((user: any) => user.is_blocked);
+  const lowBalanceUsers = activeUsers.filter(isLowBalance);
+  const highBalanceUsers = activeUsers.filter(isHighBalance);
+  const negativeBalanceUsers = activeUsers.filter(isNegativeBalance);
+  const pendingUsersCount = activeTab === "active" 
+    ? (data?.stats?.pending || pendingUsers.length) 
+    : pendingUsers.length;
 
   // Filter users based on search and filters
-  const filteredUsers = users.filter((user: any) => {
+  const filteredActiveUsers = activeUsers.filter((user: any) => {
     const matchesSearch = 
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -124,6 +165,7 @@ export default function UsersPage() {
       (statusFilter === "blocked" && user.is_blocked);
     
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    
     const matchesActivity = 
       activityFilter === "all" ||
       (activityFilter === "active" && isUserRecentlyActive(user)) ||
@@ -131,12 +173,33 @@ export default function UsersPage() {
       (activityFilter === "week" && isUserActiveThisWeek(user)) ||
       (activityFilter === "inactive" && isUserInactive(user));
     
-    return matchesSearch && matchesStatus && matchesRole && matchesActivity;
+    // NEW: Balance filter logic
+    const matchesBalance = 
+      balanceFilter === "all" ||
+      (balanceFilter === "low" && isLowBalance(user)) ||
+      (balanceFilter === "high" && isHighBalance(user)) ||
+      (balanceFilter === "negative" && isNegativeBalance(user)) ||
+      (balanceFilter === "zero" && (Number(user.balance) || 0) === 0);
+    
+    return matchesSearch && matchesStatus && matchesRole && matchesActivity && matchesBalance;
   });
 
+  // Filter pending users based on search
+  const filteredPendingUsers = pendingUsers.filter((user: any) => {
+    return (
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  // Determine which data to use based on active tab
+  const currentUsers = activeTab === "active" ? filteredActiveUsers : filteredPendingUsers;
+  const currentData = activeTab === "active" ? activeUsers : pendingUsers;
+
   // Pagination
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const paginatedUsers = filteredUsers.slice(
+  const totalPages = Math.ceil(currentUsers.length / itemsPerPage);
+  const paginatedUsers = currentUsers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
@@ -150,7 +213,180 @@ export default function UsersPage() {
     setSelectedUserId(null);
   };
 
-  // ---------- Delete (uses SweetAlert) ----------
+ // ---------- Export to CSV ----------
+const handleExportCSV = async () => {
+  setExportLoading(true);
+  try {
+    // Build query parameters with all current filters
+    const params = new URLSearchParams();
+    
+    // Basic filters
+    if (searchTerm) params.append('search', searchTerm);
+    if (statusFilter !== 'all') params.append('status', statusFilter);
+    if (roleFilter !== 'all') params.append('role', roleFilter);
+    if (activityFilter !== 'all') params.append('activity', activityFilter);
+    if (balanceFilter !== 'all') params.append('balance', balanceFilter);
+    
+    // Add tab type and current page info
+    params.append('type', activeTab);
+    params.append('page', currentPage.toString());
+    params.append('limit', itemsPerPage.toString());
+    
+    // Add balance thresholds for accurate server-side filtering
+    params.append('low_threshold', LOW_BALANCE_THRESHOLD.toString());
+    params.append('high_threshold', HIGH_BALANCE_THRESHOLD.toString());
+    
+    console.log('Exporting with params:', params.toString());
+    
+    const response = await fetch(`/api/admin-apis/users/export?${params.toString()}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Export failed: ${errorText}`);
+    }
+    
+    // Get the filename from Content-Disposition header or use default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = `${activeTab}_users_${new Date().toISOString().split('T')[0]}.csv`;
+    
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+    
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'Export Successful',
+      text: `Exported ${currentUsers.length} users to CSV`,
+      timer: 2000,
+      showConfirmButton: false,
+    });
+  } catch (error: any) {
+    console.error('Export error:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Export Failed',
+      text: error.message || 'Failed to export users data. Please try again.',
+    });
+  } finally {
+    setExportLoading(false);
+  }
+};
+
+  // ---------- Handle Pending User Actions ----------
+  const handleApprovePendingUser = async (user: any) => {
+    const result = await Swal.fire({
+      title: 'Approve User?',
+      text: `This will approve ${user.email} and allow them to access the platform.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Approve',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const r = await fetch(`/api/admin-apis/users/pending-users/${user.id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!r.ok) {
+        const errorData = await r.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to approve user');
+      }
+
+      Swal.fire({
+        icon: 'success',
+        title: 'User Approved',
+        text: `${user.email} has been approved and can now access the platform.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      
+      mutate();
+    } catch (err: any) {
+      console.error(err);
+      Swal.fire('Error', err.message || 'Failed to approve user', 'error');
+    }
+  };
+
+  const handleRejectPendingUser = async (user: any) => {
+    const { value: reason } = await Swal.fire({
+      title: 'Reject User Registration',
+      input: 'text',
+      inputLabel: 'Please provide a reason for rejection:',
+      inputPlaceholder: 'e.g., Invalid documentation, incomplete information',
+      showCancelButton: true,
+      confirmButtonText: 'Reject User',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#ef4444',
+      inputValidator: (value) => {
+        if (!value) {
+          return 'Please provide a reason for rejection';
+        }
+      }
+    });
+
+    if (!reason) return;
+
+    const confirm = await Swal.fire({
+      title: 'Confirm Rejection?',
+      text: `This will permanently reject ${user.email}'s registration.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, Reject',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const r = await fetch(`/api/admin-apis/users/pending-users/${user.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+
+      if (!r.ok) {
+        const errorData = await r.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to reject user');
+      }
+
+      Swal.fire({
+        icon: 'success',
+        title: 'User Rejected',
+        text: `${user.email} has been rejected.`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      
+      mutate();
+    } catch (err: any) {
+      console.error(err);
+      Swal.fire('Error', err.message || 'Failed to reject user', 'error');
+    }
+  };
+
+  // ---------- Delete ----------
   const handleDelete = async (user: any) => {
     const res = await Swal.fire({
       title: "Delete user?",
@@ -164,7 +400,11 @@ export default function UsersPage() {
     if (!res.isConfirmed) return;
 
     try {
-      const r = await fetch(`/api/admin-apis/users/${user.id}`, {
+      const endpoint = activeTab === "pending" 
+        ? `/api/admin-apis/users/pending-users/${user.id}`
+        : `/api/admin-apis/users/${user.id}`;
+      
+      const r = await fetch(endpoint, {
         method: "DELETE",
       });
 
@@ -178,13 +418,12 @@ export default function UsersPage() {
     }
   };
 
-  // ---------- Block / Unblock (using new API endpoint) ----------
+  // ---------- Block / Unblock ----------
   const handleBlockToggle = async (user: any) => {
     const isCurrentlyBlocked = user.is_blocked;
     const action = isCurrentlyBlocked ? "unblock" : "block";
     const actionText = isCurrentlyBlocked ? "Unblock" : "Block";
 
-    // Ask for reason when blocking
     let reason = "";
     if (action === "block") {
       const { value: blockReason } = await Swal.fire({
@@ -202,7 +441,7 @@ export default function UsersPage() {
         }
       });
 
-      if (!blockReason) return; // User cancelled
+      if (!blockReason) return;
       reason = blockReason;
     }
 
@@ -220,7 +459,6 @@ export default function UsersPage() {
     if (!confirm.isConfirmed) return;
 
     try {
-      // Use the new block/unblock endpoint
       const r = await fetch(`/api/admin-apis/users/${user.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -249,7 +487,7 @@ export default function UsersPage() {
     }
   };
 
-  // ---------- Edit modal (SweetAlert form) ----------
+  // ---------- Edit modal ----------
   const handleEdit = async (user: any) => {
     const { value: formValues } = await Swal.fire({
       title: `Edit ${user.email}`,
@@ -421,26 +659,15 @@ export default function UsersPage() {
           ● Active
         </span>
       );
+    } else if (value === "pending") {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+          ⏳ Pending
+        </span>
+      );
     }
     return value;
   };
-
-  // const renderRoleCell = (value: string) => {
-  //   if (value === "admin") {
-  //     return (
-  //       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-  //         👑 Admin
-  //       </span>
-  //     );
-  //   } else if (value === "user") {
-  //     return (
-  //       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-  //         👤 User
-  //       </span>
-  //     );
-  //   }
-  //   return value;
-  // };
 
   const renderKycCell = (value: string) => {
     if (value === "verified" || value === "approved") {
@@ -470,27 +697,30 @@ export default function UsersPage() {
     }
   };
 
-  const renderBalanceCell = (value: number) => {
+  const renderBalanceCell = (value: number, row: any) => {
     const amount = Number(value) || 0;
-    if (amount > 0) {
-      return (
-        <span className="font-medium text-green-600">
-          ₦{amount.toLocaleString()}
-        </span>
-      );
+    let balanceClass = "";
+    
+    if (amount > HIGH_BALANCE_THRESHOLD) {
+      balanceClass = "font-bold text-purple-600";
+    } else if (amount <= LOW_BALANCE_THRESHOLD && amount >= 0) {
+      balanceClass = "text-yellow-600";
     } else if (amount < 0) {
-      return (
-        <span className="font-medium text-red-600">
-          -₦{Math.abs(amount).toLocaleString()}
-        </span>
-      );
+      balanceClass = "font-medium text-red-600";
+    } else if (amount === 0) {
+      balanceClass = "text-gray-500";
     } else {
-      return (
-        <span className="text-gray-500">
-          ₦{amount.toLocaleString()}
-        </span>
-      );
+      balanceClass = "text-green-600";
     }
+    
+    return (
+      <span className={`font-medium ${balanceClass}`}>
+        ₦{amount.toLocaleString()}
+        {amount > HIGH_BALANCE_THRESHOLD && " 💰"}
+        {amount < 0 && " ⚠️"}
+        {amount <= LOW_BALANCE_THRESHOLD && amount >= 0 && " 📉"}
+      </span>
+    );
   };
 
   const renderLastLoginCell = (value: string, row: any) => {
@@ -582,18 +812,27 @@ export default function UsersPage() {
     return <span className="text-gray-700">{value}</span>;
   };
 
-  // Define columns with render functions
-  const columns = [
+  // Define columns for active users
+  const activeUserColumns = [
     { key: "email", label: "Email" },
     { key: "full_name", label: "Name" },
     { key: "balance", label: "Balance", render: renderBalanceCell },
-    // { key: "role", label: "Role", render: renderRoleCell },
     { key: "status", label: "Status", render: renderStatusCell },
     { key: "last_login", label: "Last Login", render: renderLastLoginCell },
     { key: "last_logout", label: "Last Logout", render: renderLastLogoutCell },
     { key: "created_at", label: "Created", render: renderCreatedAtCell },
     { key: "phone", label: "Phone", render: renderPhoneCell },
     { key: "kyc_status", label: "KYC", render: renderKycCell },
+  ];
+
+  // Define columns for pending users
+  const pendingUserColumns = [
+    { key: "email", label: "Email" },
+    { key: "full_name", label: "Name" },
+    { key: "phone", label: "Phone", render: renderPhoneCell },
+    { key: "created_at", label: "Registered", render: renderCreatedAtCell },
+    { key: "kyc_status", label: "KYC", render: renderKycCell },
+    { key: "status", label: "Status", render: renderStatusCell },
   ];
 
   // Show user profile if a user is selected
@@ -624,11 +863,11 @@ export default function UsersPage() {
   }
 
   // Show empty state
-  if (!data || users.length === 0) {
+  if (!data || currentData.length === 0) {
     return (
       <AdminLayout>
         <div className="p-6">
-          <p>No users available.</p>
+          <p>No {activeTab} users available.</p>
         </div>
       </AdminLayout>
     );
@@ -640,127 +879,242 @@ export default function UsersPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Users Management</h2>
-          <Button variant="outline" onClick={() => mutate()}>
-            🔄 Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleExportCSV}
+              disabled={exportLoading || currentUsers.length === 0}
+            >
+              {exportLoading ? 'Exporting...' : '📥 Export CSV'}
+            </Button>
+            <Button variant="outline" onClick={() => mutate()}>
+              🔄 Refresh
+            </Button>
+          </div>
         </div>
 
-        {/* Enhanced Stats Cards - Added Blocked Users Card */}
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+        {/* Enhanced Stats Cards - Added Balance Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Total Users</h3>
-            <p className="text-2xl font-semibold">{users.length}</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Active (30d)</h3>
-            <p className="text-2xl font-semibold text-green-600">
-              {activeUsers.length}
+            <p className="text-2xl font-semibold">
+              {activeUsers.length + pendingUsersCount}
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              {activeUsers.length} active + {pendingUsersCount} pending
             </p>
           </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Blocked Users</h3>
-            <p className="text-2xl font-semibold text-red-600">
-              {blockedUsers.length}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">Cannot login</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Pending Users</h3>
-            <p className="text-2xl font-semibold text-yellow-600">
-              {pendingUsersCount}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">Awaiting approval</p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Active Today</h3>
-            <p className="text-2xl font-semibold text-blue-600">
-              {activeToday.length}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Active This Week</h3>
-            <p className="text-2xl font-semibold text-purple-600">
-              {activeThisWeek.length}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Inactive (30d+)</h3>
-            <p className="text-2xl font-semibold text-orange-600">
-              {inactiveUsers.length}
-            </p>
-          </div>
+          
+          {activeTab === "active" ? (
+            <>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">High Balance</h3>
+                <p className="text-2xl font-semibold text-purple-600">
+                  {highBalanceUsers.length}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">≥ ₦{HIGH_BALANCE_THRESHOLD.toLocaleString()}</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">Low Balance</h3>
+                <p className="text-2xl font-semibold text-yellow-600">
+                  {lowBalanceUsers.length}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">≤ ₦{LOW_BALANCE_THRESHOLD.toLocaleString()}</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">Negative Balance</h3>
+                <p className="text-2xl font-semibold text-red-600">
+                  {negativeBalanceUsers.length}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">⚠️ Overdrawn accounts</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">Blocked Users</h3>
+                <p className="text-2xl font-semibold text-red-600">
+                  {blockedUsers.length}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Cannot login</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">Active (30d)</h3>
+                <p className="text-2xl font-semibold text-green-600">
+                  {recentlyActiveUsers.length}
+                </p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">Active Today</h3>
+                <p className="text-2xl font-semibold text-blue-600">
+                  {activeTodayCount.length}
+                </p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">Active This Week</h3>
+                <p className="text-2xl font-semibold text-purple-600">
+                  {activeThisWeekCount.length}
+                </p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">Inactive (30d+)</h3>
+                <p className="text-2xl font-semibold text-orange-600">
+                  {inactiveUsers.length}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-medium text-gray-500">Total Pending</h3>
+                <p className="text-2xl font-semibold text-yellow-600">
+                  {pendingUsersCount}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Awaiting approval</p>
+              </div>
+              <div className="bg-white p-4 rounded-lg border shadow-sm col-span-7">
+                <h3 className="text-sm font-medium text-gray-500">Pending Registration</h3>
+                <p className="text-lg font-medium">
+                  Review and approve new user registrations
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Click on a user to review details, then approve or reject
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Filters with Shadcn Select Components */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="w-full md:w-1/4">
-            <Input
-              placeholder="Search by email, name, or phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="active">
+              Active Users ({activeUsers.length})
+            </TabsTrigger>
+            <TabsTrigger value="pending">
+              Pending Users ({pendingUsersCount})
+            </TabsTrigger>
+          </TabsList>
+          
+          {/* Active Users Tab */}
+          <TabsContent value="active" className="space-y-4">
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="w-full md:w-1/5">
+                <Input
+                  placeholder="Search by email, name, or phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <div className="w-full md:w-1/6">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="w-full md:w-1/6">
+                <Select value={activityFilter} onValueChange={setActivityFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Activity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Activity</SelectItem>
+                    <SelectItem value="active">Active (30d)</SelectItem>
+                    <SelectItem value="today">Active Today</SelectItem>
+                    <SelectItem value="week">Active This Week</SelectItem>
+                    <SelectItem value="inactive">Inactive (30d+)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* NEW: Balance Filter */}
+              <div className="w-full md:w-1/6">
+                <Select value={balanceFilter} onValueChange={setBalanceFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Balances" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Balances</SelectItem>
+                    <SelectItem value="high">High Balance (≥ ₦{HIGH_BALANCE_THRESHOLD.toLocaleString()})</SelectItem>
+                    <SelectItem value="low">Low Balance (≤ ₦{LOW_BALANCE_THRESHOLD.toLocaleString()})</SelectItem>
+                    <SelectItem value="negative">Negative Balance</SelectItem>
+                    <SelectItem value="zero">Zero Balance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Results Count */}
+            <div className="text-sm text-gray-500">
+              Showing {paginatedUsers.length} of {filteredActiveUsers.length} active users
+              {searchTerm && ` matching "${searchTerm}"`}
+              {activityFilter !== "all" && ` (${activityFilter})`}
+              {balanceFilter !== "all" && ` (${balanceFilter} balance)`}
+            </div>
+
+            {/* Table */}
+            <AdminTable
+              columns={activeUserColumns}
+              rows={paginatedUsers}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onBlockToggle={handleBlockToggle}
+              onForceLogout={handleForceLogout}
+              onViewLoginHistory={handleViewLoginHistory}
+              onRowClick={handleUserClick}
             />
-          </div>
-          
-          <div className="w-full md:w-1/5">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="blocked">Blocked</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-{/*           
-          <div className="w-full md:w-1/5">
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Roles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </div> */}
-          
-          <div className="w-full md:w-1/5">
-            <Select value={activityFilter} onValueChange={setActivityFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Activity" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Activity</SelectItem>
-                <SelectItem value="active">Active (30d)</SelectItem>
-                <SelectItem value="today">Active Today</SelectItem>
-                <SelectItem value="week">Active This Week</SelectItem>
-                <SelectItem value="inactive">Inactive (30d+)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+          </TabsContent>
 
-        {/* Results Count */}
-        <div className="text-sm text-gray-500">
-          Showing {paginatedUsers.length} of {filteredUsers.length} users
-          {searchTerm && ` matching "${searchTerm}"`}
-          {activityFilter !== "all" && ` (${activityFilter})`}
-        </div>
+          {/* Pending Users Tab */}
+          <TabsContent value="pending" className="space-y-4">
+            {/* Filters for Pending Users */}
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="w-full md:w-1/3">
+                <Input
+                  placeholder="Search pending users by email, name, or phone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
 
-        {/* Table */}
-        <AdminTable
-          columns={columns}
-          rows={paginatedUsers}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onBlockToggle={handleBlockToggle}
-          onForceLogout={handleForceLogout}
-          onViewLoginHistory={handleViewLoginHistory}
-          onRowClick={handleUserClick} // Add this for click functionality
-        />
+            {/* Results Count */}
+            <div className="text-sm text-gray-500">
+              Showing {paginatedUsers.length} of {filteredPendingUsers.length} pending users
+              {searchTerm && ` matching "${searchTerm}"`}
+            </div>
+
+            {/* Table */}
+            <AdminTable
+              columns={pendingUserColumns}
+              rows={paginatedUsers}
+              onDelete={handleDelete}
+              onRowClick={handleUserClick}
+              customActions={[
+                {
+                  label: "Approve",
+                  onClick: handleApprovePendingUser,
+                  variant: "secondary",
+                  className: "font-medium",
+                  icon: "✓",
+                },
+                {
+                  label: "Reject",
+                  onClick: handleRejectPendingUser,
+                  variant: "destructive",
+                  className: "font-medium",
+                  icon: "✗",
+                },
+              ]}
+            />
+          </TabsContent>
+        </Tabs>
 
         {/* Pagination */}
         {totalPages > 1 && (

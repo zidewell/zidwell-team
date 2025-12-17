@@ -4,8 +4,11 @@ import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Banknote } from "lucide-react";
+import { useToast } from "@/app/hooks/use-toast"; 
+import { PayWithTransferModal } from "./PayWithTransferModal";
 
+// Types
 interface PayerInfo {
   fullName: string;
   email: string;
@@ -15,9 +18,49 @@ interface PayerInfo {
 interface PaymentFormProps {
   invoiceId: string;
   amount: number;
+  initiatorAccountName?: string;
+  initiatorAccountNumber?: string;
+  initiatorBankName?: string;
+  status?: string;
+  allow_multiple_payments?: boolean;
 }
 
-export default function PaymentForm({ invoiceId, amount }: PaymentFormProps) {
+// Validation utility
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePhone = (phone: string): boolean => {
+  const phoneRegex = /^[0-9]{10,15}$/;
+  return phoneRegex.test(phone.replace(/\D/g, ''));
+};
+
+const validatePayerInfo = (payerInfo: PayerInfo): string | null => {
+  if (!payerInfo.fullName || !payerInfo.email || !payerInfo.phone) {
+    return "Please fill in all your information before proceeding with payment.";
+  }
+
+  if (!validateEmail(payerInfo.email)) {
+    return "Please enter a valid email address.";
+  }
+
+  if (!validatePhone(payerInfo.phone)) {
+    return "Please enter a valid phone number (10-15 digits).";
+  }
+
+  return null;
+};
+
+export default function PaymentForm({ 
+  invoiceId, 
+  amount,
+  initiatorAccountName,
+  initiatorAccountNumber,
+  initiatorBankName,
+   status,
+  allow_multiple_payments = false
+}: PaymentFormProps) {
   const [payerInfo, setPayerInfo] = useState<PayerInfo>({
     fullName: "",
     email: "",
@@ -25,6 +68,10 @@ export default function PaymentForm({ invoiceId, amount }: PaymentFormProps) {
   });
   const [isGeneratingPayment, setIsGeneratingPayment] = useState(false);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"card" | "transfer" | null>(null);
+  
+  const { toast } = useToast();
 
   const handlePayerInfoChange = (field: keyof PayerInfo, value: string) => {
     setPayerInfo(prev => ({
@@ -33,16 +80,31 @@ export default function PaymentForm({ invoiceId, amount }: PaymentFormProps) {
     }));
   };
 
-  const generatePaymentLink = async () => {
-    if (!payerInfo.fullName || !payerInfo.email || !payerInfo.phone) {
-      alert("Please fill in all your information before proceeding with payment.");
+  const handlePaymentMethodSelect = (method: "card" | "transfer") => {
+    const validationError = validatePayerInfo(payerInfo);
+    
+    if (validationError) {
+      toast({
+        title: "Validation Error",
+        description: validationError,
+        variant: "destructive",
+      });
       return;
     }
+    
+    setSelectedPaymentMethod(method);
+    
+    if (method === "transfer") {
+      setShowTransferModal(true);
+    } else {
+      generatePaymentLink();
+    }
+  };
 
+  const generatePaymentLink = async () => {
     setIsGeneratingPayment(true);
 
     try {
-      // Call API to generate fresh Nomba payment link
       const response = await fetch('/api/generate-payment-link', {
         method: 'POST',
         headers: {
@@ -57,16 +119,36 @@ export default function PaymentForm({ invoiceId, amount }: PaymentFormProps) {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
+      
       if (data.success && data.paymentUrl) {
-        // Redirect to the fresh Nomba payment page
-        window.location.href = data.paymentUrl;
+        toast({
+          title: "Redirecting to Payment",
+          description: "You are being redirected to the secure payment page...",
+        });
+
+        // Add a small delay for better UX
+        setTimeout(() => {
+          window.location.href = data.paymentUrl;
+        }, 1500);
       } else {
-        alert('Failed to generate payment link. Please try again.');
+        toast({
+          title: "Payment Error",
+          description: data.error || 'Failed to generate payment link. Please try again.',
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Payment generation error:', error);
-      alert('An error occurred. Please try again.');
+      toast({
+        title: "Connection Error",
+        description: "An error occurred. Please check your connection and try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsGeneratingPayment(false);
     }
@@ -74,7 +156,7 @@ export default function PaymentForm({ invoiceId, amount }: PaymentFormProps) {
 
   return (
     <>
-      {/* Payer Information Form (Shown when Pay Now is clicked) */}
+      {/* Payer Information Form */}
       {showPaymentForm && (
         <div className="mb-6 p-6 bg-muted/30 rounded-lg border">
           <h3 className="font-semibold text-foreground mb-4">Your Information</h3>
@@ -113,21 +195,42 @@ export default function PaymentForm({ invoiceId, amount }: PaymentFormProps) {
               />
             </div>
           </div>
-          <div className="flex gap-3 mt-4">
-            <Button 
-              onClick={generatePaymentLink}
-              disabled={isGeneratingPayment || !payerInfo.fullName || !payerInfo.email || !payerInfo.phone}
-              className="bg-[#C29307] hover:bg-[#b38606]"
-            >
-              {isGeneratingPayment ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Generating...
-                </>
-              ) : (
-                'Proceed to Payment'
-              )}
-            </Button>
+
+          {/* Payment Method Selection */}
+          <div className="mt-6">
+            <h3 className="font-semibold text-foreground mb-4">Select Payment Method</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#C29307] hover:bg-amber-50"
+                disabled={true}
+                title="Card payments are currently disabled"
+              >
+                <CreditCard className="h-8 w-8" />
+                <div className="text-center">
+                  <div className="font-semibold">Pay with Card</div>
+                  <div className="text-xs text-muted-foreground">Visa, Mastercard, etc.</div>
+                </div>
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-24 flex flex-col items-center justify-center gap-2 hover:border-[#C29307] hover:bg-amber-50"
+                onClick={() => handlePaymentMethodSelect("transfer")}
+                disabled={isGeneratingPayment}
+              >
+                <Banknote className="h-8 w-8" />
+                <div className="text-center">
+                  <div className="font-semibold">Bank Transfer</div>
+                  <div className="text-xs text-muted-foreground">Direct bank transfer</div>
+                </div>
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
             <Button 
               variant="outline" 
               onClick={() => setShowPaymentForm(false)}
@@ -138,19 +241,32 @@ export default function PaymentForm({ invoiceId, amount }: PaymentFormProps) {
         </div>
       )}
 
+      {/* Transfer Modal */}
+      <PayWithTransferModal
+        isOpen={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+        invoiceId={invoiceId}
+        amount={amount}
+        payerInfo={payerInfo}
+        initiatorAccountName={initiatorAccountName}
+        initiatorAccountNumber={initiatorAccountNumber}
+        initiatorBankName={initiatorBankName}
+      />
+
       {/* Pay Now Button */}
-      {!showPaymentForm && (
-        <div className="mb-6">
-          <Button 
-            size="lg" 
-            className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
-            onClick={() => setShowPaymentForm(true)}
-          >
-            <CreditCard className="h-5 w-5 mr-2" />
-            Pay Now
-          </Button>
-        </div>
-      )}
+     {!showPaymentForm && (
+  <div className="mb-6">
+    <Button 
+      size="lg" 
+      className="w-full bg-[#C29307] hover:bg-[#b38606] text-white"
+      onClick={() => setShowPaymentForm(true)}
+      disabled={status === "paid" && allow_multiple_payments === false}
+    >
+      <CreditCard className="h-5 w-5 mr-2" />
+      {status === "paid" && allow_multiple_payments === false ? "Payment Completed" : "Pay Now"}
+    </Button>
+  </div>
+)}
     </>
   );
 }

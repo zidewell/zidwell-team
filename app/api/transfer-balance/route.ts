@@ -31,23 +31,26 @@ async function sendWithdrawalEmailNotification(
       .single();
 
     if (error || !user) {
-      console.error("Failed to fetch user for withdrawal email notification:", error);
+      console.error(
+        "Failed to fetch user for withdrawal email notification:",
+        error
+      );
       return;
     }
 
     const subject =
       status === "success"
-        ? `Withdrawal Successful - ₦${amount.toLocaleString()}`
+        ? `Transfer Successful - ₦${amount.toLocaleString()}`
         : status === "processing" || status === "pending"
-        ? `Withdrawal Processing - ₦${amount.toLocaleString()}`
-        : `Withdrawal Failed - ₦${amount.toLocaleString()}`;
+        ? `Transfer Processing - ₦${amount.toLocaleString()}`
+        : `Transfer Failed - ₦${amount.toLocaleString()}`;
 
     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
 
     const successBody = `
 ${greeting}
 
-Your withdrawal was successful!
+Your Transfer was successful!
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
@@ -70,7 +73,7 @@ Zidwell Team
     const processingBody = `
 ${greeting}
 
-Your withdrawal is being processed. This usually takes a few moments.
+Your Transfer is being processed. This usually takes a few moments.
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
@@ -94,7 +97,7 @@ Zidwell Team
     const failedBody = `
 ${greeting}
 
-Your withdrawal failed.
+Your Transfer failed.
 
 💰 Transaction Details:
 • Amount: ₦${amount.toLocaleString()}
@@ -117,24 +120,36 @@ Best regards,
 Zidwell Team
     `;
 
-    const emailBody = 
-      status === "success" ? successBody :
-      (status === "processing" || status === "pending") ? processingBody : failedBody;
+    const emailBody =
+      status === "success"
+        ? successBody
+        : status === "processing" || status === "pending"
+        ? processingBody
+        : failedBody;
 
-    const statusColor = 
-      status === "success" ? "#22c55e" :
-      (status === "processing" || status === "pending") ? "#f59e0b" : "#ef4444";
+    const statusColor =
+      status === "success"
+        ? "#22c55e"
+        : status === "processing" || status === "pending"
+        ? "#f59e0b"
+        : "#ef4444";
 
-    const statusIcon = 
-      status === "success" ? "✅" :
-      (status === "processing" || status === "pending") ? "🟡" : "❌";
+    const statusIcon =
+      status === "success"
+        ? "✅"
+        : status === "processing" || status === "pending"
+        ? "🟡"
+        : "❌";
 
-    const statusText = 
-      status === "success" ? "Withdrawal Successful" :
-      (status === "processing" || status === "pending") ? "Withdrawal Processing" : "Withdrawal Failed";
+    const statusText =
+      status === "success"
+        ? "Transfer Successful"
+        : status === "processing" || status === "pending"
+        ? "Transfer Processing"
+        : "Transfer Failed";
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Zidwell" <notifications@zidwell.com>',
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
       text: emailBody,
@@ -157,11 +172,19 @@ Zidwell Team
             <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
             <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
-              ${status === "success" ? "Success" : (status === "processing" || status === "pending") ? "Processing" : "Failed"}
+              ${
+                status === "success"
+                  ? "Success"
+                  : status === "processing" || status === "pending"
+                  ? "Processing"
+                  : "Failed"
+              }
             </span></p>
             ${
               status === "failed"
-                ? `<p><strong>Reason:</strong> ${errorDetail || "Transaction failed"}</p>`
+                ? `<p><strong>Reason:</strong> ${
+                    errorDetail || "Transaction failed"
+                  }</p>`
                 : ""
             }
           </div>
@@ -176,7 +199,7 @@ Zidwell Team
           }
           
           ${
-            (status === "processing" || status === "pending")
+            status === "processing" || status === "pending"
               ? `<p style="color: #64748b;">
                   You will receive another notification once the transaction is completed.
                   This usually takes just a few moments.
@@ -185,7 +208,9 @@ Zidwell Team
           }
           
           ${
-            status === "failed" && (errorDetail?.includes("refunded") || errorDetail?.includes("refund"))
+            status === "failed" &&
+            (errorDetail?.includes("refunded") ||
+              errorDetail?.includes("refund"))
               ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
               : ""
           }
@@ -263,7 +288,10 @@ export async function POST(req: Request) {
     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
     const isValid = await bcrypt.compare(plainPin, user.transaction_pin);
     if (!isValid) {
-      return NextResponse.json({ message: "Invalid transaction PIN" }, { status: 401 });
+      return NextResponse.json(
+        { message: "Invalid transaction PIN" },
+        { status: 401 }
+      );
     }
 
     const totalDeduction = totalDebit || amount + fee;
@@ -305,14 +333,17 @@ export async function POST(req: Request) {
         fee,
         total_deduction: totalDeduction,
         status: "pending",
-        narration: narration || "Withdrawal",
+        narration: narration || "N/A",
         merchant_tx_ref: merchantTxRef,
       })
       .select("*")
       .single();
 
     if (txError || !pendingTx) {
-      return NextResponse.json({ error: "Could not create transaction record" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Could not create transaction record" },
+        { status: 500 }
+      );
     }
 
     // ✅ Deduct wallet balance first
@@ -321,11 +352,14 @@ export async function POST(req: Request) {
       amt: totalDeduction,
       transaction_type: "withdrawal",
       reference: merchantTxRef,
-      description: `Withdrawal of ₦${amount} (fee ₦${fee})`,
+      description: `Transfer of ₦${amount}`,
     });
 
     if (rpcError) {
-      return NextResponse.json({ error: "Failed to deduct wallet balance" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to deduct wallet balance" },
+        { status: 500 }
+      );
     }
 
     // ✅ Call Nomba transfer API
@@ -367,15 +401,15 @@ export async function POST(req: Request) {
       const refundReference = `refund_${merchantTxRef}`;
       const { error: refundErr } = await supabase.rpc("deduct_wallet_balance", {
         user_id: user.id,
-        amt: -totalDeduction, 
+        amt: -totalDeduction,
         transaction_type: "credit",
         reference: refundReference,
-        description: `Refund for failed withdrawal of ₦${amount} (fee ₦${fee})`,
+        description: `Refund for failed Transfer of ₦${amount} (fee ₦${fee})`,
       });
 
       if (refundErr) {
         console.error("❌ Refund failed:", refundErr);
-        
+
         // Send failure email without refund
         await sendWithdrawalEmailNotification(
           userId,
@@ -389,7 +423,7 @@ export async function POST(req: Request) {
           pendingTx.id,
           data.description || "Transfer failed. Refund pending."
         );
-        
+
         return NextResponse.json(
           { message: "Transfer failed, refund pending", nombaResponse: data },
           { status: 400 }
@@ -412,7 +446,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json(
         {
-          message: "Withdrawal failed, funds refunded successfully.",
+          message: "Transfer failed, funds refunded successfully.",
           reason: data.description || "Transfer not successful",
           refunded: true,
         },
@@ -429,18 +463,15 @@ export async function POST(req: Request) {
         external_response: data,
       })
       .eq("id", pendingTx.id);
-  
 
-
-      
     return NextResponse.json({
-      message: "Withdrawal initiated successfully.",
+      message: "Transfer initiated successfully.",
       transactionId: pendingTx.id,
       merchantTxRef,
       nombaResponse: data,
     });
   } catch (error: any) {
-    console.error("Withdraw API error:", error); 
+    console.error("Withdraw API error:", error);
     return NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
       { status: 500 }

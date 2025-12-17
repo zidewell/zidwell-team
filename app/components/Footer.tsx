@@ -90,14 +90,14 @@ const Footer = () => {
                   Create Ticket
                 </Link>
               </li>
-              <li>
+              {/* <li>
                 <Link
                   href="/support/tickets"
                   className="hover:text-white text-gray-400 transition-colors"
                 >
                   My Tickets
                 </Link>
-              </li>
+              </li> */}
               <li>
                 <Link
                   href="https://wa.me/7069175399"
@@ -112,6 +112,14 @@ const Footer = () => {
                   className="hover:text-white text-gray-400 transition-colors"
                 >
                   Contact Us
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/privacy"
+                  className="hover:text-white text-gray-400 transition-colors"
+                >
+                  Privacy Policy
                 </Link>
               </li>
             </ul>

@@ -25,7 +25,9 @@ async function getCachedUser(userId: string) {
   // Fetch fresh data
   const { data: user, error } = await supabase
     .from("users")
-    .select("transaction_pin, wallet_balance, zidcoin_balance, email, first_name")
+    .select(
+      "transaction_pin, wallet_balance, zidcoin_balance, email, first_name"
+    )
     .eq("id", userId)
     .single();
 
@@ -158,7 +160,7 @@ Zidwell Team
         : "Airtime Purchase Failed";
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || '"Zidwell" <notifications@zidwell.com>',
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
       text: emailBody,
@@ -452,7 +454,7 @@ export async function POST(req: NextRequest) {
       {
         p_user_id: userId,
         p_transaction_id: transactionId,
-        p_transaction_type: "airtime", 
+        p_transaction_type: "airtime",
         p_amount: amount,
       }
     );

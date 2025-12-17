@@ -38,25 +38,21 @@ interface RequestBody {
   clientPhone?: string;
   initiator_account_number: string;
   initiator_account_name: string;
+  initiator_bank_name: string;
   target_quantity?: number;
+  is_draft?: boolean; // Add this field
 }
 
 function generateInvoiceId(): string {
-  const datePart = new Date().getFullYear();
-  const randomToken = uuidv4().replace(/-/g, "").substring(0, 12).toUpperCase();
-  return `INV-${datePart}-${randomToken}`;
+  const randomToken = uuidv4().replace(/-/g, "").substring(0, 4).toUpperCase();
+  return `INV_${randomToken}`;
 }
 
-function calculateTotals(invoiceItems: InvoiceItem[], feeOption: string) {
-  const subtotal = invoiceItems.reduce(
+function calculateSubtotal(invoiceItems: InvoiceItem[]): number {
+  return invoiceItems.reduce(
     (sum, item) => sum + Number(item.quantity) * Number(item.unitPrice),
     0
   );
-  const feeAmount = feeOption === "customer" ? subtotal * 0.035 : 0;
-  const totalAmount =
-    feeOption === "customer" ? subtotal + feeAmount : subtotal;
-
-  return { subtotal, feeAmount, totalAmount };
 }
 
 async function uploadLogoToStorage(
@@ -261,7 +257,9 @@ export async function POST(req: Request) {
       clientPhone,
       initiator_account_number,
       initiator_account_name,
+      initiator_bank_name,
       target_quantity,
+      is_draft,
     } = body;
 
     if (
@@ -298,7 +296,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const invoiceId = invoice_id || generateInvoiceId();
+    const invoiceId = invoice_id;
     const baseUrl =
       process.env.NODE_ENV === "development"
         ? process.env.NEXT_PUBLIC_DEV_URL
@@ -311,15 +309,43 @@ export async function POST(req: Request) {
       );
     }
 
+    // FIRST: Check if invoice already exists (could be a draft)
+    const { data: existingInvoice, error: checkError } = await supabase
+      .from("invoices")
+      .select("id, status, is_draft, invoice_id")
+      .eq("invoice_id", invoice_id)
+      .single();
+
+    let isUpdatingDraft = false;
+    let existingInvoiceId: string | null = null;
+
+    if (existingInvoice && existingInvoice.is_draft) {
+      console.log(`Found existing draft invoice: ${invoice_id}, ID: ${existingInvoice.id}`);
+      isUpdatingDraft = true;
+      existingInvoiceId = existingInvoice.id;
+    } else if (existingInvoice && !existingInvoice.is_draft) {
+      // Invoice already exists and is NOT a draft - this is an error
+      console.error(`Invoice ${invoice_id} already exists and is not a draft`);
+      return NextResponse.json(
+        { message: "Invoice with this ID already exists as a final invoice. Please use a different invoice ID." },
+        { status: 409 }
+      );
+    }
+
     const publicToken = uuidv4();
     const signingLink = `${baseUrl}/pay-invoice/${publicToken}`;
 
-    console.log(signingLink, "signingLink")
+    console.log(signingLink, "signingLink");
 
-    const { subtotal, feeAmount, totalAmount } = calculateTotals(
-      invoice_items,
-      fee_option
-    );
+    // Calculate subtotal only (fee calculation is now handled in frontend)
+    const subtotal = calculateSubtotal(invoice_items);
+    
+    // Calculate fee amount based on fee_option (use the total_amount from frontend to derive fee)
+    let feeAmount = 0;
+    if (fee_option === "customer") {
+      // Fee is already included in the total_amount from frontend
+      feeAmount = total_amount - subtotal;
+    }
 
     const issueDate = new Date(issue_date);
 
@@ -344,15 +370,15 @@ export async function POST(req: Request) {
       console.warn("Invalid logo format provided, proceeding without logo");
     }
 
-    // Insert invoice with multiple payments support
-    // NOTE: We're NOT creating a Nomba order here - payment links will be generated dynamically
-    const { data: invoice, error: invoiceError } = await supabase
-      .from("invoices")
-      .insert([
-        {
-          user_id: userId,
-          invoice_id: invoiceId,
-          order_reference: uuidv4(),
+    let invoice: any;
+
+    if (isUpdatingDraft && existingInvoiceId) {
+      // UPDATE existing draft to final invoice
+      console.log(`Updating draft invoice ${invoice_id} to final invoice`);
+      
+      const { data: updatedInvoice, error: updateError } = await supabase
+        .from("invoices")
+        .update({
           business_name: business_name,
           business_logo: finalLogoUrl,
           from_email: initiator_email,
@@ -368,11 +394,9 @@ export async function POST(req: Request) {
           allow_multiple_payments: payment_type === "multiple",
           target_quantity:
             payment_type === "multiple" ? target_quantity || 1 : 1,
-          paid_quantity: 0,
           subtotal: subtotal,
           fee_amount: feeAmount,
-          total_amount: totalAmount,
-          paid_amount: 0,
+          total_amount: total_amount,
           message: message,
           customer_note: customer_note,
           redirect_url: redirect_url,
@@ -381,28 +405,100 @@ export async function POST(req: Request) {
           public_token: publicToken,
           initiator_account_number,
           initiator_account_name,
-        },
-      ])
-      .select()
-      .single();
+          initiator_bank_name,
+          is_draft: false, // Remove draft flag
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingInvoiceId)
+        .select()
+        .single();
 
-    if (invoiceError) {
-      console.error("Supabase invoice error:", invoiceError);
-
-      if (invoiceError.code === "23505") {
+      if (updateError) {
+        console.error("Supabase update error:", updateError);
         return NextResponse.json(
-          { message: "Invoice with this ID already exists" },
-          { status: 409 }
+          { message: "Failed to update draft invoice", error: updateError.message },
+          { status: 500 }
         );
       }
 
-      return NextResponse.json(
-        { message: "Failed to save invoice", error: invoiceError.message },
-        { status: 500 }
-      );
+      invoice = updatedInvoice;
+
+      // Delete old invoice items and insert new ones
+      const { error: deleteError } = await supabase
+        .from("invoice_items")
+        .delete()
+        .eq("invoice_id", existingInvoiceId);
+
+      if (deleteError) {
+        console.error("Error deleting old invoice items:", deleteError);
+      }
+
+    } else {
+      // CREATE new invoice (not from draft)
+      console.log(`Creating new invoice: ${invoice_id}`);
+      
+      const { data: newInvoice, error: invoiceError } = await supabase
+        .from("invoices")
+        .insert([
+          {
+            user_id: userId,
+            invoice_id: invoiceId,
+            order_reference: uuidv4(),
+            business_name: business_name,
+            business_logo: finalLogoUrl,
+            from_email: initiator_email,
+            from_name: initiator_name,
+            client_name: signee_name,
+            client_email: signee_email,
+            client_phone: clientPhone,
+            bill_to: bill_to,
+            issue_date: issueDate.toISOString().split("T")[0],
+            status: status || "unpaid",
+            payment_type: payment_type,
+            fee_option: fee_option,
+            allow_multiple_payments: payment_type === "multiple",
+            target_quantity:
+              payment_type === "multiple" ? target_quantity || 1 : 1,
+            paid_quantity: 0,
+            subtotal: subtotal,
+            fee_amount: feeAmount,
+            total_amount: total_amount,
+            paid_amount: 0,
+            message: message,
+            customer_note: customer_note,
+            redirect_url: redirect_url,
+            payment_link: signingLink,
+            signing_link: signingLink,
+            public_token: publicToken,
+            initiator_account_number,
+            initiator_account_name,
+            initiator_bank_name,
+            is_draft: false,
+          },
+        ])
+        .select()
+        .single();
+
+      if (invoiceError) {
+        console.error("Supabase invoice error:", invoiceError);
+
+        if (invoiceError.code === "23505") {
+          return NextResponse.json(
+            { message: "Invoice with this ID already exists" },
+            { status: 409 }
+          );
+        }
+
+        return NextResponse.json(
+          { message: "Failed to save invoice", error: invoiceError.message },
+          { status: 500 }
+        );
+      }
+
+      invoice = newInvoice;
     }
 
-    // Insert invoice items
+    // Insert invoice items (same for both update and create)
     const { error: itemsError } = await supabase.from("invoice_items").insert(
       invoice_items.map((item) => ({
         invoice_id: invoice.id,
@@ -415,7 +511,10 @@ export async function POST(req: Request) {
 
     if (itemsError) {
       console.error("Supabase items error:", itemsError);
-      await supabase.from("invoices").delete().eq("id", invoice.id);
+      // Only delete if we created a new invoice (not updating draft)
+      if (!isUpdatingDraft) {
+        await supabase.from("invoices").delete().eq("id", invoice.id);
+      }
       return NextResponse.json(
         { message: "Failed to save invoice items", error: itemsError.message },
         { status: 500 }
@@ -427,7 +526,7 @@ export async function POST(req: Request) {
       to: signee_email,
       subject: `New Invoice from ${initiator_name}`,
       invoiceId,
-      amount: totalAmount,
+      amount: total_amount,
       signingLink,
       senderName: initiator_name,
       message,
@@ -438,7 +537,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       {
-        message: "Invoice created successfully",
+        message: isUpdatingDraft 
+          ? "Draft updated and invoice sent successfully" 
+          : "Invoice created successfully",
         signingLink,
         invoiceId: invoice.invoice_id,
         targetQuantity: target_quantity,

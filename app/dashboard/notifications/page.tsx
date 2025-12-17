@@ -1,4 +1,3 @@
-// app/notifications/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,6 +14,29 @@ import { useUserContextData } from "../../context/userData";
 import Loader from "../../components/Loader";
 import DashboardSidebar from "../../components/dashboard-sidebar";
 import DashboardHeader from "../../components/dashboard-hearder";
+
+// EXACT COPY of the Markdown parser from NotificationBell component
+const parseMarkdown = (text: string) => {
+  if (!text) return '';
+  
+  return text
+    // Headers
+    .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-2 mb-1">$1</h1>')
+    .replace(/^## (.*$)/gim, '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>')
+    .replace(/^### (.*$)/gim, '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>')
+    // Bold
+    .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
+    // Italic
+    .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
+    // Strikethrough
+    .replace(/~~(.*?)~~/gim, '<s class="line-through">$1</s>')
+    // Links
+    .replace(/\[([^\[]+)\]\(([^\)]+)\)/gim, '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>')
+    // Line breaks
+    .replace(/\n/gim, '<br />')
+    // Image placeholder
+    .replace(/\[Image: (.*?)\]/gim, '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>');
+};
 
 export default function UserNotificationsPage() {
   const {
@@ -200,9 +222,14 @@ export default function UserNotificationsPage() {
                               <h3 className="font-semibold text-lg mb-2 break-words">
                                 {notification.displayTitle}
                               </h3>
-                              <p className="text-gray-600 mb-3 break-words">
-                                {notification.displayMessage}
-                              </p>
+                              
+                              {/* UPDATED: Use formatted Markdown instead of plain text */}
+                              <div 
+                                className="text-gray-600 mb-3 break-words prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: parseMarkdown(notification.displayMessage) 
+                                }}
+                              />
 
                               <div className="flex items-center gap-4 text-sm text-gray-500">
                                 <span className="flex items-center gap-1">

@@ -21,7 +21,8 @@ const organizationSchema = {
   "name": "Zidwell",
   "alternateName": "Zidwell Finance Platform",
   "url": "https://zidwell.com",
-  "logo": "https://zidwell.com/images/logo.png",
+    "logo": "https://zidwell.com/logo.png", 
+  "image": "https://zidwell.com/logo.png",
   "description": "All-in-one finance and business management platform for Nigerian SMEs and professionals",
   "address": {
     "@type": "PostalAddress",
@@ -39,6 +40,64 @@ const organizationSchema = {
     "https://twitter.com/zidwellapp",
     "https://linkedin.com/company/zidwell",
     "https://facebook.com/zidwellapp"
+  ],
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://zidwell.com/search?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "Zidwell",
+  "url": "https://zidwell.com",
+  "description": "All-in-one finance and business management platform for Nigerian SMEs and professionals",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "https://zidwell.com/search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  }
+};
+
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "https://zidwell.com"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Sign Up",
+      "item": "https://zidwell.com/auth/signup"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "Login",
+      "item": "https://zidwell.com/auth/login"
+    },
+    {
+      "@type": "ListItem",
+      "position": 4,
+      "name": "Pricing",
+      "item": "https://zidwell.com/#pricing"
+    },
+    {
+      "@type": "ListItem",
+      "position": 5,
+      "name": "Features",
+      "item": "https://zidwell.com/#features"
+    }
   ]
 };
 
@@ -50,7 +109,22 @@ export const metadata: Metadata = {
   description:
     "Zidwell helps Nigerian businesses pay electricity bills, buy data, manage finances, file taxes, create contracts & invoices. All-in-one SME financial management platform.",
   keywords: [
-    // 🔥 UPDATED: Your target keywords integrated
+    "Zidwell sign up",
+    "Zidwell",
+    "zidwell",
+    "Zidwell login", 
+    "business bill payment Nigeria",
+    "SME financial management",
+    "pay electricity bills online",
+    "business tax filing Nigeria",
+    "invoice generator Nigeria",
+    "contract creator Nigeria",
+    "business banking Nigeria",
+    "fintech platform Nigeria",
+    "Zidwell pricing",
+    "Zidwell features",
+    "business tools Nigeria",
+    "digital finance Nigeria",
     "business bill payment platform Nigeria",
     "pay electricity bills online Nigeria",
     "SME financial management tools",
@@ -140,19 +214,33 @@ export default function RootLayout({
   return (
     <html lang="en-NG">
       <head>
-  
+        {/* Structured Data for SEO */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
         />
     
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         
-    
+        {/* Preload critical resources */}
+        <link rel="preload" href="/logo.png" as="image" />
+        {/* <link rel="preload" href="/og-image.jpg" as="image" />
+         */}
+        {/* Sitemap and RSS feeds */}
+       <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+        <link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" />
       </head>
       <body className={``}>
-     
+        {/* Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"
           strategy="afterInteractive"

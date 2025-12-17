@@ -108,6 +108,7 @@ const LoginForm = () => {
         } else {
           // Normal login flow - go to onboarding or dashboard based on verification
           router.push(isVerified ? "/dashboard" : "/onboarding");
+          //  window.open(isVerified ? "/dashboard" : "/onboarding", "_blank", "noopener,noreferrer")
         }
       });
     } catch (err: any) {
@@ -148,7 +149,7 @@ const LoginForm = () => {
               {/* <h1 className="font-bold text-lg">Zidwell</h1> */}
             </div>
             <CardTitle className="text-2xl">Welcome Back</CardTitle>
-            <CardDescription>Sign in to your Zidwell account</CardDescription>
+            <CardDescription>Sign in to your Zidwell Wallet</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,4 +1,3 @@
-// context/userData.tsx
 "use client";
 
 import {
@@ -85,6 +84,8 @@ interface UserContextType {
   markAllAsRead: () => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
   clearNotificationCache: () => void;
+  fetchMoreTransactions: (limit?: number) => Promise<void>;
+  setTransactions: Dispatch<SetStateAction<any[]>>;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -151,80 +152,76 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
+  const [transactionsLoading, setTransactionsLoading] = useState(false); // Add separate loading state
 
   const clearNotificationCache = () => {
     notificationCache.clear();
   };
 
-const fetchNotifications = async (filter: string = 'all', limit: number = 50) => {
-  if (!userData?.id) {
-    console.log('❌ No userData.id available');
-    return;
-  }
+  const fetchNotifications = async (filter: string = 'all', limit: number = 50) => {
+    if (!userData?.id) {
+      console.log('❌ No userData.id available');
+      return;
+    }
 
-  const cacheKey = `notifications_${userData.id}_${filter}_${limit}`;
-  
-  const cached = notificationCache.get(cacheKey);
-  if (cached && filter === 'all') {
-    setNotifications(cached);
-    const newUnreadCount = cached.filter((n: Notification) => !n.read_at).length;
-    setUnreadCount(newUnreadCount);
-    return;
-  }
-
-  setNotificationsLoading(true);
-  try {
-    const params = new URLSearchParams({
-      userId: userData.id,
-      limit: limit.toString(),
-      filter: filter
-    });
-    const response = await fetch(`/api/notifications?${params.toString()}`);
-
+    const cacheKey = `notifications_${userData.id}_${filter}_${limit}`;
     
-    if (response.ok) {
-      const data = await response.json();
-  
-      
-      if (data && Array.isArray(data)) {
-        setNotifications(data);
-        setLastFetchTime(Date.now());
-        
-        const newUnreadCount = data.filter((n: Notification) => !n.read_at).length;
-        setUnreadCount(newUnreadCount);
- 
-        
-        if (filter === 'all') {
-          notificationCache.set(cacheKey, data);
+    const cached = notificationCache.get(cacheKey);
+    if (cached && filter === 'all') {
+      setNotifications(cached);
+      const newUnreadCount = cached.filter((n: Notification) => !n.read_at).length;
+      setUnreadCount(newUnreadCount);
+      return;
+    }
+
+    setNotificationsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        userId: userData.id,
+        limit: limit.toString(),
+        filter: filter
+      });
+      const response = await fetch(`/api/notifications?${params.toString()}`);
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data && Array.isArray(data)) {
+          setNotifications(data);
+          setLastFetchTime(Date.now());
+          
+          const newUnreadCount = data.filter((n: Notification) => !n.read_at).length;
+          setUnreadCount(newUnreadCount);
+
+          if (filter === 'all') {
+            notificationCache.set(cacheKey, data);
+          }
+        } else {
+          console.error('❌ Invalid data format:', data);
+          setNotifications([]);
         }
       } else {
-        console.error('❌ Invalid data format:', data);
-        setNotifications([]);
+        const errorText = await response.text();
+        const cached = notificationCache.get(cacheKey);
+        if (cached) {
+          setNotifications(cached);
+        } else {
+          setNotifications([]);
+        }
       }
-    } else {
-     
-      const errorText = await response.text();
-     
+    } catch (error) {
       const cached = notificationCache.get(cacheKey);
       if (cached) {
         setNotifications(cached);
       } else {
         setNotifications([]);
       }
+    } finally {
+      setNotificationsLoading(false);
     }
-  } catch (error) {
-   
-    const cached = notificationCache.get(cacheKey);
-    if (cached) {
-      setNotifications(cached);
-    } else {
-      setNotifications([]);
-    }
-  } finally {
-    setNotificationsLoading(false);
-  }
-};
-
+  };
 
   const fetchUnreadCount = async () => {
     if (!userData?.id) return;
@@ -311,6 +308,38 @@ const fetchNotifications = async (filter: string = 'all', limit: number = 50) =>
     }
   };
 
+  const fetchMoreTransactions = async (limit: number = 10) => {
+    if (!userData?.id || !hasMoreTransactions) return;
+
+    setTransactionsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        userId: userData.id,
+        page: (transactionPage + 1).toString(),
+        limit: limit.toString(),
+      });
+
+      if (searchTerm) {
+        params.set("search", searchTerm);
+      }
+
+      const res = await fetch(`/api/bill-transactions?${params.toString()}`);
+      const data = await res.json();
+      
+      if (data.transactions && data.transactions.length > 0) {
+        setTransactions(prev => [...prev, ...data.transactions]);
+        setTransactionPage(prev => prev + 1);
+        setHasMoreTransactions(data.hasMore || false);
+      } else {
+        setHasMoreTransactions(false);
+      }
+    } catch (error) {
+      console.error("Error fetching more transactions:", error);
+    } finally {
+      setTransactionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!userData?.id) return;
 
@@ -380,11 +409,14 @@ const fetchNotifications = async (filter: string = 'all', limit: number = 50) =>
     try {
       const storedUser = localStorage.getItem("userData");
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
-        setUserData(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        setUserData(parsedUser);
       }
+      setLoading(false); // Set loading to false after checking localStorage
     } catch (error) {
       console.error("Failed to parse localStorage user:", error);
+      setLoading(false); // Still set loading to false on error
     }
   }, []);
 
@@ -461,42 +493,64 @@ const fetchNotifications = async (filter: string = 'all', limit: number = 50) =>
     }
   }, [userData?.id, userData?.zidcoinBalance]);
 
+  // FIXED: Transaction fetching logic
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!userData?.id) return;
+      if (!userData?.id) {
+        setTransactions([]);
+        return;
+      }
 
       const cacheKey = `transactions_${userData.id}_${searchTerm}`;
       const cached = notificationCache.get(cacheKey);
       
       if (cached) {
         setTransactions(cached);
+        setHasMoreTransactions(cached.length >= 10); // Assuming 10 is page size
         return;
       }
 
-      setLoading(true);
+      setTransactionsLoading(true);
       try {
         const params = new URLSearchParams({
           userId: userData.id,
+          page: "1",
+          limit: "10",
         });
 
         if (searchTerm) {
           params.set("search", searchTerm);
         }
 
+        // console.log('Fetching transactions with params:', params.toString());
         const res = await fetch(`/api/bill-transactions?${params.toString()}`);
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
         const data = await res.json();
+        // console.log('Transactions API response:', data);
+        
         const transactions = data.transactions || [];
         setTransactions(transactions);
+        setTransactionPage(1);
+        setHasMoreTransactions(data.hasMore || false);
         notificationCache.set(cacheKey, transactions, 3 * 60 * 1000);
       } catch (error) {
+        console.error("Error fetching transactions:", error);
         setTransactions([]);
+        
+        // Fallback to cached data if available
+        const cached = notificationCache.get(cacheKey);
         if (cached) {
           setTransactions(cached);
         }
       } finally {
-        setLoading(false);
+        setTransactionsLoading(false);
       }
     };
+    
     fetchTransactions();
   }, [userData?.id, searchTerm]);
 
@@ -569,12 +623,13 @@ const fetchNotifications = async (filter: string = 'all', limit: number = 50) =>
         userData,
         balance,
         setUserData,
-        loading,
+        loading: loading || transactionsLoading, // Combine both loading states
         episodes,
         isDarkMode,
         setIsDarkMode,
         handleDarkModeToggle,
         transactions,
+        setTransactions,
         lifetimeBalance,
         totalOutflow,
         totalTransactions,
@@ -588,6 +643,7 @@ const fetchNotifications = async (filter: string = 'all', limit: number = 50) =>
         markAllAsRead,
         fetchUnreadCount,
         clearNotificationCache,
+        fetchMoreTransactions,
       }}
     >
       {children}

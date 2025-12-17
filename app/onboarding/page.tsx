@@ -1,4 +1,5 @@
 "use client";
+import confetti from 'canvas-confetti';
 
 import { useState } from "react";
 import { CheckCircle } from "lucide-react";
@@ -46,6 +47,15 @@ const steps = [
   { id: 4, title: "Verification", description: "Identity verification" },
 ];
 
+const triggerConfetti = () => {
+  confetti({
+    particleCount: 150,
+    spread: 70,
+    origin: { y: 0.6 },
+    colors: ['#C29307', '#22c55e', '#3b82f6', '#ef4444', '#8b5cf6'],
+  });
+};
+
 export default function Page() {
   const [currentStep, setCurrentStep] = useState(1);
   const { userData } = useUserContextData();
@@ -76,6 +86,7 @@ export default function Page() {
 
   const handleVerify = async (bvn: string) => {
     setLoading(true);
+
     try {
       // 1️⃣ Verify BVN
       const verifyRes = await fetch("/api/verify-bvn", {
@@ -143,6 +154,9 @@ export default function Page() {
         localStorage.setItem("userData", JSON.stringify(userInfo));
         document.cookie = `verified=true; path=/; max-age=${60 * 60 * 24 * 7};`;
       }
+
+      // 🎉 Trigger confetti before showing success message
+      triggerConfetti();
 
       Swal.fire({
         icon: "success",
@@ -229,7 +243,7 @@ export default function Page() {
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 flex justify-center items-start bg-gradient-to-br from-yellow-50 via-white to-yellow-100 z-50 min-h-screen overflow-y-auto py-5"
+        className="fixed inset-0 flex justify-center items-start bg-linear-to-br from-yellow-50 via-white to-yellow-100 z-50 min-h-screen overflow-y-auto py-5"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -286,7 +300,7 @@ export default function Page() {
                               currentStep > step.id ? "#22c55e" : "#d1d5db",
                           }}
                           transition={{ duration: 0.4, ease: "easeInOut" }}
-                          className="w-[2px]"
+                          className="w-0.5"
                         />
                       )}
                     </div>

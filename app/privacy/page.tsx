@@ -392,13 +392,13 @@ export default function PrivacyPolicy() {
           className="bg-white rounded-lg shadow-sm p-6 border-l-4"
           style={{ borderLeftColor: primaryColor }}
         >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm text-gray-600">
+          {/* <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-sm text-gray-600">
             <div className="mb-4 sm:mb-0">
               <p className="font-medium">Prepared by: Coach Attah</p>
               <p>Date: 20th November 2025</p>
             </div>
             <p className="text-xs">Last updated: November 2025</p>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

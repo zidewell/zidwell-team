@@ -47,7 +47,7 @@ const Hero = () => {
               Get Started Free
               <ArrowRight className="ml-2" />
             </Button2>
-            <Button2 variant="heroOutline" size="xl" className="cursor-pointer">
+            <Button2 onClick={() => router.push("https://tally.so/r/aQNyzW")} variant="heroOutline" size="xl" className="cursor-pointer">
               <Users className="mr-2" />
               Join our Community
             </Button2>

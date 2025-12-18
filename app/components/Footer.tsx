@@ -193,9 +193,9 @@ const Footer = () => {
     ],
     company: [
       { label: "About Us", href: "#" },
-      { label: "Careers", href: "#" },
-      { label: "Blog", href: "#" },
-      { label: "Press", href: "#" },
+      // { label: "Careers", href: "#" },
+      // { label: "Blog", href: "#" },
+      // { label: "Press", href: "#" },
     ],
     legal: [
       { label: "Privacy Policy", href: "/privacy" },
@@ -316,14 +316,14 @@ const Footer = () => {
           <div>
             <h4 className="font-bold mb-4">Contact</h4>
             <ul className="space-y-3">
-              <li className="flex items-start gap-2 text-sm text-gray-50/70 dark:text-gray-900/70">
+              {/* <li className="flex items-start gap-2 text-sm text-gray-50/70 dark:text-gray-900/70">
                 <Mail className="w-4 h-4 mt-0.5 shrink-0" />
                 <span>hello@zidwell.com</span>
               </li>
               <li className="flex items-start gap-2 text-sm text-gray-50/70 dark:text-gray-900/70">
                 <Phone className="w-4 h-4 mt-0.5 shrink-0" />
                 <span>+234 XXX XXX XXXX</span>
-              </li>
+              </li> */}
               <li className="flex items-start gap-2 text-sm text-gray-50/70 dark:text-gray-900/70">
                 <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
                 <span>Lagos, Nigeria</span>

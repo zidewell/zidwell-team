@@ -18,6 +18,7 @@ import {
   Legend,
   AreaChart,
   Area,
+  ComposedChart,
 } from "recharts";
 import {
   Select,
@@ -41,7 +42,11 @@ import {
   FileText,
   BarChart3,
   RefreshCw,
+  Eye,
+  UserPlus,
+  Activity,
 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 const fetcher = (url: string) =>
   fetch(url).then(async (r) => {
@@ -52,7 +57,7 @@ const fetcher = (url: string) =>
     return r.json();
   });
 
-type RangeOption = "total" | "today" | "week" | "month" | "year";
+type RangeOption = "total" | "today" | "week" | "month" | "90days" | "180days" | "year";
 
 // Color schemes for charts
 const CHART_COLORS = {
@@ -60,8 +65,18 @@ const CHART_COLORS = {
   outflow: "#ef4444",
   contracts: "#3b82f6",
   invoices: "#8b5cf6",
-  revenue: "#f59e0b", // New color for revenue
+  revenue: "#f59e0b",
   pie: ["#10b981", "#ef4444", "#3b82f6", "#8b5cf6", "#f59e0b", "#84cc16"],
+  website: "#3b82f6",
+  signups: "#10b981",
+  active_users: "#8b5cf6",
+  transaction_volume: "#f59e0b",
+  revenue_breakdown: {
+    transfers: "#3b82f6",
+    bill_payment: "#10b981",
+    invoice: "#8b5cf6",
+    contract: "#ef4444"
+  }
 };
 
 interface GrowthIndicatorProps {
@@ -93,6 +108,154 @@ const GrowthIndicator = ({ value, className = "" }: GrowthIndicatorProps) => {
   );
 };
 
+// Interface for the new metrics data
+interface MetricsData {
+  website: {
+    total: number;
+    today: number;
+    week: number;
+    month: number;
+    "90days": number;
+    "180days": number;
+    year: number;
+    daily: Array<{ date: string; count: number }>;
+    weekly: Array<{ week: string; count: number }>;
+    monthly: Array<{ month: string; count: number }>;
+  };
+  signups: {
+    total: number;
+    today: number;
+    week: number;
+    month: number;
+    "90days": number;
+    "180days": number;
+    year: number;
+    daily: Array<{ date: string; count: number }>;
+    weekly: Array<{ week: string; count: number }>;
+    monthly: Array<{ month: string; count: number }>;
+  };
+  active_users: {
+    total: number;
+    today: number;
+    week: number;
+    month: number;
+    "90days": number;
+    "180days": number;
+    year: number;
+    daily: Array<{ date: string; count: number }>;
+    weekly: Array<{ week: string; count: number }>;
+    monthly: Array<{ month: string; count: number }>;
+  };
+  transaction_volume: {
+    total: number;
+    today: number;
+    week: number;
+    month: number;
+    "90days": number;
+    "180days": number;
+    year: number;
+    daily: Array<{ date: string; amount: number }>;
+    weekly: Array<{ week: string; amount: number }>;
+    monthly: Array<{ month: string; amount: number }>;
+  };
+  revenue_breakdown: {
+    total: {
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    };
+    today: {
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    };
+    week: {
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    };
+    month: {
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    };
+    "90days": {
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    };
+    "180days": {
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    };
+    year: {
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    };
+    daily: Array<{ 
+      date: string; 
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    }>;
+    weekly: Array<{ 
+      week: string; 
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    }>;
+    monthly: Array<{ 
+      month: string; 
+      total: number;
+      transfers: number;
+      bill_payment: number;
+      invoice: number;
+      contract: number;
+    }>;
+  };
+}
+
+// Safe data access helper
+const getSafeData = <T,>(data: T | undefined, path: string, defaultValue: any = []): any => {
+  if (!data) return defaultValue;
+  
+  try {
+    const keys = path.split('.');
+    let current: any = data;
+    
+    for (const key of keys) {
+      if (current[key] === undefined || current[key] === null) {
+        return defaultValue;
+      }
+      current = current[key];
+    }
+    
+    return current;
+  } catch {
+    return defaultValue;
+  }
+};
+
 export default function AdminDashboard() {
   const [page, setPage] = useState<number>(1);
   const PAGE_LIMIT = 50;
@@ -100,10 +263,10 @@ export default function AdminDashboard() {
   // Fix hydration issue by using useEffect for localStorage
   const [range, setRange] = useState<RangeOption>("total");
   const [isClient, setIsClient] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("overview");
 
   useEffect(() => {
     setIsClient(true);
-    // Only access localStorage after component mounts on client
     const savedRange = localStorage.getItem(
       "admin_dashboard_range"
     ) as RangeOption;
@@ -119,7 +282,8 @@ export default function AdminDashboard() {
     setPage(1);
   }, [range, isClient]);
 
-  const { data: summaryData, error: summaryError } = useSWR<any>(
+  // Fetch summary data
+  const { data: summaryData, error: summaryError, isLoading: summaryLoading } = useSWR<any>(
     `/api/admin-apis/dashboard/summary?range=${range}`,
     fetcher,
     {
@@ -128,7 +292,17 @@ export default function AdminDashboard() {
     }
   );
 
-  const { data: paginatedData, error: paginatedError } = useSWR<any>(
+  // Fetch new metrics data
+  const { data: metricsData, error: metricsError, isLoading: metricsLoading } = useSWR<MetricsData>(
+    `/api/admin-apis/dashboard/metrics?range=${range}`,
+    fetcher,
+    {
+      refreshInterval: 300000,
+      revalidateOnFocus: true,
+    }
+  );
+
+  const { data: paginatedData, error: paginatedError, isLoading: transactionsLoading } = useSWR<any>(
     `/api/admin-apis/transactions?page=${page}&range=${range}`,
     fetcher
   );
@@ -137,15 +311,16 @@ export default function AdminDashboard() {
     if (paginatedError)
       console.error("Paginated transactions error:", paginatedError);
     if (summaryError) console.error("Summary error:", summaryError);
-  }, [paginatedError, summaryError]);
+    if (metricsError) console.error("Metrics error:", metricsError);
+  }, [paginatedError, summaryError, metricsError]);
 
-  // Current values
+  // Current values from summary
   const totalInflow = Number(summaryData?.totalInflow ?? 0);
   const totalOutflow = Number(summaryData?.totalOutflow ?? 0);
   const mainWalletBalance = Number(summaryData?.mainWalletBalance ?? 0);
   const nombaBalanceRaw = Number(summaryData?.nombaBalance ?? 0);
 
-  // NEW: App Revenue
+  // App Revenue
   const totalAppRevenue = Number(summaryData?.totalAppRevenue ?? 0);
   const transactionFees = Number(summaryData?.transactionFees ?? 0);
   const platformFees = Number(summaryData?.platformFees ?? 0);
@@ -169,7 +344,18 @@ export default function AdminDashboard() {
 
   const totalUsers = Number(summaryData?.totalUsers ?? 0);
 
-  // Previous period values for growth calculation (you'll need to implement this in the API)
+  // Get metrics values with safe access
+  const getMetricValue = (metric: keyof MetricsData, period: RangeOption): number => {
+    if (!metricsData) return 0;
+    
+    if (metric === 'revenue_breakdown') {
+      return metricsData[metric]?.[period]?.total || 0;
+    }
+    
+    return metricsData[metric]?.[period] || 0;
+  };
+
+  // Previous period values for growth calculation
   const prevTotalInflow = Number(summaryData?.prevTotalInflow ?? 0);
   const prevTotalOutflow = Number(summaryData?.prevTotalOutflow ?? 0);
   const prevTotalAppRevenue = Number(summaryData?.prevTotalAppRevenue ?? 0);
@@ -239,6 +425,21 @@ export default function AdminDashboard() {
     { name: "Invoice Fees", value: invoiceFees, color: "#8b5cf6" },
   ].filter((item) => item.value > 0);
 
+  // Get revenue breakdown for pie chart
+  const getRevenueBreakdownPieData = () => {
+    if (!metricsData?.revenue_breakdown) return [];
+    
+    const currentRevenue = metricsData.revenue_breakdown[range];
+    if (!currentRevenue) return [];
+    
+    return [
+      { name: "Transfers", value: currentRevenue.transfers, color: CHART_COLORS.revenue_breakdown.transfers },
+      { name: "Bill Payment", value: currentRevenue.bill_payment, color: CHART_COLORS.revenue_breakdown.bill_payment },
+      { name: "Invoice", value: currentRevenue.invoice, color: CHART_COLORS.revenue_breakdown.invoice },
+      { name: "Contract", value: currentRevenue.contract, color: CHART_COLORS.revenue_breakdown.contract },
+    ].filter(item => item.value > 0);
+  };
+
   const recentActivity =
     summaryData?.latestTransactions?.slice(0, 5) ??
     paginatedData?.transactions?.slice(0, 5) ??
@@ -262,10 +463,13 @@ export default function AdminDashboard() {
     await mutate(
       `/api/admin-apis/dashboard/summary?range=${range}&nocache=true`
     );
+    await mutate(`/api/admin-apis/dashboard/metrics?range=${range}`);
     await mutate(`/api/admin-apis/transactions?page=${page}&range=${range}`);
   };
 
-  const loading = !summaryData || !paginatedData;
+  // Better loading state check
+  const isLoading = summaryLoading || metricsLoading || transactionsLoading;
+  const hasData = summaryData && metricsData && paginatedData;
 
   const formatCurrency = (value: number | string) => {
     const n = Number(value || 0);
@@ -294,18 +498,44 @@ export default function AdminDashboard() {
     }
   };
 
-  // Format for chart tooltips
   const formatCurrencyShort = (value: number) => {
-    if (value >= 1000000) {
-      return `₦${(value / 1000000).toFixed(1)}M`;
+    const numValue = Number(value);
+    if (numValue === 0) return "₦0";
+    
+    if (numValue >= 1000000000) {
+      return `₦${(numValue / 1000000000).toFixed(1)}B`;
     }
-    if (value >= 1000) {
-      return `₦${(value / 1000).toFixed(1)}K`;
+    if (numValue >= 1000000) {
+      return `₦${(numValue / 1000000).toFixed(1)}M`;
     }
-    return `₦${value}`;
+    if (numValue >= 1000) {
+      return `₦${(numValue / 1000).toFixed(1)}K`;
+    }
+    return `₦${Math.round(numValue)}`;
   };
 
-  if (loading) {
+  // Format number with commas
+  const formatNumber = (value: number) => {
+    return new Intl.NumberFormat('en-NG').format(value);
+  };
+
+  // Safe data access for charts
+  const websiteMonthlyData = getSafeData(metricsData, 'website.monthly', []);
+  const signupsMonthlyData = getSafeData(metricsData, 'signups.monthly', []);
+  const activeUsersMonthlyData = getSafeData(metricsData, 'active_users.monthly', []);
+  const transactionVolumeMonthlyData = getSafeData(metricsData, 'transaction_volume.monthly', []);
+  const revenueBreakdownMonthlyData = getSafeData(metricsData, 'revenue_breakdown.monthly', []);
+
+  // Add debugging for transaction data
+  useEffect(() => {
+    if (transactionVolumeMonthlyData && transactionVolumeMonthlyData.length > 0) {
+      console.log('Transaction Volume Data:', transactionVolumeMonthlyData);
+      console.log('First item keys:', Object.keys(transactionVolumeMonthlyData[0]));
+      console.log('First item:', transactionVolumeMonthlyData[0]);
+    }
+  }, [transactionVolumeMonthlyData]);
+
+  if (isLoading) {
     return (
       <AdminLayout>
         <div className="px-4 py-6 space-y-8">
@@ -342,6 +572,29 @@ export default function AdminDashboard() {
     );
   }
 
+  if (!hasData) {
+    return (
+      <AdminLayout>
+        <div className="px-4 py-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-700">Failed to load dashboard data. Please try refreshing the page.</p>
+            <button
+              onClick={refresh}
+              className="mt-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const revenueBreakdownPieData = getRevenueBreakdownPieData();
+
+  // All time ranges except 'total' for specific period displays
+  const specificTimeRanges: Exclude<RangeOption, 'total'>[] = ['today', 'week', 'month', '90days', '180days', 'year'];
+
   return (
     <AdminLayout>
       <div className="px-4 py-6 space-y-8">
@@ -372,6 +625,8 @@ export default function AdminDashboard() {
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="90days">Last 90 Days</SelectItem>
+                  <SelectItem value="180days">Last 180 Days</SelectItem>
                   <SelectItem value="year">This Year</SelectItem>
                 </SelectContent>
               </Select>
@@ -387,308 +642,559 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* KPI Row 1 - Financial */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Total Inflow"
-            value={formatCurrency(totalInflow)}
-            growth={<GrowthIndicator value={inflowGrowth} />}
-            icon={<TrendingUp className="w-5 h-5 text-green-600" />}
-            className="border-l-4 border-l-green-500"
-            subtitle="Money coming into the platform"
-          />
-          <KPICard
-            title="Total Outflow"
-            value={formatCurrency(totalOutflow)}
-            growth={<GrowthIndicator value={outflowGrowth} />}
-            // icon={<TrendingDown className="w-5 h-5 text-red-600" />}
-            className="border-l-4 border-l-red-500"
-            subtitle="Money leaving the platform"
-          />
-          <KPICard
-            title="Main Wallet Balance"
-            value={formatCurrency(mainWalletBalance)}
-            icon={<Wallet className="w-5 h-5 text-blue-600" />}
-            subtitle="Total user wallet balances"
-          />
-          <KPICard
-            title="Admin Wallet (Nomba)"
-            value={formatCurrency(nombaBalanceRaw)}
-            icon={<CreditCard className="w-5 h-5 text-purple-600" />}
-            subtitle="Nomba account balance"
-          />
-        </div>
+        {/* Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid grid-cols-5 w-full max-w-2xl">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="traffic">Traffic</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="transactions">Transactions</TabsTrigger>
+            <TabsTrigger value="revenue">Revenue</TabsTrigger>
+          </TabsList>
 
-        {/* KPI Row 2 - Revenue & Performance */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Total App Revenue"
-            // value={formatCurrency(totalAppRevenue)}
-            value={formatCurrency(nombaBalanceRaw - mainWalletBalance)}
-            growth={<GrowthIndicator value={appRevenueGrowth} />}
-            icon={<DollarSign className="w-5 h-5 text-amber-600" />}
-            className="border-l-4 border-l-[#C29307] bg-gradient-to-r from-amber-50 to-white"
-            subtitle="Total platform earnings"
-          />
-          <KPICard
-            title="Invoice Reveue"
-            value={formatCurrency(invoiceFees)}
-            icon={<Receipt className="w-5 h-5 text-violet-600" />}
-            subtitle="Revenue from invoices"
-          />
-          <KPICard
-            title="Total Users"
-            value={totalUsers.toLocaleString()}
-            icon={<Users className="w-5 h-5 text-green-600" />}
-            subtitle="Registered users"
-          />
-          <KPICard
-            title="Total Transactions"
-            value={totalTransactions.toLocaleString()}
-            icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
-            subtitle="All transactions"
-          />
-        </div>
-
-        {/* KPI Row 3 - Contract & Invoice Status */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KPICard
-            title="Total Contracts"
-            value={totalContracts.toLocaleString()}
-            growth={<GrowthIndicator value={contractsGrowth} />}
-            icon={<FileText className="w-5 h-5 text-blue-600" />}
-            subtitle="Contracts issued"
-          />
-          <KPICard
-            title="Signed Contracts"
-            value={signedContracts.toLocaleString()}
-            growth={<GrowthIndicator value={signedContractsGrowth} />}
-            icon={<FileText className="w-5 h-5 text-green-600" />}
-            subtitle="Contracts signed"
-          />
-          <KPICard
-            title="Paid Invoices"
-            value={paidInvoices.toLocaleString()}
-            growth={<GrowthIndicator value={paidInvoicesGrowth} />}
-            icon={<Receipt className="w-5 h-5 text-green-600" />}
-            subtitle="Invoices paid"
-          />
-          <KPICard
-            title="Unpaid Invoices"
-            value={unpaidInvoices.toLocaleString()}
-            growth={<GrowthIndicator value={unpaidInvoicesGrowth} />}
-            icon={<Receipt className="w-5 h-5 text-red-600" />}
-            subtitle="Invoices pending"
-          />
-        </div>
-
-        {/* Charts Section - Top Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* App Revenue Trend */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">
-                💰 App Revenue Trend
-              </h3>
-              <div className="text-sm text-gray-500">Filtered: {range}</div>
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-8">
+            {/* KPI Row 1 - Traffic & Users */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KPICard
+                title="Website Visits"
+                value={formatNumber(getMetricValue('website', range))}
+                icon={<Eye className="w-5 h-5 text-blue-600" />}
+                className="border-l-4 border-l-blue-500"
+                subtitle={`Total visits (${range})`}
+              />
+              <KPICard
+                title="New Signups"
+                value={formatNumber(getMetricValue('signups', range))}
+                icon={<UserPlus className="w-5 h-5 text-green-600" />}
+                className="border-l-4 border-l-green-500"
+                subtitle={`New users (${range})`}
+              />
+              <KPICard
+                title="Active Users"
+                value={formatNumber(getMetricValue('active_users', range))}
+                icon={<Activity className="w-5 h-5 text-purple-600" />}
+                className="border-l-4 border-l-purple-500"
+                subtitle={`Active users (${range})`}
+              />
+              <KPICard
+                title="Transaction Volume"
+                value={formatCurrency(getMetricValue('transaction_volume', range))}
+                icon={<DollarSign className="w-5 h-5 text-amber-600" />}
+                className="border-l-4 border-l-amber-500"
+                subtitle={`Cash processed (${range})`}
+              />
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={monthlyAppRevenue}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  tickFormatter={(value) => formatCurrencyShort(value)}
-                />
-                <Tooltip
-                  formatter={(value: number) => [
-                    formatCurrency(value),
-                    "Revenue",
-                  ]}
-                  labelFormatter={(label) => `Month: ${label}`}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke={CHART_COLORS.revenue}
-                  fill="url(#colorRevenue)"
-                  strokeWidth={2}
-                />
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor={CHART_COLORS.revenue}
-                      stopOpacity={0.8}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor={CHART_COLORS.revenue}
-                      stopOpacity={0}
-                    />
-                  </linearGradient>
-                </defs>
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
 
-          {/* Revenue Distribution Pie Chart */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">
-                📊 Revenue Breakdown
-              </h3>
-              <div className="text-sm text-gray-500">Sources</div>
+            {/* KPI Row 2 - Financial */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KPICard
+                title="Total Inflow"
+                value={formatCurrency(totalInflow)}
+                growth={<GrowthIndicator value={inflowGrowth} />}
+                icon={<TrendingUp className="w-5 h-5 text-green-600" />}
+                className="border-l-4 border-l-green-500"
+                subtitle="Money coming into the platform"
+              />
+              <KPICard
+                title="Total Outflow"
+                value={formatCurrency(totalOutflow)}
+                growth={<GrowthIndicator value={outflowGrowth} />}
+                className="border-l-4 border-l-red-500"
+                subtitle="Money leaving the platform"
+              />
+              <KPICard
+                title="Main Wallet Balance"
+                value={formatCurrency(mainWalletBalance)}
+                icon={<Wallet className="w-5 h-5 text-blue-600" />}
+                subtitle="Total user wallet balances"
+              />
+              <KPICard
+                title="Admin Wallet (Nomba)"
+                value={formatCurrency(nombaBalanceRaw)}
+                icon={<CreditCard className="w-5 h-5 text-purple-600" />}
+                subtitle="Nomba account balance"
+              />
             </div>
-            <div className="h-64">
-              {revenueBreakdownData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={revenueBreakdownData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }: any) =>
-                        `${name}: ${(percent * 100).toFixed(0)}%`
-                      }
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {revenueBreakdownData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
+
+            {/* KPI Row 3 - Revenue & Performance */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KPICard
+                title="Total App Revenue"
+                value={formatCurrency(nombaBalanceRaw - mainWalletBalance)}
+                growth={<GrowthIndicator value={appRevenueGrowth} />}
+                icon={<DollarSign className="w-5 h-5 text-amber-600" />}
+                className="border-l-4 border-l-[#C29307] bg-gradient-to-r from-amber-50 to-white"
+                subtitle="Total platform earnings"
+              />
+              <KPICard
+                title="Invoice Revenue"
+                value={formatCurrency(invoiceFees)}
+                icon={<Receipt className="w-5 h-5 text-violet-600" />}
+                subtitle="Revenue from invoices"
+              />
+              <KPICard
+                title="Total Users"
+                value={totalUsers.toLocaleString()}
+                icon={<Users className="w-5 h-5 text-green-600" />}
+                subtitle="Registered users"
+              />
+              <KPICard
+                title="Total Transactions"
+                value={totalTransactions.toLocaleString()}
+                icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+                subtitle="All transactions"
+              />
+            </div>
+
+            {/* Charts Section - Top Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Website Traffic Trend */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    🌐 Website Traffic Trend
+                  </h3>
+                  <div className="text-sm text-gray-500">Filtered: {range}</div>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={websiteMonthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                    />
                     <Tooltip
                       formatter={(value: number) => [
-                        formatCurrency(value),
-                        "Amount",
+                        formatNumber(value),
+                        "Visits",
                       ]}
+                      labelFormatter={(label) => `Month: ${label}`}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke={CHART_COLORS.website}
+                      fill="url(#colorWebsite)"
+                      strokeWidth={2}
+                    />
+                    <defs>
+                      <linearGradient id="colorWebsite" x1="0" y1="0" x2="0" y2="1">
+                        <stop
+                          offset="5%"
+                          stopColor={CHART_COLORS.website}
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={CHART_COLORS.website}
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Revenue Distribution Pie Chart */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    📊 Revenue Breakdown
+                  </h3>
+                  <div className="text-sm text-gray-500">Sources</div>
+                </div>
+                <div className="h-64">
+                  {revenueBreakdownData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={revenueBreakdownData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }: any) =>
+                            `${name}: ${(percent * 100).toFixed(0)}%`
+                          }
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {revenueBreakdownData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number) => [
+                            formatCurrency(value),
+                            "Amount",
+                          ]}
+                        />
+                        <Legend />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-gray-400">
+                      No revenue data
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Traffic Tab */}
+          <TabsContent value="traffic" className="space-y-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                🌐 Website Traffic Analytics
+              </h3>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                {specificTimeRanges.map((period) => (
+                  <div key={period} className="bg-blue-50 p-4 rounded-lg">
+                    <div className="text-sm text-blue-700 mb-1 capitalize">
+                      {period.replace('days', ' Days')}
+                    </div>
+                    <div className="text-xl font-bold text-blue-900">
+                      {formatNumber(getMetricValue('website', period))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={websiteMonthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: number) => [formatNumber(value), 'Visits']}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="count" 
+                      fill="#93c5fd" 
+                      stroke="#3b82f6" 
+                      name="Website Visits" 
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Users Tab */}
+          <TabsContent value="users" className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Signups Card */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                  👤 User Signups
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                  {specificTimeRanges.map((period) => (
+                    <div key={period} className="bg-green-50 p-3 rounded-lg">
+                      <div className="text-xs text-green-700 mb-1 capitalize">
+                        {period.replace('days', ' Days')}
+                      </div>
+                      <div className="text-lg font-bold text-green-900">
+                        {formatNumber(getMetricValue('signups', period))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={signupsMonthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip formatter={(value: number) => [formatNumber(value), 'Signups']} />
+                    <Bar dataKey="count" fill="#10b981" name="Signups" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              
+              {/* Active Users Card */}
+              <div className="bg-white p-6 rounded-2xl shadow-sm border">
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                  🏃 Active Users
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                  {specificTimeRanges.map((period) => (
+                    <div key={period} className="bg-purple-50 p-3 rounded-lg">
+                      <div className="text-xs text-purple-700 mb-1 capitalize">
+                        {period.replace('days', ' Days')}
+                      </div>
+                      <div className="text-lg font-bold text-purple-900">
+                        {formatNumber(getMetricValue('active_users', period))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={activeUsersMonthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip formatter={(value: number) => [formatNumber(value), 'Active Users']} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#8b5cf6" 
+                      strokeWidth={2}
+                      name="Active Users" 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Transactions Tab - Fixed */}
+          <TabsContent value="transactions" className="space-y-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                💸 Transaction Volume
+              </h3>
+              
+              {/* Time period cards */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                {specificTimeRanges.map((period) => {
+                  const periodValue = getMetricValue('transaction_volume', period);
+                  return (
+                    <div key={period} className="bg-amber-50 p-4 rounded-lg">
+                      <div className="text-sm text-amber-700 mb-1 capitalize">
+                        {period.replace('days', ' Days')}
+                      </div>
+                      <div className="text-xl font-bold text-amber-900">
+                        {formatCurrencyShort(periodValue)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Transaction Volume Chart */}
+              <div className="h-[400px]">
+                {transactionVolumeMonthlyData && transactionVolumeMonthlyData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={transactionVolumeMonthlyData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12 }}
+                        angle={0}
+                        textAnchor="middle"
+                        height={60}
+                      />
+                      <YAxis 
+                        tickFormatter={(value: number) => {
+                          const numValue = Number(value);
+                          if (numValue >= 1000000) {
+                            return `₦${(numValue / 1000000).toFixed(1)}M`;
+                          } else if (numValue >= 1000) {
+                            return `₦${(numValue / 1000).toFixed(1)}K`;
+                          }
+                          return `₦${numValue}`;
+                        }}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <Tooltip 
+                        formatter={(value: any) => {
+                          const numValue = Number(value);
+                          return [formatCurrency(numValue), 'Volume'];
+                        }}
+                        labelFormatter={(label) => `Month: ${label}`}
+                        contentStyle={{
+                          backgroundColor: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Legend />
+                      <Bar 
+                        dataKey="amount" 
+                        name="Transaction Volume" 
+                        fill="#f59e0b"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400">
+                    <BarChart3 size={48} className="mb-4" />
+                    <p>No transaction volume data available for the selected range</p>
+                    <p className="text-sm mt-2">Try selecting a different time range</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Additional transaction metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-sm text-gray-600 mb-1">Total Transactions</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {formatNumber(totalTransactions)}
+                  </div>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <div className="text-sm text-green-600 mb-1">Successful Transactions</div>
+                  <div className="text-2xl font-bold text-green-900">
+                    {formatNumber(successfulTransactions)}
+                  </div>
+                  <div className="text-sm text-green-700 mt-1">
+                    {totalTransactions > 0 
+                      ? `${((successfulTransactions / totalTransactions) * 100).toFixed(1)}% success rate`
+                      : '0% success rate'}
+                  </div>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <div className="text-sm text-blue-600 mb-1">Average Transaction Value</div>
+                  <div className="text-2xl font-bold text-blue-900">
+                    {successfulTransactions > 0 
+                      ? formatCurrency((totalInflow + totalOutflow) / successfulTransactions)
+                      : formatCurrency(0)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Revenue Tab */}
+          <TabsContent value="revenue" className="space-y-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm border">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  💰 Revenue Analysis by Feature
+                </h3>
+                <div className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(getMetricValue('revenue_breakdown', range))}
+                </div>
+              </div>
+              
+              {/* Revenue by Time Period */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+                {specificTimeRanges.map((period) => (
+                  <div key={period} className="bg-green-50 p-4 rounded-lg">
+                    <div className="text-sm text-green-700 mb-1 capitalize">
+                      {period.replace('days', ' Days')}
+                    </div>
+                    <div className="text-xl font-bold text-green-900">
+                      {formatCurrency(getMetricValue('revenue_breakdown', period))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Detailed Revenue Chart */}
+              <div className="h-[400px] mb-8">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={revenueBreakdownMonthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis dataKey="month" />
+                    <YAxis tickFormatter={(value: number) => `₦${value/1000}k`} />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => {
+                        const featureNames: Record<string, string> = {
+                          total: 'Total Revenue',
+                          transfers: 'Transfers',
+                          bill_payment: 'Bill Payment',
+                          invoice: 'Invoice',
+                          contract: 'Contract'
+                        };
+                        return [formatCurrency(value), featureNames[name] || name];
+                      }}
                     />
                     <Legend />
-                  </PieChart>
+                    <Area 
+                      type="monotone" 
+                      dataKey="total" 
+                      fill="#dcfce7" 
+                      stroke="#16a34a" 
+                      name="Total Revenue" 
+                    />
+                    <Bar dataKey="transfers" fill="#3b82f6" name="Transfers" />
+                    <Bar dataKey="bill_payment" fill="#10b981" name="Bill Payment" />
+                    <Bar dataKey="invoice" fill="#8b5cf6" name="Invoice" />
+                    <Bar dataKey="contract" fill="#ef4444" name="Contract" />
+                  </ComposedChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center text-gray-400">
-                  No revenue data
+              </div>
+              
+              {/* Revenue Breakdown Pie Chart */}
+              {revenueBreakdownPieData.length > 0 && (
+                <div className="mt-8">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                    Revenue Distribution by Feature
+                  </h4>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={revenueBreakdownPieData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={(entry: any) => `${entry.name}: ${((entry.percent || 0) * 100).toFixed(1)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {revenueBreakdownPieData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.color || '#8884d8'} 
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {revenueBreakdownPieData.map((entry) => {
+                        const totalRevenue = getMetricValue('revenue_breakdown', range);
+                        const percentage = totalRevenue > 0 ? (entry.value / totalRevenue) * 100 : 0;
+                        
+                        return (
+                          <div key={entry.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: entry.color }}
+                              />
+                              <span className="text-sm font-medium text-gray-700 capitalize">
+                                {entry.name}
+                              </span>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold">{formatCurrency(entry.value)}</div>
+                              <div className="text-xs text-gray-500">
+                                {percentage.toFixed(1)}%
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Charts Section - Bottom Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Transactions Trend */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">
-                📈 Transactions Trend
-              </h3>
-              <div className="text-sm text-gray-500">Filtered: {range}</div>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyTransactions}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  tickFormatter={(value) => formatCurrencyShort(value)}
-                />
-                <Tooltip
-                  formatter={(value: number) => [
-                    formatCurrency(value),
-                    "Amount",
-                  ]}
-                  labelFormatter={(label) => `Month: ${label}`}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="transactions"
-                  stroke={CHART_COLORS.inflow}
-                  strokeWidth={3}
-                  dot={{ fill: CHART_COLORS.inflow, strokeWidth: 2, r: 4 }}
-                  activeDot={{
-                    r: 6,
-                    stroke: CHART_COLORS.inflow,
-                    strokeWidth: 2,
-                  }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Invoices Chart */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">
-                🧾 Invoices (Monthly)
-              </h3>
-              <div className="text-sm text-gray-500">Filtered: {range}</div>
-            </div>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={monthlyInvoices}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                />
-                <YAxis tick={{ fontSize: 12 }} tickLine={false} />
-                <Tooltip
-                  formatter={(value: number, name: string) => {
-                    if (name === "count") return [value, "Invoice Count"];
-                    return [formatCurrency(value), "Revenue"];
-                  }}
-                />
-                <Bar
-                  dataKey="count"
-                  name="Invoice Count"
-                  fill={CHART_COLORS.invoices}
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Contracts Chart */}
-          <div className="bg-white p-6 rounded-2xl shadow-sm border">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900">
-                📄 Contracts (Monthly)
-              </h3>
-              <div className="text-sm text-gray-500">Filtered: {range}</div>
-            </div>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={monthlyContracts}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                />
-                <YAxis tick={{ fontSize: 12 }} tickLine={false} />
-                <Tooltip />
-                <Bar
-                  dataKey="count"
-                  fill={CHART_COLORS.contracts}
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Recent Transactions */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border">

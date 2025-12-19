@@ -7,7 +7,8 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-type RangeOption = "today" | "week" | "month" | "90days" | "180days" | "year";
+// Add "custom" to the RangeOption type
+type RangeOption = "today" | "week" | "month" | "90days" | "180days" | "year" | "custom";
 
 const parseRangeToDates = (range: RangeOption, customFrom?: Date, customTo?: Date) => {
   const now = new Date();
@@ -49,6 +50,7 @@ export async function GET(req: NextRequest) {
     if (adminUser instanceof NextResponse) return adminUser;
 
     const url = new URL(req.url);
+    // Update this line to include "custom" as a valid option
     const range = url.searchParams.get("range") as RangeOption || "month";
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");

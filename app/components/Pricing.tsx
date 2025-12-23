@@ -41,7 +41,7 @@ const plans = [
       "Priority support",
     ],
     cta: "Start Growth Plan",
-    highlight: true,
+    highlight: false,
   },
   {
     name: "Premium",
@@ -63,7 +63,7 @@ const plans = [
       "Deeper financial insights & reporting",
     ],
     cta: "Start Premium",
-    highlight: false,
+    highlight: true,
   },
   {
     name: "Elite",

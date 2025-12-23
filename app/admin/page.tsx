@@ -59,7 +59,6 @@ const fetcher = (url: string) =>
 
 type RangeOption = "total" | "today" | "week" | "month" | "90days" | "180days" | "year";
 
-// Color schemes for charts
 const CHART_COLORS = {
   inflow: "#10b981",
   outflow: "#ef4444",
@@ -108,7 +107,6 @@ const GrowthIndicator = ({ value, className = "" }: GrowthIndicatorProps) => {
   );
 };
 
-// Interface for the new metrics data
 interface MetricsData {
   website: {
     total: number;
@@ -235,7 +233,6 @@ interface MetricsData {
   };
 }
 
-// Safe data access helper
 const getSafeData = <T,>(data: T | undefined, path: string, defaultValue: any = []): any => {
   if (!data) return defaultValue;
   
@@ -259,8 +256,6 @@ const getSafeData = <T,>(data: T | undefined, path: string, defaultValue: any = 
 export default function AdminDashboard() {
   const [page, setPage] = useState<number>(1);
   const PAGE_LIMIT = 50;
-
-  // Fix hydration issue by using useEffect for localStorage
   const [range, setRange] = useState<RangeOption>("total");
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("overview");
@@ -282,17 +277,15 @@ export default function AdminDashboard() {
     setPage(1);
   }, [range, isClient]);
 
-  // Fetch summary data
   const { data: summaryData, error: summaryError, isLoading: summaryLoading } = useSWR<any>(
     `/api/admin-apis/dashboard/summary?range=${range}`,
     fetcher,
     {
-      refreshInterval: 300000, // Refresh every 5 minutes
+      refreshInterval: 300000,
       revalidateOnFocus: true,
     }
   );
 
-  // Fetch new metrics data
   const { data: metricsData, error: metricsError, isLoading: metricsLoading } = useSWR<MetricsData>(
     `/api/admin-apis/dashboard/metrics?range=${range}`,
     fetcher,
@@ -308,43 +301,32 @@ export default function AdminDashboard() {
   );
 
   useEffect(() => {
-    if (paginatedError)
-      console.error("Paginated transactions error:", paginatedError);
+    if (paginatedError) console.error("Paginated transactions error:", paginatedError);
     if (summaryError) console.error("Summary error:", summaryError);
     if (metricsError) console.error("Metrics error:", metricsError);
   }, [paginatedError, summaryError, metricsError]);
 
-  // Current values from summary
   const totalInflow = Number(summaryData?.totalInflow ?? 0);
   const totalOutflow = Number(summaryData?.totalOutflow ?? 0);
   const mainWalletBalance = Number(summaryData?.mainWalletBalance ?? 0);
   const nombaBalanceRaw = Number(summaryData?.nombaBalance ?? 0);
-
-  // App Revenue
   const totalAppRevenue = Number(summaryData?.totalAppRevenue ?? 0);
   const transactionFees = Number(summaryData?.transactionFees ?? 0);
   const platformFees = Number(summaryData?.platformFees ?? 0);
   const invoiceFees = Number(summaryData?.invoiceFees ?? 0);
-
   const totalContracts = Number(summaryData?.totalContractsIssued ?? 0);
   const pendingContracts = Number(summaryData?.pendingContracts ?? 0);
   const signedContracts = Number(summaryData?.signedContracts ?? 0);
-
   const totalInvoices = Number(summaryData?.totalInvoicesIssued ?? 0);
   const paidInvoices = Number(summaryData?.paidInvoices ?? 0);
   const unpaidInvoices = Number(summaryData?.pendingInvoices ?? 0);
   const totalInvoiceRevenue = Number(summaryData?.totalInvoiceRevenue ?? 0);
-
   const totalTransactions = Number(summaryData?.totalTransactions ?? 0);
-  const successfulTransactions = Number(
-    summaryData?.successfulTransactions ?? 0
-  );
+  const successfulTransactions = Number(summaryData?.successfulTransactions ?? 0);
   const failedTransactions = Number(summaryData?.failedTransactions ?? 0);
   const pendingTransactions = Number(summaryData?.pendingTransactions ?? 0);
-
   const totalUsers = Number(summaryData?.totalUsers ?? 0);
 
-  // Get metrics values with safe access
   const getMetricValue = (metric: keyof MetricsData, period: RangeOption): number => {
     if (!metricsData) return 0;
     
@@ -355,7 +337,6 @@ export default function AdminDashboard() {
     return metricsData[metric]?.[period] || 0;
   };
 
-  // Previous period values for growth calculation
   const prevTotalInflow = Number(summaryData?.prevTotalInflow ?? 0);
   const prevTotalOutflow = Number(summaryData?.prevTotalOutflow ?? 0);
   const prevTotalAppRevenue = Number(summaryData?.prevTotalAppRevenue ?? 0);
@@ -366,7 +347,6 @@ export default function AdminDashboard() {
   const prevPaidInvoices = Number(summaryData?.prevPaidInvoices ?? 0);
   const prevUnpaidInvoices = Number(summaryData?.prevUnpaidInvoices ?? 0);
 
-  // Growth calculations
   const calculateGrowth = (current: number, previous: number): number => {
     if (previous === 0) return current > 0 ? 100 : 0;
     return ((current - previous) / previous) * 100;
@@ -374,32 +354,19 @@ export default function AdminDashboard() {
 
   const inflowGrowth = calculateGrowth(totalInflow, prevTotalInflow);
   const outflowGrowth = calculateGrowth(totalOutflow, prevTotalOutflow);
-  const appRevenueGrowth = calculateGrowth(
-    totalAppRevenue,
-    prevTotalAppRevenue
-  );
+  const appRevenueGrowth = calculateGrowth(totalAppRevenue, prevTotalAppRevenue);
   const contractsGrowth = calculateGrowth(totalContracts, prevTotalContracts);
-  const pendingContractsGrowth = calculateGrowth(
-    pendingContracts,
-    prevPendingContracts
-  );
-  const signedContractsGrowth = calculateGrowth(
-    signedContracts,
-    prevSignedContracts
-  );
+  const pendingContractsGrowth = calculateGrowth(pendingContracts, prevPendingContracts);
+  const signedContractsGrowth = calculateGrowth(signedContracts, prevSignedContracts);
   const invoicesGrowth = calculateGrowth(totalInvoices, prevTotalInvoices);
   const paidInvoicesGrowth = calculateGrowth(paidInvoices, prevPaidInvoices);
-  const unpaidInvoicesGrowth = calculateGrowth(
-    unpaidInvoices,
-    prevUnpaidInvoices
-  );
+  const unpaidInvoicesGrowth = calculateGrowth(unpaidInvoices, prevUnpaidInvoices);
 
   const monthlyTransactions = summaryData?.monthlyTransactions ?? [];
   const monthlyInvoices = summaryData?.monthlyInvoices ?? [];
   const monthlyContracts = summaryData?.monthlyContracts ?? [];
   const monthlyAppRevenue = summaryData?.monthlyAppRevenue ?? [];
 
-  // Data for pie charts
   const contractsPieData = [
     { name: "Signed", value: signedContracts, color: CHART_COLORS.pie[0] },
     { name: "Pending", value: pendingContracts, color: CHART_COLORS.pie[2] },
@@ -416,16 +383,11 @@ export default function AdminDashboard() {
   ].filter((item) => item.value > 0);
 
   const revenueBreakdownData = [
-    {
-      name: "Transaction Fees",
-      value: transactionFees,
-      color: CHART_COLORS.revenue,
-    },
+    { name: "Transaction Fees", value: transactionFees, color: CHART_COLORS.revenue },
     { name: "Platform Fees", value: platformFees, color: "#84cc16" },
     { name: "Invoice Fees", value: invoiceFees, color: "#8b5cf6" },
   ].filter((item) => item.value > 0);
 
-  // Get revenue breakdown for pie chart
   const getRevenueBreakdownPieData = () => {
     if (!metricsData?.revenue_breakdown) return [];
     
@@ -440,10 +402,7 @@ export default function AdminDashboard() {
     ].filter(item => item.value > 0);
   };
 
-  const recentActivity =
-    summaryData?.latestTransactions?.slice(0, 5) ??
-    paginatedData?.transactions?.slice(0, 5) ??
-    [];
+  const recentActivity = summaryData?.latestTransactions?.slice(0, 5) ?? paginatedData?.transactions?.slice(0, 5) ?? [];
   const hasNextPage = paginatedData?.transactions?.length === PAGE_LIMIT;
   const hasPrevPage = page > 1;
 
@@ -460,14 +419,11 @@ export default function AdminDashboard() {
   };
 
   const refresh = async () => {
-    await mutate(
-      `/api/admin-apis/dashboard/summary?range=${range}&nocache=true`
-    );
+    await mutate(`/api/admin-apis/dashboard/summary?range=${range}&nocache=true`);
     await mutate(`/api/admin-apis/dashboard/metrics?range=${range}`);
     await mutate(`/api/admin-apis/transactions?page=${page}&range=${range}`);
   };
 
-  // Better loading state check
   const isLoading = summaryLoading || metricsLoading || transactionsLoading;
   const hasData = summaryData && metricsData && paginatedData;
 
@@ -482,7 +438,6 @@ export default function AdminDashboard() {
     });
   };
 
-  // Format date safely for client-side only
   const formatDateSafely = (dateString: string) => {
     if (!isClient) return dateString;
     try {
@@ -514,24 +469,18 @@ export default function AdminDashboard() {
     return `₦${Math.round(numValue)}`;
   };
 
-  // Format number with commas
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('en-NG').format(value);
   };
 
-  // Safe data access for charts
   const websiteMonthlyData = getSafeData(metricsData, 'website.monthly', []);
   const signupsMonthlyData = getSafeData(metricsData, 'signups.monthly', []);
   const activeUsersMonthlyData = getSafeData(metricsData, 'active_users.monthly', []);
   const transactionVolumeMonthlyData = getSafeData(metricsData, 'transaction_volume.monthly', []);
   const revenueBreakdownMonthlyData = getSafeData(metricsData, 'revenue_breakdown.monthly', []);
 
-  // Add debugging for transaction data
   useEffect(() => {
     if (transactionVolumeMonthlyData && transactionVolumeMonthlyData.length > 0) {
-      console.log('Transaction Volume Data:', transactionVolumeMonthlyData);
-      console.log('First item keys:', Object.keys(transactionVolumeMonthlyData[0]));
-      console.log('First item:', transactionVolumeMonthlyData[0]);
     }
   }, [transactionVolumeMonthlyData]);
 
@@ -591,14 +540,11 @@ export default function AdminDashboard() {
   }
 
   const revenueBreakdownPieData = getRevenueBreakdownPieData();
-
-  // All time ranges except 'total' for specific period displays
   const specificTimeRanges: Exclude<RangeOption, 'total'>[] = ['today', 'week', 'month', '90days', '180days', 'year'];
 
   return (
     <AdminLayout>
       <div className="px-4 py-6 space-y-8">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -642,7 +588,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-5 w-full max-w-2xl">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -652,9 +597,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="revenue">Revenue</TabsTrigger>
           </TabsList>
 
-          {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
-            {/* KPI Row 1 - Traffic & Users */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Website Visits"
@@ -686,7 +629,6 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {/* KPI Row 2 - Financial */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Total Inflow"
@@ -717,7 +659,6 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {/* KPI Row 3 - Revenue & Performance */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Total App Revenue"
@@ -747,13 +688,11 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {/* Charts Section - Top Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Website Traffic Trend */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    🌐 Website Traffic Trend
+                    Website Traffic Trend
                   </h3>
                   <div className="text-sm text-gray-500">Filtered: {range}</div>
                 </div>
@@ -801,11 +740,10 @@ export default function AdminDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Revenue Distribution Pie Chart */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    📊 Revenue Breakdown
+                    Revenue Breakdown
                   </h3>
                   <div className="text-sm text-gray-500">Sources</div>
                 </div>
@@ -848,11 +786,10 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          {/* Traffic Tab */}
           <TabsContent value="traffic" className="space-y-8">
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                🌐 Website Traffic Analytics
+                Website Traffic Analytics
               </h3>
               
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
@@ -890,13 +827,11 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          {/* Users Tab */}
           <TabsContent value="users" className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Signups Card */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                  👤 User Signups
+                  User Signups
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                   {specificTimeRanges.map((period) => (
@@ -921,10 +856,9 @@ export default function AdminDashboard() {
                 </ResponsiveContainer>
               </div>
               
-              {/* Active Users Card */}
               <div className="bg-white p-6 rounded-2xl shadow-sm border">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                  🏃 Active Users
+                  Active Users
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                   {specificTimeRanges.map((period) => (
@@ -957,14 +891,12 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          {/* Transactions Tab - Fixed */}
           <TabsContent value="transactions" className="space-y-8">
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
-                💸 Transaction Volume
+                Transaction Volume
               </h3>
               
-              {/* Time period cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
                 {specificTimeRanges.map((period) => {
                   const periodValue = getMetricValue('transaction_volume', period);
@@ -981,7 +913,6 @@ export default function AdminDashboard() {
                 })}
               </div>
               
-              {/* Transaction Volume Chart */}
               <div className="h-[400px]">
                 {transactionVolumeMonthlyData && transactionVolumeMonthlyData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -1039,7 +970,6 @@ export default function AdminDashboard() {
                 )}
               </div>
               
-              {/* Additional transaction metrics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="text-sm text-gray-600 mb-1">Total Transactions</div>
@@ -1070,19 +1000,17 @@ export default function AdminDashboard() {
             </div>
           </TabsContent>
 
-          {/* Revenue Tab */}
           <TabsContent value="revenue" className="space-y-8">
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  💰 Revenue Analysis by Feature
+                  Revenue Analysis by Feature
                 </h3>
                 <div className="text-2xl font-bold text-gray-900">
                   {formatCurrency(getMetricValue('revenue_breakdown', range))}
                 </div>
               </div>
               
-              {/* Revenue by Time Period */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
                 {specificTimeRanges.map((period) => (
                   <div key={period} className="bg-green-50 p-4 rounded-lg">
@@ -1096,7 +1024,6 @@ export default function AdminDashboard() {
                 ))}
               </div>
               
-              {/* Detailed Revenue Chart */}
               <div className="h-[400px] mb-8">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={revenueBreakdownMonthlyData}>
@@ -1131,7 +1058,6 @@ export default function AdminDashboard() {
                 </ResponsiveContainer>
               </div>
               
-              {/* Revenue Breakdown Pie Chart */}
               {revenueBreakdownPieData.length > 0 && (
                 <div className="mt-8">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">
@@ -1196,11 +1122,10 @@ export default function AdminDashboard() {
           </TabsContent>
         </Tabs>
 
-        {/* Recent Transactions */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+          <div className="flex flex-col sm:flexRow items-start sm:items-center justify-between mb-6 gap-4">
             <h3 className="text-lg font-semibold text-gray-900">
-              🕒 Recent Transactions
+              Recent Transactions
             </h3>
             <div className="flex items-center gap-3">
               <div className="text-sm text-gray-500">Page: {page}</div>
@@ -1328,10 +1253,9 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Summary Stats Footer */}
         <div className="bg-gradient-to-r from-gray-50 to-white p-6 rounded-2xl shadow-sm border">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            📊 Platform Performance Summary
+            Platform Performance Summary
           </h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-xl border">

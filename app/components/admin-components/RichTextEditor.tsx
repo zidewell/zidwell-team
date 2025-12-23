@@ -112,7 +112,75 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     });
   };
 
-  // Image upload handler
+  // Function to compress and resize image
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      img.onload = () => {
+        // Calculate new dimensions while maintaining aspect ratio
+        const MAX_WIDTH = 1000; // Maximum width for notifications
+        const MAX_HEIGHT = 600; // Maximum height for notifications
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        // Set canvas dimensions
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw and compress image
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        // Convert to JPEG with quality 0.7 (70%) for smaller file size
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to compress image"));
+              return;
+            }
+
+            // Create new File object with compressed image
+            const compressedFile = new File([blob], file.name, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+
+            console.log(`✅ Image compressed: ${file.size} → ${compressedFile.size} bytes (${Math.round((compressedFile.size / file.size) * 100)}%)`);
+            resolve(compressedFile);
+          },
+          "image/jpeg",
+          0.7 // Quality setting (0.7 = 70% quality)
+        );
+      };
+
+      img.onerror = (error) => {
+        reject(new Error("Failed to load image for compression"));
+      };
+
+      // Read the file as data URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Image upload handler with compression
   const handleImageUpload = () => {
     const input = document.createElement("input");
     input.setAttribute("type", "file");
@@ -136,13 +204,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         return;
       }
 
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024;
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
         alert(
           `File too large: ${(file.size / 1024 / 1024).toFixed(
             1
-          )}MB. Maximum is 5MB.`
+          )}MB. Maximum is 10MB.`
         );
         return;
       }
@@ -153,19 +221,40 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           .toString(36)
           .substring(7)}`;
 
-        // Convert image to base64 for preview
-        const base64 = await fileToBase64(file);
+        // Show loading message
+        const loadingMsg = `<div class="image-loading" data-placeholder-id="${placeholderId}" style="border:2px dashed #C29307;padding:20px;text-align:center;color:#C29307;border-radius:0.375rem;margin:0.5rem 0;background-color:#fefce8;">
+          <div>⏳ Compressing image... (${(file.size / 1024 / 1024).toFixed(1)}MB)</div>
+        </div>`;
+        
+        execCommand("insertHTML", loadingMsg);
 
-        console.log("Inserting image with placeholder:", placeholderId);
+        // Compress the image first
+        let finalFile = file;
+        if (file.size > 1024 * 1024) { // Compress if larger than 1MB
+          try {
+            finalFile = await compressImage(file);
+          } catch (compressError) {
+            console.warn("Failed to compress image, using original:", compressError);
+          }
+        }
 
-        // Insert base64 image as a temporary placeholder
-        execCommand(
-          "insertHTML",
-          `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #C29307;opacity:0.8;" />`
-        );
+        // Convert compressed image to base64 for preview
+        const base64 = await fileToBase64(finalFile);
+
+        // Replace loading message with actual image
+        const imgHTML = `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" data-size="${finalFile.size}" data-original-size="${file.size}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #C29307;opacity:0.8;" />`;
+        
+        // Find and replace the loading div
+        if (editorRef.current) {
+          const editor = editorRef.current;
+          const loadingDiv = editor.querySelector(`div[data-placeholder-id="${placeholderId}"]`);
+          if (loadingDiv) {
+            loadingDiv.outerHTML = imgHTML;
+          }
+        }
 
         // Add to pending images list
-        const newImage = { file, placeholderId };
+        const newImage = { file: finalFile, placeholderId };
         const updatedPendingImages = [...pendingImages, newImage];
         setPendingImages(updatedPendingImages);
 
@@ -176,12 +265,26 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
         console.log("Image added successfully:", {
           filename: file.name,
-          size: file.size,
-          type: file.type,
+          originalSize: file.size,
+          compressedSize: finalFile.size,
+          compressionRatio: Math.round((finalFile.size / file.size) * 100),
+          type: finalFile.type,
           placeholderId,
         });
+        
+        handleInput();
       } catch (error) {
         console.error("Image processing error:", error);
+        
+        // Remove loading message if it exists
+        if (editorRef.current) {
+          const editor = editorRef.current;
+          const loadingDiv = editor.querySelector(`div[data-placeholder-id]`);
+          if (loadingDiv) {
+            loadingDiv.remove();
+          }
+        }
+        
         alert("Failed to process image. Please try again.");
       }
     };
@@ -199,6 +302,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (img) {
       img.setAttribute("src", finalUrl);
       img.removeAttribute("data-placeholder-id");
+      img.removeAttribute("data-size");
+      img.removeAttribute("data-original-size");
       // Use setAttribute for style to ensure it works
       img.setAttribute(
         "style",
@@ -221,7 +326,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (!editorRef.current) return;
 
     const editor = editorRef.current;
-    const placeholders = editor.querySelectorAll("img[data-placeholder-id]");
+    const placeholders = editor.querySelectorAll("img[data-placeholder-id], div[data-placeholder-id]");
     placeholders.forEach((img) => img.remove());
 
     setPendingImages([]);
@@ -279,7 +384,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           dataTransfer.items.add(file);
           input.files = dataTransfer.files;
 
-          // Trigger image upload
+          // Trigger image upload with compression
           handleImageUpload();
           hasImage = true;
           break;
@@ -454,7 +559,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           type="button"
           onClick={handleImageUpload}
           className="p-2 rounded hover:bg-gray-200"
-          title="Insert Image"
+          title="Insert Image (Compressed)"
         >
           <ImageIcon className="w-4 h-4" />
         </button>
@@ -495,7 +600,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </button>
       </div>
 
-      {/* Editor area */}
+      {/* Editor */}
       <div
         ref={editorRef}
         contentEditable
@@ -513,22 +618,36 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
       {/* Pending images info */}
       {pendingImages.length > 0 && (
-        <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-          <div className="flex items-center justify-between">
-            <span>
-              ⚠️ {pendingImages.length} image
-              {pendingImages.length > 1 ? "s" : ""} pending upload
+        <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-medium flex items-center">
+              ⚠️ {pendingImages.length} image{pendingImages.length > 1 ? "s" : ""} ready for upload
             </span>
             <button
               type="button"
               onClick={clearPendingImages}
-              className="text-xs text-yellow-600 hover:text-yellow-800 underline"
+              className="text-xs text-yellow-700 hover:text-yellow-900 underline font-medium"
             >
               Clear all
             </button>
           </div>
-          <p className="text-xs mt-1">
-            Images will be uploaded when you submit the notification.
+          
+          {/* Image size info */}
+          <div className="space-y-1 text-xs">
+            {pendingImages.map(({ file, placeholderId }) => (
+              <div key={placeholderId} className="flex items-center justify-between py-1 border-t border-yellow-100 first:border-t-0">
+                <span className="truncate mr-2" title={file.name}>
+                  {file.name.length > 30 ? `${file.name.substring(0, 30)}...` : file.name}
+                </span>
+                <span className="text-yellow-700 font-medium whitespace-nowrap">
+                  {(file.size / 1024 / 1024).toFixed(1)} MB
+                </span>
+              </div>
+            ))}
+          </div>
+          
+          <p className="text-xs mt-2 text-yellow-600">
+            Images are compressed automatically. They will be uploaded when you submit the notification.
           </p>
         </div>
       )}
@@ -600,6 +719,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         .rich-text-editor [contenteditable] img[data-placeholder-id] {
           border: 2px dashed #c29307;
           opacity: 0.8;
+        }
+
+        /* Image loading placeholder */
+        .rich-text-editor [contenteditable] .image-loading {
+          border: 2px dashed #C29307;
+          padding: 20px;
+          text-align: center;
+          color: #C29307;
+          border-radius: 0.375rem;
+          margin: 0.5rem 0;
+          background-color: #fefce8;
+          font-size: 0.875rem;
         }
 
         .rich-text-editor [contenteditable] blockquote {

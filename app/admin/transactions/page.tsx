@@ -42,6 +42,72 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+// Transaction interface for better type safety
+interface Transaction {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  user_name: string | null;
+  type: string;
+  amount: number | string;
+  fee: number | string | null;
+  total_deduction: number | string;
+  status: string;
+  reference: string | null;
+  description: string | null;
+  phone_number: string | null;
+  network: string | null;
+  channel: string | null;
+  created_at: string;
+}
+
+// Unified UserFee interface
+interface UserFee {
+  user_id: string;
+  total_fee: number;
+  // Both possible property names from different sources
+  transaction_count?: number;
+  transactions?: number;
+  successful_transactions?: number;
+  failed_transactions?: number;
+  pending_transactions?: number;
+  last_transaction?: string;
+  first_transaction?: string;
+}
+
+interface ApiStats {
+  total: number;
+  successful: number;
+  failed: number;
+  pending: number;
+  processing: number;
+  totalAmount: number;
+  totalFee: number;
+  averageFeePerUser: number;
+  userFees: UserFee[];
+  byType: Record<string, number>;
+  byStatus: {
+    success: number;
+    failed: number;
+    pending: number;
+    processing: number;
+  };
+}
+
+interface DirectFeesData {
+  calculation_method: string;
+  grand_total_fee: number;
+  user_fees: Array<{
+    user_id: string;
+    total_fee: number;
+    transactions: number;
+  }>;
+  summary: {
+    average_per_user: number;
+  };
+  difference_from_csv: number;
+}
+
 export default function TransactionsPage() {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
@@ -54,6 +120,11 @@ export default function TransactionsPage() {
   const [isClient, setIsClient] = useState(false);
   const itemsPerPage = 20;
 
+  // Helper function to get transaction count from UserFee
+  const getUserTransactionCount = useCallback((user: UserFee): number => {
+    return user.transaction_count || user.transactions || 0;
+  }, []);
+
   // Debounce search term to prevent too many API calls
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
@@ -63,6 +134,7 @@ export default function TransactionsPage() {
       page: currentPage.toString(),
       limit: itemsPerPage.toString(),
       range: dateRange,
+      includeStats: "true"  // IMPORTANT: Request stats from API
     });
 
     if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
@@ -74,13 +146,16 @@ export default function TransactionsPage() {
     return `/api/admin-apis/transactions?${params.toString()}`;
   }, [currentPage, dateRange, debouncedSearchTerm, typeFilter, statusFilter, startDate, endDate, itemsPerPage]);
 
-  const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher);
+  const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
 
-  // Separate hook for stats (all filtered data without pagination)
-  const statsApiUrl = useMemo(() => {
+  // Direct fee calculation API call
+  const directFeesApiUrl = useMemo(() => {
     const params = new URLSearchParams({
+      directFees: "true",
       range: dateRange,
-      limit: '10000', // Get all for stats calculation
     });
 
     if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
@@ -92,7 +167,9 @@ export default function TransactionsPage() {
     return `/api/admin-apis/transactions?${params.toString()}`;
   }, [dateRange, debouncedSearchTerm, typeFilter, statusFilter, startDate, endDate]);
 
-  const { data: statsData } = useSWR(statsApiUrl, fetcher);
+  const { data: directFeesData } = useSWR(directFeesApiUrl, fetcher, {
+    revalidateOnFocus: false,
+  });
 
   useEffect(() => {
     setIsClient(true);
@@ -104,104 +181,81 @@ export default function TransactionsPage() {
   }, [debouncedSearchTerm, typeFilter, statusFilter, dateRange, startDate, endDate]);
 
   // Memoize calculations
-  const transactions = useMemo(() => data?.transactions || [], [data]);
+  const transactions = useMemo(() => data?.transactions || [], [data]) as Transaction[];
   const totalTransactions = useMemo(() => data?.total || 0, [data]);
   const totalPages = useMemo(() => Math.ceil(totalTransactions / itemsPerPage), [totalTransactions, itemsPerPage]);
 
-  // Use statsData for calculations instead of current page data
-  const allFilteredTransactions = useMemo(() => statsData?.transactions || [], [statsData]);
+  // Get stats from API response (server-side calculated)
+  const apiStats = useMemo(() => data?.stats || {}, [data]) as ApiStats;
+  
+  // Use direct fees data for accurate calculations
+  const directFees = useMemo(() => directFeesData?.data || {}, [directFeesData]) as DirectFeesData;
 
-  const totalAmount = useMemo(() => 
-    allFilteredTransactions.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0), 
-    [allFilteredTransactions]
-  );
+  // IMPORTANT: Use server-side calculated stats, not frontend calculations
+  const totalAmount = useMemo(() => apiStats?.totalAmount || 0, [apiStats]);
+  const totalFee = useMemo(() => {
+    // Try to get from direct calculation first, then from API stats
+    if (directFees?.grand_total_fee !== undefined) {
+      return directFees.grand_total_fee;
+    }
+    return apiStats?.totalFee || 0;
+  }, [apiStats, directFees]);
 
-  const totalFee = useMemo(() => 
-    allFilteredTransactions.reduce((sum: number, t: any) => sum + Number(t.fee || 0), 0), 
-    [allFilteredTransactions]
-  );
+  // Get user fees breakdown - unified format
+  const userFees = useMemo(() => {
+    if (directFees?.user_fees) {
+      return directFees.user_fees.map(fee => ({
+        ...fee,
+        // Add transaction_count as alias for transactions for consistency
+        transaction_count: fee.transactions
+      })) as UserFee[];
+    }
+    return apiStats?.userFees || [];
+  }, [apiStats, directFees]);
 
-  const successfulTransactions = useMemo(() => 
-    allFilteredTransactions.filter((t: any) => t.status === "success"), 
-    [allFilteredTransactions]
-  );
+  // Calculate other stats from API stats
+  const successfulTransactionsCount = useMemo(() => apiStats?.successful || 0, [apiStats]);
+  const failedTransactionsCount = useMemo(() => apiStats?.failed || 0, [apiStats]);
+  const pendingTransactionsCount = useMemo(() => apiStats?.pending || 0, [apiStats]);
+  const processingTransactionsCount = useMemo(() => apiStats?.processing || 0, [apiStats]);
 
-  const failedTransactions = useMemo(() => 
-    allFilteredTransactions.filter((t: any) => t.status === "failed"), 
-    [allFilteredTransactions]
-  );
-
-  const pendingTransactions = useMemo(() => 
-    allFilteredTransactions.filter((t: any) => t.status === "pending"), 
-    [allFilteredTransactions]
-  );
-
-  // Enhanced stats calculations
-  const successfulAmount = useMemo(() => 
-    successfulTransactions.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0), 
-    [successfulTransactions]
-  );
-
-  const failedAmount = useMemo(() => 
-    failedTransactions.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0), 
-    [failedTransactions]
-  );
-
-  const pendingAmount = useMemo(() => 
-    pendingTransactions.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0), 
-    [pendingTransactions]
-  );
-
-  // Calculate average transaction amounts
-  const avgSuccessfulAmount = useMemo(() => 
-    successfulTransactions.length > 0 ? successfulAmount / successfulTransactions.length : 0, 
-    [successfulTransactions.length, successfulAmount]
-  );
-
-  const avgFailedAmount = useMemo(() => 
-    failedTransactions.length > 0 ? failedAmount / failedTransactions.length : 0, 
-    [failedTransactions.length, failedAmount]
-  );
-
-  const avgPendingAmount = useMemo(() => 
-    pendingTransactions.length > 0 ? pendingAmount / pendingTransactions.length : 0, 
-    [pendingTransactions.length, pendingAmount]
-  );
-
-  // Calculate success/failure rates
+  // Calculate rates using server-side data
   const successRate = useMemo(() => 
-    allFilteredTransactions.length > 0 ? 
-      (successfulTransactions.length / allFilteredTransactions.length) * 100 : 0, 
-    [allFilteredTransactions.length, successfulTransactions.length]
+    apiStats?.total ? (successfulTransactionsCount / apiStats.total) * 100 : 0, 
+    [apiStats, successfulTransactionsCount]
   );
 
   const failureRate = useMemo(() => 
-    allFilteredTransactions.length > 0 ? 
-      (failedTransactions.length / allFilteredTransactions.length) * 100 : 0, 
-    [allFilteredTransactions.length, failedTransactions.length]
+    apiStats?.total ? (failedTransactionsCount / apiStats.total) * 100 : 0, 
+    [apiStats, failedTransactionsCount]
   );
 
   const pendingRate = useMemo(() => 
-    allFilteredTransactions.length > 0 ? 
-      (pendingTransactions.length / allFilteredTransactions.length) * 100 : 0, 
-    [allFilteredTransactions.length, pendingTransactions.length]
+    apiStats?.total ? (pendingTransactionsCount / apiStats.total) * 100 : 0, 
+    [apiStats, pendingTransactionsCount]
   );
 
-  // Calculate transaction volume by type
-  const volumeByType = useMemo(() => {
-    const typeMap: Record<string, number> = {};
-    allFilteredTransactions.forEach((t: any) => {
-      typeMap[t.type] = (typeMap[t.type] || 0) + Number(t.amount || 0);
-    });
-    return typeMap;
-  }, [allFilteredTransactions]);
+  // Get transaction type distribution from API stats
+  const transactionTypes = useMemo(() => apiStats?.byType || {}, [apiStats]);
 
-  // Get top 3 transaction types by volume
-  const topTypesByVolume = useMemo(() => 
-    Object.entries(volumeByType)
-      .sort(([, a], [, b]) => b - a)
+  // Calculate top types by count (not volume)
+  const topTypesByCount = useMemo(() => 
+    Object.entries(transactionTypes)
+      .sort(([, a], [, b]) => (b as number) - (a as number))
       .slice(0, 3),
-    [volumeByType]
+    [transactionTypes]
+  );
+
+  // Calculate average fee per transaction
+  const avgFeePerTransaction = useMemo(() => 
+    apiStats?.total ? totalFee / apiStats.total : 0, 
+    [apiStats, totalFee]
+  );
+
+  // Calculate average transaction amount
+  const avgTransactionAmount = useMemo(() => 
+    apiStats?.total ? totalAmount / apiStats.total : 0, 
+    [apiStats, totalAmount]
   );
 
   // Handle user click to navigate to user-specific transactions
@@ -210,6 +264,103 @@ export default function TransactionsPage() {
       router.push(`/admin/transactions/user/${userId}?email=${encodeURIComponent(userEmail || '')}`);
     }
   }, [router]);
+
+  // Handle fee verification
+  const handleVerifyFees = useCallback(async () => {
+    try {
+      const response = await fetch('/api/admin-apis/transactions?action=verifyFees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const verification = result.verification;
+        
+        let html = `
+          <div class="text-left space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+              <div><strong>Calculation Method:</strong></div>
+              <div>${verification.direct_calculation?.calculation_method || 'N/A'}</div>
+              
+              <div><strong>Range Applied:</strong></div>
+              <div>${verification.range}</div>
+              
+              <div><strong>CSV Expected Total:</strong></div>
+              <div class="font-semibold">₦${verification.csv_expected?.toLocaleString() || 'N/A'}</div>
+              
+              <div><strong>Direct Calculation Total:</strong></div>
+              <div class="font-semibold ${verification.direct_calculation?.grand_total_fee === verification.csv_expected ? 'text-green-600' : 'text-red-600'}">
+                ₦${verification.direct_calculation?.grand_total_fee?.toLocaleString() || 'N/A'}
+              </div>
+              
+              <div><strong>Stats API Total:</strong></div>
+              <div class="font-semibold">₦${verification.cached_stats?.totalFee?.toLocaleString() || 'N/A'}</div>
+              
+              <div><strong>Difference from CSV:</strong></div>
+              <div class="${verification.comparison?.direct_vs_csv === '0.00' ? 'text-green-600' : 'text-red-600'}">
+                ₦${verification.comparison?.direct_vs_csv || 'N/A'}
+              </div>
+            </div>
+        `;
+        
+        // Add user breakdown
+        if (verification.direct_calculation?.user_fees?.length > 0) {
+          html += `
+            <div class="border-t pt-4">
+              <h4 class="font-semibold mb-2">Top 5 Users by Fees:</h4>
+              <div class="max-h-60 overflow-y-auto">
+                <table class="min-w-full text-sm">
+                  <thead>
+                    <tr class="border-b">
+                      <th class="text-left py-1">User ID</th>
+                      <th class="text-left py-1">Total Fee</th>
+                      <th class="text-left py-1">Transactions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+          `;
+          
+          verification.direct_calculation.user_fees.slice(0, 5).forEach((user: any) => {
+            html += `
+              <tr class="border-b">
+                <td class="py-1 font-mono text-xs">${user.user_id?.substring(0, 8)}...</td>
+                <td class="py-1 font-semibold">₦${user.total_fee?.toLocaleString()}</td>
+                <td class="py-1">${user.transactions}</td>
+              </tr>
+            `;
+          });
+          
+          html += `
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        }
+        
+        html += `</div>`;
+        
+        await Swal.fire({
+          title: 'Fee Verification',
+          html,
+          width: 700,
+          confirmButtonColor: "#3b82f6",
+        });
+        
+        // Refresh data
+        mutate();
+      } else {
+        Swal.fire("Error", "Failed to verify fees", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Failed to verify fees", "error");
+    }
+  }, [mutate]);
 
   // ---------- Export to CSV ----------
   const handleExportCSV = async () => {
@@ -280,7 +431,7 @@ export default function TransactionsPage() {
   };
 
   // ---------- View Transaction Details ----------
-  const handleViewDetails = async (transaction: any) => {
+  const handleViewDetails = async (transaction: Transaction) => {
     let detailsHtml = `
       <div class="text-left space-y-3">
         <div class="grid grid-cols-2 gap-4">
@@ -386,9 +537,9 @@ export default function TransactionsPage() {
   };
 
   // ---------- Fraud Detection ----------
-  const detectFraudAlerts = (transaction: any) => {
-    const alerts = [];
-    const amount = Number(transaction.amount);
+  const detectFraudAlerts = (transaction: Transaction): string[] => {
+    const alerts: string[] = [];
+    const amount = Number(transaction.amount) || 0;
 
     // High amount alert
     if (amount > 1000000) { // 1 million Naira
@@ -407,7 +558,7 @@ export default function TransactionsPage() {
 
     // Unusual transaction type patterns
     const unusualTypes = ["reversal", "chargeback", "refund"];
-    if (unusualTypes.includes(transaction.type)) {
+    if (transaction.type && unusualTypes.includes(transaction.type)) {
       alerts.push(`Unusual transaction type: ${transaction.type}`);
     }
 
@@ -415,7 +566,7 @@ export default function TransactionsPage() {
   };
 
   // ---------- Retry Failed Transaction ----------
-  const handleRetryTransaction = async (transaction: any) => {
+  const handleRetryTransaction = async (transaction: Transaction) => {
     if (transaction.status !== "failed") {
       Swal.fire("Info", "Only failed transactions can be retried", "info");
       return;
@@ -457,10 +608,28 @@ export default function TransactionsPage() {
     }
   };
 
-  // Custom cell renderers
-  const renderAmountCell = (value: number, row: any) => {
-    const amount = Number(value);
-    const isPositive = ["deposit", "credit", "refund"].includes(row.type);
+  // Custom cell renderers with proper typing
+  const renderReferenceCell = (value: string | null | undefined) => {
+    if (!value) return <span className="text-gray-400 italic">No reference</span>;
+    return <span className="font-mono text-sm">{value}</span>;
+  };
+
+  const renderUserIdCell = (value: string | null | undefined, row: Transaction) => {
+    if (!value) return <span className="text-gray-400 italic">No user ID</span>;
+    return (
+      <button
+        onClick={() => handleUserClick(value, row.user_email || undefined)}
+        className="text-blue-600 hover:text-blue-800 underline font-medium text-left"
+        title="View all transactions for this user"
+      >
+        {value.substring(0, 8)}...
+      </button>
+    );
+  };
+
+  const renderAmountCell = (value: number | string | null | undefined, row: Transaction) => {
+    const amount = Number(value) || 0;
+    const isPositive = ["deposit", "credit", "refund", "virtual_account_deposit"].includes(row.type);
     const colorClass = isPositive ? "text-green-600" : "text-red-600";
     const symbol = isPositive ? "+" : "-";
     
@@ -471,8 +640,10 @@ export default function TransactionsPage() {
     );
   };
 
-  const renderStatusCell = (value: string) => {
-    const statusConfig: any = {
+  const renderStatusCell = (value: string | null | undefined) => {
+    if (!value) return <span className="text-gray-400 italic">No status</span>;
+    
+    const statusConfig: Record<string, { color: string; text: string }> = {
       success: { color: "bg-green-100 text-green-800", text: "✓ Success" },
       failed: { color: "bg-red-100 text-red-800", text: "✗ Failed" },
       pending: { color: "bg-yellow-100 text-yellow-800", text: "⏳ Pending" },
@@ -488,15 +659,20 @@ export default function TransactionsPage() {
     );
   };
 
-  const renderTypeCell = (value: string) => {
-    const typeConfig: any = {
+  const renderTypeCell = (value: string | null | undefined) => {
+    if (!value) return <span className="text-gray-400 italic">No type</span>;
+    
+    const typeConfig: Record<string, { color: string; emoji: string }> = {
       deposit: { color: "bg-green-100 text-green-800", emoji: "📥" },
       withdrawal: { color: "bg-red-100 text-red-800", emoji: "📤" },
       transfer: { color: "bg-blue-100 text-blue-800", emoji: "🔄" },
       airtime: { color: "bg-purple-100 text-purple-800", emoji: "📞" },
       electricity: { color: "bg-orange-100 text-orange-800", emoji: "💡" },
       data: { color: "bg-indigo-100 text-indigo-800", emoji: "📶" },
-      cable: { color: "bg-pink-100 text-pink-800", emoji: "📺" }
+      cable: { color: "bg-pink-100 text-pink-800", emoji: "📺" },
+      virtual_account_deposit: { color: "bg-teal-100 text-teal-800", emoji: "🏦" },
+      debit: { color: "bg-rose-100 text-rose-800", emoji: "💸" },
+      credit: { color: "bg-emerald-100 text-emerald-800", emoji: "💰" }
     };
 
     const config = typeConfig[value] || { color: "bg-gray-100 text-gray-800", emoji: "💳" };
@@ -508,14 +684,16 @@ export default function TransactionsPage() {
     );
   };
 
-  const renderDateCell = (value: string) => {
+  const renderDateCell = (value: string | null | undefined) => {
+    if (!value) return "-";
+    
     if (!isClient) {
-      return value || "-";
+      return value;
     }
     
     try {
       const date = new Date(value);
-      if (isNaN(date.getTime())) return value || "-";
+      if (isNaN(date.getTime())) return value;
       
       const now = new Date();
       const hoursDiff = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
@@ -529,36 +707,63 @@ export default function TransactionsPage() {
         return <span className="text-gray-600">{formattedDate}</span>;
       }
     } catch (error) {
-      return value || "-";
+      return value;
     }
   };
 
-  const renderReferenceCell = (value: string) => {
-    if (!value) return <span className="text-gray-400 italic">No reference</span>;
-    return <span className="font-mono text-sm">{value}</span>;
+  const renderFeeCell = (value: number | string | null | undefined) => {
+    const fee = Number(value) || 0;
+    if (fee === 0) return <span className="text-gray-400">₦0</span>;
+    return <span className="text-orange-600 font-medium">₦{fee.toLocaleString()}</span>;
   };
-
-  const renderUserIdCell = (value: string, row: any) => (
-    <button
-      onClick={() => handleUserClick(value, row.user_email)}
-      className="text-blue-600 hover:text-blue-800 underline font-medium text-left"
-      title="View all transactions for this user"
-    >
-      {value}
-    </button>
-  );
 
   // Define columns with render functions
   const columns = [
-    { key: "reference", label: "Reference", render: renderReferenceCell },
-    { key: "user_id", label: "User ID", render: renderUserIdCell },
-    { key: "user_email", label: "User Email" },
-    { key: "type", label: "Type", render: renderTypeCell },
-    { key: "amount", label: "Amount", render: renderAmountCell },
-    { key: "fee", label: "Fee" },
-    { key: "status", label: "Status", render: renderStatusCell },
-    { key: "description", label: "Description" },
-    { key: "created_at", label: "Created", render: renderDateCell },
+    { 
+      key: "reference" as const, 
+      label: "Reference", 
+      render: renderReferenceCell 
+    },
+    { 
+      key: "user_id" as const, 
+      label: "User ID", 
+      render: renderUserIdCell 
+    },
+    { 
+      key: "user_email" as const, 
+      label: "User Email",
+      render: (value: string | null | undefined) => value || "-"
+    },
+    { 
+      key: "type" as const, 
+      label: "Type", 
+      render: renderTypeCell 
+    },
+    { 
+      key: "amount" as const, 
+      label: "Amount", 
+      render: renderAmountCell 
+    },
+    { 
+      key: "fee" as const, 
+      label: "Fee", 
+      render: renderFeeCell 
+    },
+    { 
+      key: "status" as const, 
+      label: "Status", 
+      render: renderStatusCell 
+    },
+    { 
+      key: "description" as const, 
+      label: "Description",
+      render: (value: string | null | undefined) => value || "-"
+    },
+    { 
+      key: "created_at" as const, 
+      label: "Created", 
+      render: renderDateCell 
+    },
   ];
 
   if (isLoading) {
@@ -570,8 +775,22 @@ export default function TransactionsPage() {
       </AdminLayout>
     );
   }
-  if (error) return <p className="p-6 text-red-600">Failed to load transactions ❌</p>;
-  if (!data) return <p className="p-6">No data available.</p>;
+
+  if (error) return (
+    <AdminLayout>
+      <div className="p-6">
+        <p className="text-red-600">Failed to load transactions ❌</p>
+      </div>
+    </AdminLayout>
+  );
+
+  if (!data) return (
+    <AdminLayout>
+      <div className="p-6">
+        <p>No data available.</p>
+      </div>
+    </AdminLayout>
+  );
 
   return (
     <AdminLayout>
@@ -580,6 +799,9 @@ export default function TransactionsPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Transactions Management</h2>
           <div className="flex space-x-2">
+            <Button variant="outline" onClick={handleVerifyFees}>
+              🔍 Verify Fees
+            </Button>
             <Button variant="outline" onClick={handleExportCSV}>
               📊 Export CSV
             </Button>
@@ -599,16 +821,39 @@ export default function TransactionsPage() {
             <CardContent>
               <div className="text-2xl font-bold">₦{totalAmount.toLocaleString()}</div>
               <div className="text-xs text-gray-500 mt-1">
-                {allFilteredTransactions.length} transactions
+                {apiStats?.total || 0} transactions
               </div>
               <div className="mt-2 space-y-1">
-                {topTypesByVolume.map(([type, amount]) => (
+                {topTypesByCount.map(([type, count]) => (
                   <div key={type} className="flex justify-between text-xs">
                     <span className="text-gray-600">{type}:</span>
-                    <span className="font-medium">₦{Math.round(amount).toLocaleString()}</span>
+                    <span className="font-medium">{count} transactions</span>
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Total Fees Card */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-gray-500">Total Fees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-600">
+                ₦{totalFee.toLocaleString()}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Avg: ₦{avgFeePerTransaction.toFixed(2)} per transaction
+              </div>
+              {directFees?.grand_total_fee !== undefined && (
+                <div className="mt-2">
+                  <div className="text-xs text-green-600">
+                    ✓ Direct calculation
+                    {directFees?.difference_from_csv === 0 && ' (Matches CSV)'}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -619,18 +864,15 @@ export default function TransactionsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {successfulTransactions.length}
-              </div>
-              <div className="text-lg font-semibold mt-1">
-                ₦{successfulAmount.toLocaleString()}
+                {successfulTransactionsCount}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {successfulTransactions.length > 0 && `Avg: ₦${avgSuccessfulAmount.toFixed(2)}`}
+                {successfulTransactionsCount > 0 && `${successRate.toFixed(1)}% success rate`}
               </div>
               <div className="mt-2">
                 <Progress value={successRate} className="h-2" />
                 <div className="text-xs text-gray-500 mt-1">
-                  {successRate.toFixed(1)}% success rate
+                  of {apiStats?.total || 0} total transactions
                 </div>
               </div>
             </CardContent>
@@ -643,42 +885,15 @@ export default function TransactionsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {failedTransactions.length}
-              </div>
-              <div className="text-lg font-semibold mt-1">
-                ₦{failedAmount.toLocaleString()}
+                {failedTransactionsCount}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {failedTransactions.length > 0 && `Avg: ₦${avgFailedAmount.toFixed(2)}`}
+                {failedTransactionsCount > 0 && `${failureRate.toFixed(1)}% failure rate`}
               </div>
               <div className="mt-2">
                 <Progress value={failureRate} className="h-2 bg-red-100" />
                 <div className="text-xs text-gray-500 mt-1">
-                  {failureRate.toFixed(1)}% failure rate
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pending Transactions Card */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Pending</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {pendingTransactions.length}
-              </div>
-              <div className="text-lg font-semibold mt-1">
-                ₦{pendingAmount.toLocaleString()}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {pendingTransactions.length > 0 && `Avg: ₦${avgPendingAmount.toFixed(2)}`}
-              </div>
-              <div className="mt-2">
-                <Progress value={pendingRate} className="h-2 bg-yellow-100" />
-                <div className="text-xs text-gray-500 mt-1">
-                  {pendingRate.toFixed(1)}% pending rate
+                  of {apiStats?.total || 0} total transactions
                 </div>
               </div>
             </CardContent>
@@ -687,20 +902,23 @@ export default function TransactionsPage() {
 
         {/* Additional Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Total Fees Card */}
+          {/* Pending Transactions Card */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Total Fees</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-500">Pending</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                ₦{totalFee.toLocaleString()}
+              <div className="text-2xl font-bold text-yellow-600">
+                {pendingTransactionsCount}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {allFilteredTransactions.length > 0 
-                  ? `Avg: ₦${(totalFee / allFilteredTransactions.length).toFixed(2)} per transaction` 
-                  : 'No fees'
-                }
+                {pendingTransactionsCount > 0 && `${pendingRate.toFixed(1)}% pending rate`}
+              </div>
+              <div className="mt-2">
+                <Progress value={pendingRate} className="h-2 bg-yellow-100" />
+                <div className="text-xs text-gray-500 mt-1">
+                  of {apiStats?.total || 0} total transactions
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -708,38 +926,45 @@ export default function TransactionsPage() {
           {/* Average Transaction Size */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Avg Transaction Size</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-500">Avg Transaction</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₦{allFilteredTransactions.length > 0 ? (totalAmount / allFilteredTransactions.length).toFixed(2) : '0.00'}
+                ₦{avgTransactionAmount.toFixed(2)}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                Across all {allFilteredTransactions.length} transactions
+                Average amount across all transactions
               </div>
+              {directFees?.summary?.average_per_user && (
+                <div className="mt-2 text-xs">
+                  <span className="text-gray-600">Avg per user:</span>
+                  <span className="font-medium ml-1">₦{directFees.summary.average_per_user.toFixed(2).toLocaleString()}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Transaction Status Distribution */}
+          {/* Top Payer */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Status Distribution</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-500">Top Payer</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-green-600">✓ Success</span>
-                  <span className="text-sm font-medium">{successfulTransactions.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-red-600">✗ Failed</span>
-                  <span className="text-sm font-medium">{failedTransactions.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-yellow-600">⏳ Pending</span>
-                  <span className="text-sm font-medium">{pendingTransactions.length}</span>
-                </div>
-              </div>
+              {userFees.length > 0 ? (
+                <>
+                  <div className="text-lg font-bold truncate">
+                    {userFees[0].user_id?.substring(0, 8)}...
+                  </div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    ₦{userFees[0].total_fee.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    {getUserTransactionCount(userFees[0])} transactions
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-400 italic">No fee data</div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -769,6 +994,9 @@ export default function TransactionsPage() {
                     <SelectItem value="electricity">Electricity</SelectItem>
                     <SelectItem value="data">Data</SelectItem>
                     <SelectItem value="cable">Cable TV</SelectItem>
+                    <SelectItem value="virtual_account_deposit">Virtual Deposit</SelectItem>
+                    <SelectItem value="debit">Debit</SelectItem>
+                    <SelectItem value="credit">Credit</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

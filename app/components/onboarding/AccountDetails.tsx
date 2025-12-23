@@ -66,7 +66,7 @@ export const AccountDetailsStep = ({
   return (
     <div className="w-full max-w-xl mx-auto bg-white rounded-xl shadow-sm p-6 border">
       <h2 className="text-2xl font-semibold mb-2 text-center">
-        Account Withdrawal Details
+        Account Transfer Details
       </h2>
       <p className="text-sm text-muted-foreground text-center mb-6">
         Provide a bank account details that match your name, where you can

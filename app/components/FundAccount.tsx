@@ -85,7 +85,7 @@ export default function FundAccountMethods() {
   const handleCopyReferral = async () => {
     if (details) {
       setCopyText(true);
-      await navigator.clipboard.writeText(details?.bank_account_number);
+      await navigator.clipboard.writeText(details?.bank_details.bank_account_number);
       setTimeout(() => setCopyText(false), 3000);
     }
   };
@@ -181,7 +181,7 @@ export default function FundAccountMethods() {
           </CardContent>
         </Card>
 
-        {/* Account Number */}
+  
         <Card className="flex items-center justify-between text-gray-700 bg-white border shadow-md rounded-xl p-4">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">

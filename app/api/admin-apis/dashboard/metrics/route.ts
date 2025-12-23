@@ -235,12 +235,7 @@ export async function GET(req: NextRequest) {
     // Total revenue = transaction fees + invoice fees + platform fees
     const totalRevenue = transactionFees + invoiceFees + platformFees;
 
-    console.log(`💰 Revenue Breakdown for ${range}:`);
-    console.log(`   Transaction Fees: ₦${transactionFees}`);
-    console.log(`   Invoice Fees: ₦${invoiceFees}`);
-    console.log(`   Platform Fees: ₦${platformFees}`);
-    console.log(`   TOTAL: ₦${totalRevenue}`);
-    console.log(`   Expected from CSV: ₦2,028.39`);
+
 
     // Get revenue breakdown by time periods
     const todayRevenue = await getRevenueForPeriod("today");

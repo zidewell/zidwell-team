@@ -5,12 +5,6 @@ export type FeeResult = {
   totalDebit: number;
 };
 
-/**
- * Calculate fees based on payment method
- * - amount: transaction amount
- * - type: "transfer" | "deposit" | "card" 
- * - paymentMethod: "checkout" | "virtual_account" | "bank_transfer"
- */
 export function calculateFees(
   amount: number,
   type: "transfer" | "deposit" | "card",
@@ -35,13 +29,16 @@ export function calculateFees(
     appFee = nombaFee; // Pass through to customer
   } 
   else if (paymentMethod === "bank_transfer") {
-    // Pay by Transfer: Nomba charges 0.5% (₦20 min, ₦100 cap), we charge same
+    // Pay by Transfer: Nomba charges 0.5% (₦20 min, ₦100 cap)
     const nombaPercentage = am * 0.005; // 0.5%
     nombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
-    appFee = nombaFee; // Pass through to customer
+    
+    // OUR FEE IS DIFFERENT: 0.5% capped at ₦50, minimum ₦5
+    const ourPercentage = am * 0.005; // 0.5%
+    appFee = Math.min(Math.max(ourPercentage, 5), 50); // Min ₦5, Max ₦50
   }
 
-  // For transfers, add additional 0.25% app fee (₦20 min, ₦150 max)
+  // For transfers (type), add additional 0.25% app fee (₦20 min, ₦150 max)
   if (type === "transfer") {
     const transferAppFee = am * 0.0025; // 0.25% additional app fee for transfers
     const transferFee = Math.min(Math.max(transferAppFee, 20), 150); // Min ₦20, Max ₦150
@@ -89,12 +86,16 @@ export function calculateWebhookFees(
     console.log(`   - Our VA fee (same): ₦${ourFee}`);
   } 
   else if (channel === "bank_transfer" || txType === "transfer_deposit") {
-    // Pay by Transfer: Nomba charges 0.5% (₦20 min, ₦100 cap), we charge same
+    // Pay by Transfer: Nomba charges 0.5% (₦20 min, ₦100 cap)
     const nombaPercentage = amount * 0.005; // 0.5%
     nombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
-    ourFee = nombaFee; // Pass through
+    
+    // OUR FEE IS DIFFERENT: 0.5% capped at ₦50, minimum ₦5
+    const ourPercentage = amount * 0.005; // 0.5%
+    ourFee = Math.min(Math.max(ourPercentage, 5), 50); // Min ₦5, Max ₦50
+    
     console.log(`   - Nomba Transfer fee (0.5%: ₦20 min, ₦100 cap): ₦${nombaFee}`);
-    console.log(`   - Our Transfer fee (same): ₦${ourFee}`);
+    console.log(`   - Our Transfer fee (0.5%: ₦5 min, ₦50 cap): ₦${ourFee}`);
   } 
   else {
     // Default fallback
@@ -103,7 +104,7 @@ export function calculateWebhookFees(
     ourFee = 0;
   }
 
-  // For transfers, add additional 0.25% app fee (₦20 min, ₦150 max)
+  // For transfers (txType), add additional 0.25% app fee (₦20 min, ₦150 max)
   if (txType.includes("transfer") || txType.includes("withdrawal")) {
     const transferAppFee = amount * 0.0025; // 0.25% additional app fee for transfers
     const transferFee = Math.min(Math.max(transferAppFee, 20), 150); // Min ₦20, Max ₦150

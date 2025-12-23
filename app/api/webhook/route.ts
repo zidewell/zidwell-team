@@ -2070,22 +2070,34 @@ export async function POST(req: NextRequest) {
       let totalFees = 0;
       let totalDeduction = txAmount;
 
-      if (isRegularWithdrawal) {
-        // Regular withdrawal fee logic: 1% (₦20 min, ₦1000 cap)
-        appFee = txAmount * 0.0025;
-        appFee = Math.max(appFee, 20);
-        appFee = Math.min(appFee, 150);
-        appFee = Number(appFee.toFixed(2));
-        totalFees = Number((nombaFee + appFee).toFixed(2));
-        totalDeduction = txAmount;
-
-        console.log("💰 Regular Withdrawal calculations:");
-        console.log("   - Withdrawal amount:", txAmount);
-        console.log("   - Nomba fee:", nombaFee);
-        console.log("   - Our app fee:", appFee);
-        console.log("   - Total fees:", totalFees);
-        console.log("   - Total deduction:", totalDeduction);
-      } else if (isP2PTransfer) {
+    if (isRegularWithdrawal) {
+  // Regular withdrawal fee logic based on bank_transfer calculation
+  // From calculateFees function: bank_transfer has Nomba fee + Zidwell fee
+  console.log("💰 Regular Withdrawal calculations (bank_transfer mode):");
+  
+  // 1. Calculate Nomba fee: 0.5% (₦20 min, ₦100 cap)
+  const nombaPercentage = txAmount * 0.005; // 0.5%
+  const nombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
+  
+  // 2. Calculate Zidwell fee: 0.5% (₦5 min, ₦50 cap)
+  const ourPercentage = txAmount * 0.005; // 0.5%
+  const zidwellFee = Math.min(Math.max(ourPercentage, 5), 50); // Min ₦5, Max ₦50
+  
+  // Customer pays BOTH Nomba fee and Zidwell fee
+  appFee = nombaFee + zidwellFee;
+  
+  // For withdrawal, total deduction should be amount + total fees
+  totalFees = appFee;
+  totalDeduction = txAmount + totalFees; // User pays amount + fees
+  
+  console.log("   - Withdrawal amount:", txAmount);
+  console.log("   - Nomba fee (0.5%, ₦20 min, ₦100 cap):", nombaFee);
+  console.log("   - Zidwell fee (0.5%, ₦5 min, ₦50 cap):", zidwellFee);
+  console.log("   - Total app fee (Nomba + Zidwell):", appFee);
+  console.log("   - Total fees:", totalFees);
+  console.log("   - Total deduction (amount + fees):", totalDeduction);
+  console.log("   - Net amount to recipient:", txAmount);
+} else if (isP2PTransfer) {
         // 🔥 P2P transfers have NO FEES
         appFee = 0;
         totalFees = 0; // No fees for P2P

@@ -160,8 +160,8 @@ async function sendWithdrawalEmailNotification(
       return;
     }
 
-    const totalFee = nombaFee + zidwellFee; // Updated to include both fees
-    const netAmount = amount; // Amount sent to recipient (after fees are deducted)
+    const totalFee = nombaFee + zidwellFee; 
+    const netAmount = amount; 
     
     const subject =
       status === "success"
@@ -176,11 +176,9 @@ ${greeting}
 Your transfer was successful!
 
 💰 Transaction Details:
-• Amount Sent: ₦${netAmount.toLocaleString()}
-• Fees: ₦${totalFee.toLocaleString()} 
-  - Nomba Fee (0.5%): ₦${nombaFee.toLocaleString()}
-  - Zidwell Fee (0.5%): ₦${zidwellFee.toLocaleString()}
-• Total Deducted: ₦${totalDeduction.toLocaleString()}
+• Amount to Send: ₦${(netAmount-totalFee).toLocaleString()}
+• Fees: ₦${totalFee.toLocaleString()}
+• Total Deduction: ₦${netAmount.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
@@ -202,11 +200,9 @@ ${greeting}
 Your transfer failed.
 
 💰 Transaction Details:
-• Amount to Send: ₦${netAmount.toLocaleString()}
+• Amount to Send: ₦${(netAmount-totalFee).toLocaleString()}
 • Fees: ₦${totalFee.toLocaleString()}
-  - Nomba Fee (0.5%): ₦${nombaFee.toLocaleString()}
-  - Zidwell Fee (0.5%): ₦${zidwellFee.toLocaleString()}
-• Total Deduction: ₦${totalDeduction.toLocaleString()}
+• Total Deduction: ₦${netAmount.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}

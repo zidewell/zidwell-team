@@ -243,17 +243,12 @@ Zidwell Team
           
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount Sent:</strong> ₦${netAmount.toLocaleString()}</p>
+            <p><strong>Amount Sent:</strong> ₦${(netAmount-totalFee).toLocaleString()}</p>
             <div style="margin: 10px 0; padding-left: 10px; border-left: 2px solid #e2e8f0;">
               <p style="margin: 5px 0;"><strong>Fees:</strong> ₦${totalFee.toLocaleString()}</p>
-              <p style="margin: 3px 0 3px 15px; font-size: 14px; color: #64748b;">
-                • Nomba Fee (0.5%): ₦${nombaFee.toLocaleString()}
-              </p>
-              <p style="margin: 3px 0 3px 15px; font-size: 14px; color: #64748b;">
-                • Zidwell Fee (0.5%): ₦${zidwellFee.toLocaleString()}
-              </p>
+            
             </div>
-            <p><strong>Total Deducted:</strong> ₦${totalDeduction.toLocaleString()}</p>
+            <p><strong>Total Deducted:</strong> ₦${netAmount.toLocaleString()}</p>
             <p><strong>Recipient Name:</strong> ${recipientName}</p>
             <p><strong>Account Number:</strong> ${recipientAccount}</p>
             <p><strong>Bank:</strong> ${bankName}</p>

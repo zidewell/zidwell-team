@@ -544,10 +544,10 @@ export default function Transfer() {
     if (transferType === "my-account" || transferType === "other-bank") {
       return "bank_transfer";
     }
-    return "bank_transfer"; // Default for P2P as well
+    return "bank_transfer"; 
   };
 
-  // console.log("Calculated Fee:", calculatedFee, "Total Debit:", totalDebit);
+ 
 
   return (
     <>

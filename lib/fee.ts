@@ -33,16 +33,9 @@ export function calculateFees(
     const nombaPercentage = am * 0.005; // 0.5%
     nombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
     
-    // OUR FEE IS DIFFERENT: 0.5% capped at ₦50, minimum ₦5
+    // We charge 0.5% (₦5 min, ₦150 cap) for bank transfers
     const ourPercentage = am * 0.005; // 0.5%
-    appFee = Math.min(Math.max(ourPercentage, 5), 50); // Min ₦5, Max ₦50
-  }
-
-  // For transfers (type), add additional 0.25% app fee (₦20 min, ₦150 max)
-  if (type === "transfer") {
-    const transferAppFee = am * 0.0025; // 0.25% additional app fee for transfers
-    const transferFee = Math.min(Math.max(transferAppFee, 20), 150); // Min ₦20, Max ₦150
-    appFee += transferFee;
+    appFee = Math.min(Math.max(ourPercentage, 5), 150); // Min ₦5, Max ₦150
   }
 
   const totalFee = appFee;
@@ -90,26 +83,18 @@ export function calculateWebhookFees(
     const nombaPercentage = amount * 0.005; // 0.5%
     nombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
     
-    // OUR FEE IS DIFFERENT: 0.5% capped at ₦50, minimum ₦5
+    // We charge 0.5% (₦5 min, ₦150 cap) for bank transfers
     const ourPercentage = amount * 0.005; // 0.5%
-    ourFee = Math.min(Math.max(ourPercentage, 5), 50); // Min ₦5, Max ₦50
+    ourFee = Math.min(Math.max(ourPercentage, 5), 150); // Min ₦5, Max ₦150
     
     console.log(`   - Nomba Transfer fee (0.5%: ₦20 min, ₦100 cap): ₦${nombaFee}`);
-    console.log(`   - Our Transfer fee (0.5%: ₦5 min, ₦50 cap): ₦${ourFee}`);
+    console.log(`   - Our Transfer fee (0.5%: ₦5 min, ₦150 cap): ₦${ourFee}`);
   } 
   else {
     // Default fallback
     console.log(`   - Unknown channel, using zero fees`);
     nombaFee = 0;
     ourFee = 0;
-  }
-
-  // For transfers (txType), add additional 0.25% app fee (₦20 min, ₦150 max)
-  if (txType.includes("transfer") || txType.includes("withdrawal")) {
-    const transferAppFee = amount * 0.0025; // 0.25% additional app fee for transfers
-    const transferFee = Math.min(Math.max(transferAppFee, 20), 150); // Min ₦20, Max ₦150
-    ourFee += transferFee;
-    console.log(`   - Added transfer fee (0.25%: ₦20 min, ₦150 cap): ₦${transferFee}`);
   }
 
   // Calculate our margin (profit)

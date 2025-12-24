@@ -157,7 +157,7 @@ async function sendWithdrawalEmailNotification(
       return;
     }
 
-    const totalFee = nombaFee + zidwellFee;
+    const totalFee = totalDeduction + amount;
     const amountSent = amount; // Amount to recipient
     const amountWithFees = totalDeduction; // Total deducted (amount + fees)
     

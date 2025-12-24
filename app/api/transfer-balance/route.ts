@@ -32,230 +32,110 @@ function calculateWithdrawalFees(amount: number) {
   };
 }
 
-// Email notification function for withdrawal
-async function sendWithdrawalEmailNotification(
-  userId: string,
-  status: "success" | "failed" | "pending" | "processing",
-  amount: number,
-  fee: number,
-  totalDeduction: number,
-  recipientName: string,
-  recipientAccount: string,
-  bankName: string,
-  transactionId?: string,
-  errorDetail?: string
-) {
-  try {
-    // Fetch user email
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("email, first_name")
-      .eq("id", userId)
-      .single();
+// // Processing email notification function (for Transfer API only)
+// async function sendWithdrawalProcessingEmail(
+//   userId: string,
+//   amount: number,
+//   fee: number,
+//   totalDeduction: number,
+//   recipientName: string,
+//   recipientAccount: string,
+//   bankName: string,
+//   transactionId?: string
+// ) {
+//   try {
+//     const { data: user, error } = await supabase
+//       .from("users")
+//       .select("email, first_name")
+//       .eq("id", userId)
+//       .single();
 
-    if (error || !user) {
-      console.error(
-        "Failed to fetch user for withdrawal email notification:",
-        error
-      );
-      return;
-    }
+//     if (error || !user) {
+//       console.error(
+//         "Failed to fetch user for processing email notification:",
+//         error
+//       );
+//       return;
+//     }
 
-    const subject =
-      status === "success"
-        ? `Transfer Successful - ₦${amount.toLocaleString()}`
-        : status === "processing" || status === "pending"
-        ? `Transfer Processing - ₦${amount.toLocaleString()}`
-        : `Transfer Failed - ₦${amount.toLocaleString()}`;
+//     const subject = `Transfer Processing - ₦${amount.toLocaleString()}`;
+//     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
 
-    const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
+//     const emailBody = `
+// ${greeting}
 
-    const successBody = `
-${greeting}
+// Your transfer is being processed. This usually takes a few moments.
 
-Your Transfer was successful!
+// 💰 Transaction Details:
+// • Amount to Send: ₦${amount.toLocaleString()}
+// • Fees: ₦${fee.toLocaleString()}
+// • Total Deducted: ₦${totalDeduction.toLocaleString()}
+// • Recipient: ${recipientName}
+// • Account Number: ${recipientAccount}
+// • Bank: ${bankName}
+// • Transaction ID: ${transactionId || "N/A"}
+// • Date: ${new Date().toLocaleString()}
+// • Status: Processing
 
-💰 Transaction Details:
-• Amount Sent: ₦${amount.toLocaleString()}
-• Fee: ₦${fee.toLocaleString()}
-• Total Deducted: ₦${totalDeduction.toLocaleString()}
-• Recipient: ${recipientName}
-• Account Number: ${recipientAccount}
-• Bank: ${bankName}
-• Transaction ID: ${transactionId || "N/A"}
-• Date: ${new Date().toLocaleString()}
+// You will receive another notification once the transaction is completed.
 
-The funds should reflect in your beneficiary's bank account shortly.
+// Thank you for using Zidwell!
 
-Thank you for using Zidwell!
+// Best regards,
+// Zidwell Team
+//     `;
 
-Best regards,
-Zidwell Team
-    `;
-
-    const processingBody = `
-${greeting}
-
-Your Transfer is being processed. This usually takes a few moments.
-
-💰 Transaction Details:
-• Amount Sent: ₦${amount.toLocaleString()}
-• Fee: ₦${fee.toLocaleString()}
-• Total Deducted: ₦${totalDeduction.toLocaleString()}
-• Recipient: ${recipientName}
-• Account Number: ${recipientAccount}
-• Bank: ${bankName}
-• Transaction ID: ${transactionId || "N/A"}
-• Date: ${new Date().toLocaleString()}
-• Status: Processing
-
-You will receive another notification once the transaction is completed.
-
-Thank you for using Zidwell!
-
-Best regards,
-Zidwell Team
-    `;
-
-    const failedBody = `
-${greeting}
-
-Your Transfer failed.
-
-💰 Transaction Details:
-• Amount Sent: ₦${amount.toLocaleString()}
-• Fee: ₦${fee.toLocaleString()}
-• Total Deducted: ₦${totalDeduction.toLocaleString()}
-• Recipient: ${recipientName}
-• Account Number: ${recipientAccount}
-• Bank: ${bankName}
-• Transaction ID: ${transactionId || "N/A"}
-• Date: ${new Date().toLocaleString()}
-• Status: ${errorDetail || "Transaction failed"}
-
-${
-  errorDetail?.includes("refunded") || errorDetail?.includes("refund")
-    ? "✅ Your wallet has been refunded successfully."
-    : "Please contact support if you have any questions."
-}
-
-Best regards,
-Zidwell Team
-    `;
-
-    const emailBody =
-      status === "success"
-        ? successBody
-        : status === "processing" || status === "pending"
-        ? processingBody
-        : failedBody;
-
-    const statusColor =
-      status === "success"
-        ? "#22c55e"
-        : status === "processing" || status === "pending"
-        ? "#f59e0b"
-        : "#ef4444";
-
-    const statusIcon =
-      status === "success"
-        ? "✅"
-        : status === "processing" || status === "pending"
-        ? "🟡"
-        : "❌";
-
-    const statusText =
-      status === "success"
-        ? "Transfer Successful"
-        : status === "processing" || status === "pending"
-        ? "Transfer Processing"
-        : "Transfer Failed";
-
-    await transporter.sendMail({
-      from: `Zidwell <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject,
-      text: emailBody,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>${greeting}</p>
+//     await transporter.sendMail({
+//       from: `Zidwell <${process.env.EMAIL_USER}>`,
+//       to: user.email,
+//       subject,
+//       text: emailBody,
+//       html: `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+//           <p>${greeting}</p>
           
-          <h3 style="color: ${statusColor};">
-            ${statusIcon} ${statusText}
-          </h3>
+//           <h3 style="color: #f59e0b;">
+//             🟡 Transfer Processing
+//           </h3>
           
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount Sent:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Fee:</strong> ₦${fee.toLocaleString()}</p>
-            <p><strong>Total Deducted:</strong> ₦${totalDeduction.toLocaleString()}</p>
-            <p><strong>Recipient Name:</strong> ${recipientName}</p>
-            <p><strong>Account Number:</strong> ${recipientAccount}</p>
-            <p><strong>Bank:</strong> ${bankName}</p>
-            <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
-              ${
-                status === "success"
-                  ? "Success"
-                  : status === "processing" || status === "pending"
-                  ? "Processing"
-                  : "Failed"
-              }
-            </span></p>
-            ${
-              status === "failed"
-                ? `<p><strong>Reason:</strong> ${
-                    errorDetail || "Transaction failed"
-                  }</p>`
-                : ""
-            }
-          </div>
+//           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+//             <h4 style="margin-top: 0;">Transaction Details:</h4>
+//             <p><strong>Amount to Send:</strong> ₦${amount.toLocaleString()}</p>
+//             <p><strong>Fees:</strong> ₦${fee.toLocaleString()}</p>
+//             <p><strong>Total Deducted:</strong> ₦${totalDeduction.toLocaleString()}</p>
+//             <p><strong>Recipient Name:</strong> ${recipientName}</p>
+//             <p><strong>Account Number:</strong> ${recipientAccount}</p>
+//             <p><strong>Bank:</strong> ${bankName}</p>
+//             <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
+//             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+//             <p><strong>Status:</strong> <span style="color: #f59e0b; font-weight: bold;">
+//               Processing
+//             </span></p>
+//           </div>
           
-          ${
-            status === "success"
-              ? `<p style="color: #64748b;">
-                  The funds should reflect in your beneficiary's bank account shortly.
-                  If there are any issues, please contact our support team.
-                </p>`
-              : ""
-          }
+//           <p style="color: #64748b;">
+//             You will receive another notification once the transaction is completed.
+//             This usually takes just a few moments.
+//           </p>
           
-          ${
-            status === "processing" || status === "pending"
-              ? `<p style="color: #64748b;">
-                  You will receive another notification once the transaction is completed.
-                  This usually takes just a few moments.
-                </p>`
-              : ""
-          }
+//           <p>Thank you for using Zidwell!</p>
           
-          ${
-            status === "failed" &&
-            (errorDetail?.includes("refunded") ||
-              errorDetail?.includes("refund"))
-              ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
-              : ""
-          }
-          
-          <p>Thank you for using Zidwell!</p>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px;">
-            Best regards,<br>
-            <strong>Zidwell Team</strong>
-          </p>
-        </div>
-      `,
-    });
+//           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+//           <p style="color: #64748b; font-size: 14px;">
+//             Best regards,<br>
+//             <strong>Zidwell Team</strong>
+//           </p>
+//         </div>
+//       `,
+//     });
 
-    console.log(
-      `💰 Withdrawal email notification sent to ${user.email} for ${status} transaction`
-    );
-  } catch (emailError) {
-    console.error("Failed to send withdrawal email notification:", emailError);
-  }
-}
+//     console.log(
+//       `💰 Processing email notification sent to ${user.email}`
+//     );
+//   } catch (emailError) {
+//     console.error("Failed to send processing email notification:", emailError);
+//   }
+// }
 
 export async function POST(req: Request) {
   try {
@@ -359,6 +239,15 @@ export async function POST(req: Request) {
     const merchantTxRef = `WD_${Date.now()}`;
 
     // ✅ Insert pending transaction with clear fee breakdown
+    console.log("📝 Creating transaction record with fees:", {
+      amount: recipientAmount,
+      fee: totalFees,
+      total_deduction: totalDeduction,
+      nomba_fee: nombaFee,
+      zidwell_fee: zidwellFee,
+      merchant_tx_ref: merchantTxRef,
+    });
+
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
@@ -375,15 +264,15 @@ export async function POST(req: Request) {
           bankName,
         },
         amount: recipientAmount, // Amount to recipient
-        fee: totalFees, // Total fees
-        total_deduction: totalDeduction, // Amount + fees
+        fee: totalFees, // Total fees - CRITICAL: Must be set
+        total_deduction: totalDeduction, // Amount + fees - CRITICAL: Must be set
         status: "pending",
         narration: narration || `Transfer to ${accountName}`,
         merchant_tx_ref: merchantTxRef,
         external_response: {
           fee_breakdown: {
             amount_to_recipient: recipientAmount,
-            webhook_expected_amount: recipientAmount, // Critical: Tell webhook what amount to expect
+            webhook_expected_amount: recipientAmount,
             nomba_fee: nombaFee,
             zidwell_fee: zidwellFee,
             total_fees: totalFees,
@@ -494,19 +383,17 @@ export async function POST(req: Request) {
       if (refundErr) {
         console.error("❌ Refund failed:", refundErr);
 
-        // Send failure email without refund
-        await sendWithdrawalEmailNotification(
-          userId,
-          "failed",
-          recipientAmount,
-          totalFees,
-          totalDeduction,
-          accountName,
-          accountNumber,
-          bankName,
-          pendingTx.id,
-          data.description || data.message || "Transfer failed. Refund pending."
-        );
+        // // Send failure email without refund
+        // await sendWithdrawalProcessingEmail(
+        //   userId,
+        //   recipientAmount,
+        //   totalFees,
+        //   totalDeduction,
+        //   accountName,
+        //   accountNumber,
+        //   bankName,
+        //   pendingTx.id
+        // );
 
         return NextResponse.json(
           { 
@@ -523,20 +410,6 @@ export async function POST(req: Request) {
           { status: 400 }
         );
       }
-
-      // Send failure email with refund (webhook won't be called for immediate failures)
-      await sendWithdrawalEmailNotification(
-        userId,
-        "failed",
-        recipientAmount,
-        totalFees,
-        totalDeduction,
-        accountName,
-        accountNumber,
-        bankName,
-        pendingTx.id,
-        data.description || data.message || "Transfer failed. Funds refunded successfully."
-      );
 
       return NextResponse.json(
         {
@@ -570,18 +443,17 @@ export async function POST(req: Request) {
       })
       .eq("id", pendingTx.id);
 
-    // ✅ Send processing email only (success/failure emails will come from webhook)
-    await sendWithdrawalEmailNotification(
-      userId,
-      "processing",
-      recipientAmount,
-      totalFees,
-      totalDeduction,
-      accountName,
-      accountNumber,
-      bankName,
-      pendingTx.id
-    );
+    // // ✅ Send processing email only
+    // await sendWithdrawalProcessingEmail(
+    //   userId,
+    //   recipientAmount,
+    //   totalFees,
+    //   totalDeduction,
+    //   accountName,
+    //   accountNumber,
+    //   bankName,
+    //   pendingTx.id
+    // );
 
     return NextResponse.json({
       success: true,

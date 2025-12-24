@@ -132,11 +132,11 @@ Zidwell Team
 
 async function sendWithdrawalEmailNotification(
   userId: string,
-  status: "success" | "failed", // Only success/failed for webhook
-  amount: number, // Amount sent to recipient
+  status: "success" | "failed", 
+  amount: number, 
   nombaFee: number,
   zidwellFee: number,
-  totalDeduction: number, // Total amount deducted (amount + total fees)
+  totalDeduction: number, 
   recipientName: string,
   recipientAccount: string,
   bankName: string,
@@ -2097,24 +2097,74 @@ if (isPayoutOrTransfer) {
     );
   }
 
-  // 🔥 CRITICAL: Get amounts from pending transaction, not webhook
+  // 🔥 FIXED FEE HANDLING: Get amounts from pending transaction
   const feeBreakdown = pendingTx.external_response?.fee_breakdown || {};
   const expectedAmount = feeBreakdown.amount_to_recipient || feeBreakdown.webhook_expected_amount || pendingTx.amount;
   const withdrawalAmount = expectedAmount || transactionAmount;
-  const pendingFees = pendingTx.fee || feeBreakdown.total_fees || 0;
-  const totalDeduction = pendingTx.total_deduction || withdrawalAmount + pendingFees;
+
+  // 🔥 FIXED: Get fees from transaction record
+  let pendingFees = pendingTx.fee || feeBreakdown.total_fees || 0;
+  let totalDeduction = pendingTx.total_deduction || withdrawalAmount + pendingFees;
   
-  const pendingNombaFee = feeBreakdown.nomba_fee || 0;
-  const pendingZidwellFee = feeBreakdown.zidwell_fee || 0;
+  let pendingNombaFee = feeBreakdown.nomba_fee || 0;
+  let pendingZidwellFee = feeBreakdown.zidwell_fee || 0;
+
+  console.log("💰 Initial Fee Check:", {
+    pending_tx_amount: pendingTx.amount,
+    pending_tx_fee: pendingTx.fee,
+    pending_tx_total_deduction: pendingTx.total_deduction,
+    fee_breakdown_exists: !!Object.keys(feeBreakdown).length,
+    fee_breakdown: feeBreakdown,
+  });
+
+  // 🔥 FIXED: If fees are missing, calculate them properly
+  if (pendingFees === 0 || totalDeduction === 0 || pendingNombaFee === 0) {
+    console.log("⚠️ Missing fee data, calculating fees...");
+    
+    // Calculate fees based on withdrawal amount
+    const nombaPercentage = withdrawalAmount * 0.005; // 0.5%
+    pendingNombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
+    
+    const zidwellPercentage = withdrawalAmount * 0.005; // 0.5%
+    pendingZidwellFee = Math.min(Math.max(zidwellPercentage, 5), 50); // Min ₦5, Max ₦50
+    
+    pendingFees = pendingNombaFee + pendingZidwellFee;
+    totalDeduction = withdrawalAmount + pendingFees;
+    
+    console.log("💰 Calculated fees:", {
+      withdrawal_amount: withdrawalAmount,
+      calculated_nomba_fee: pendingNombaFee,
+      calculated_zidwell_fee: pendingZidwellFee,
+      calculated_total_fees: pendingFees,
+      calculated_total_deduction: totalDeduction,
+    });
+  }
+
+  // 🔥 Also check if webhook nombaFee differs from our calculation
+  if (nombaFee > 0 && pendingNombaFee !== nombaFee) {
+    console.log("⚠️ Webhook Nomba fee differs from calculated fee:", {
+      webhook_nomba_fee: nombaFee,
+      our_calculated_nomba_fee: pendingNombaFee,
+      difference: nombaFee - pendingNombaFee,
+    });
+    // Use the webhook Nomba fee if it's provided
+    pendingNombaFee = nombaFee;
+    pendingFees = pendingNombaFee + pendingZidwellFee;
+    totalDeduction = withdrawalAmount + pendingFees;
+  }
 
   console.log("💰 Amount Reconciliation:", {
     pending_tx_amount: pendingTx.amount,
     pending_tx_fee: pendingTx.fee,
     pending_tx_total_deduction: pendingTx.total_deduction,
-    fee_breakdown: feeBreakdown,
     webhook_amount: transactionAmount,
+    webhook_nomba_fee: nombaFee,
     expected_amount: expectedAmount,
     using_amount: withdrawalAmount,
+    final_nomba_fee: pendingNombaFee,
+    final_zidwell_fee: pendingZidwellFee,
+    final_total_fees: pendingFees,
+    final_total_deduction: totalDeduction,
     amount_discrepancy: Math.abs(transactionAmount - withdrawalAmount),
     note: transactionAmount !== withdrawalAmount ? 
       "⚠️ Webhook amount differs from expected amount. Using expected amount from pending transaction." : 
@@ -2145,7 +2195,7 @@ if (isPayoutOrTransfer) {
 
     const reference = nombaTransactionId || crypto.randomUUID();
 
-    // Build updated external response
+    // Build updated external response with fee info
     const updatedExternalResponse = {
       ...pendingTx.external_response,
       ...payload,
@@ -2153,11 +2203,14 @@ if (isPayoutOrTransfer) {
         ...feeBreakdown,
         transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
         webhook_received_amount: transactionAmount,
+        webhook_nomba_fee: nombaFee,
         final_amount: withdrawalAmount,
+        final_nomba_fee: pendingNombaFee,
+        final_zidwell_fee: pendingZidwellFee,
         final_fees: totalFees,
         final_total_deduction: totalDeduction,
         processed_at: new Date().toISOString(),
-        note: "Processed by webhook",
+        note: "Processed by webhook with calculated fees",
       },
     };
 
@@ -2167,9 +2220,9 @@ if (isPayoutOrTransfer) {
       .update({
         status: "success",
         reference,
+        fee: totalFees, // Ensure fee is set
+        total_deduction: totalDeduction, // Ensure total_deduction is set
         external_response: updatedExternalResponse,
-        total_deduction: totalDeduction,
-        fee: totalFees,
       })
       .eq("id", pendingTx.id);
 

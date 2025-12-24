@@ -134,8 +134,6 @@ async function sendWithdrawalEmailNotification(
   userId: string,
   status: "success" | "failed", 
   amount: number, 
-  nombaFee: number,
-  zidwellFee: number,
   totalDeduction: number, 
   recipientName: string,
   recipientAccount: string,
@@ -2014,7 +2012,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true }, { status: 200 });
     } // end deposit handling
 
- 
 if (isPayoutOrTransfer) {
   console.log("➡️ Handling payout/transfer flow");
 
@@ -2024,6 +2021,9 @@ if (isPayoutOrTransfer) {
     .map((r) => `merchant_tx_ref.eq.${r}`)
     .concat(refCandidates.map((r) => `reference.eq.${r}`));
   const orExpr = orExprParts.join(",");
+
+  // 🔍 Add a small delay to ensure API has time to update
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   const { data: pendingTxList, error: pendingErr } = await supabase
     .from("transactions")
@@ -2042,10 +2042,25 @@ if (isPayoutOrTransfer) {
 
   if (!pendingTx) {
     console.warn("⚠️ No matching pending withdrawal found for refs:", refCandidates);
-    return NextResponse.json(
-      { message: "No matching withdrawal transaction" },
-      { status: 200 }
-    );
+    
+    // 🔍 Try one more time with delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const { data: retryTxList } = await supabase
+      .from("transactions")
+      .select("*")
+      .or(orExpr)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    
+    pendingTx = retryTxList?.[0];
+    
+    if (!pendingTx) {
+      console.error("❌ Transaction not found even after retry");
+      return NextResponse.json(
+        { message: "No matching withdrawal transaction" },
+        { status: 200 }
+      );
+    }
   }
 
   console.log("📊 Found transaction:", {
@@ -2055,7 +2070,9 @@ if (isPayoutOrTransfer) {
     amount: pendingTx.amount,
     fee: pendingTx.fee,
     total_deduction: pendingTx.total_deduction,
-    type: pendingTx.type
+    type: pendingTx.type,
+    created_at: pendingTx.created_at,
+    updated_at: pendingTx.updated_at
   });
 
   // Check transaction type
@@ -2064,37 +2081,12 @@ if (isPayoutOrTransfer) {
   console.log("   - Transaction Type:", pendingTx.type);
   console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
 
-  if (pendingTx.status === "success") {
-    console.log(`✅ Transaction already marked as success. Skipping.`);
-    return NextResponse.json(
-      { message: "Already processed successfully" },
-      { status: 200 }
-    );
-  }
-
-  // Get amounts from transaction
-  const withdrawalAmount = pendingTx.amount || transactionAmount;
-  const pendingFees = pendingTx.fee || 0;
-  const totalDeduction = pendingTx.total_deduction || withdrawalAmount + pendingFees;
-  
-  // Calculate fee breakdown based on your API logic
-  // Your API charges 25 total fee (20 Nomba + 5 Zidwell)
-  const pendingNombaFee = 20; // Fixed from your API
-  const pendingZidwellFee = 5; // Fixed from your API
-  
-  console.log("💰 Fee Breakdown:", {
-    transaction_amount: withdrawalAmount,
-    transaction_fee: pendingFees,
-    transaction_total_deduction: totalDeduction,
-    webhook_nomba_fee: nombaFee,
-    calculated_nomba_fee: pendingNombaFee,
-    calculated_zidwell_fee: pendingZidwellFee,
-    note: "Using fixed fees: ₦20 (Nomba) + ₦5 (Zidwell) = ₦25 total"
-  });
-
   // ✅ SUCCESS CASE
   if (eventType === "payout_success" || txStatus === "success") {
     console.log(`✅ Transfer SUCCESS - Webhook amount: ₦${transactionAmount}`);
+    
+    // 🔍 VERIFY THE UPDATE WORKED
+    console.log("🔍 Attempting to update transaction status from", pendingTx.status, "to success...");
     
     // Update transaction to success
     const { error: updateErr } = await supabase
@@ -2102,29 +2094,70 @@ if (isPayoutOrTransfer) {
       .update({
         status: "success",
         reference: nombaTransactionId || pendingTx.reference,
+        updated_at: new Date().toISOString(),
         external_response: {
           ...pendingTx.external_response,
           ...payload,
           webhook_processed_at: new Date().toISOString(),
           final_status: "success",
           fee_reconciliation: {
-            original_fee: pendingFees,
+            original_fee: pendingTx.fee,
             webhook_nomba_fee: nombaFee,
-            actual_nomba_fee: pendingNombaFee,
-            zidwell_fee: pendingZidwellFee,
-            total_fee: pendingFees,
+            actual_nomba_fee: 20,
+            zidwell_fee: 5,
+            total_fee: pendingTx.fee,
             note: "Nomba charged ₦20 fee, Zidwell fee ₦5"
           }
         }
       })
-      .eq("id", pendingTx.id);
+      .eq("id", pendingTx.id)
+      .select("status, updated_at") // 🔥 CRITICAL: Return the updated record
+      .single();
 
     if (updateErr) {
       console.error("❌ Failed to update transaction to success:", updateErr);
+      
+      // 🔍 Try direct SQL as fallback
+      console.log("🔄 Attempting direct update fallback...");
+      try {
+        // Use RPC function as fallback
+        const { error: rpcError } = await supabase.rpc("update_transaction_status", {
+          tx_id: pendingTx.id,
+          new_status: "success",
+          reference_id: nombaTransactionId
+        });
+        
+        if (rpcError) {
+          console.error("❌ RPC fallback also failed:", rpcError);
+        } else {
+          console.log("✅ Fallback update succeeded via RPC");
+        }
+      } catch (fallbackError) {
+        console.error("❌ All update attempts failed:", fallbackError);
+      }
+      
       return NextResponse.json({ error: "Update failed" }, { status: 500 });
     }
 
     console.log(`✅ Transaction ${pendingTx.id} marked as SUCCESS`);
+    
+    // 🔍 VERIFY the update actually happened
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const { data: verifyTx, error: verifyErr } = await supabase
+      .from("transactions")
+      .select("status, updated_at")
+      .eq("id", pendingTx.id)
+      .single();
+    
+    if (verifyErr) {
+      console.error("❌ Failed to verify update:", verifyErr);
+    } else {
+      console.log("🔍 Verification:", {
+        current_status: verifyTx.status,
+        updated_at: verifyTx.updated_at,
+        was_updated: verifyTx.status === "success" ? "✅ YES" : "❌ NO"
+      });
+    }
 
     // Send success email
     if (pendingTx.user_id) {
@@ -2136,10 +2169,8 @@ if (isPayoutOrTransfer) {
       await sendWithdrawalEmailNotification(
         pendingTx.user_id,
         "success",
-        withdrawalAmount,
-        pendingNombaFee,
-        pendingZidwellFee,
-        totalDeduction,
+        pendingTx.amount,
+        pendingTx.total_deduction,
         recipientName,
         recipientAccount,
         bankName,
@@ -2152,9 +2183,9 @@ if (isPayoutOrTransfer) {
       success: true,
       message: "Transfer processed successfully",
       transaction_id: pendingTx.id,
-      amount: withdrawalAmount,
-      fees: pendingFees,
-      total_deducted: totalDeduction
+      amount: pendingTx.amount,
+      fees: pendingTx.fee,
+      total_deducted: pendingTx.total_deduction
     }, { status: 200 });
   }
 
@@ -2173,6 +2204,7 @@ if (isPayoutOrTransfer) {
       .from("transactions")
       .update({
         status: "failed",
+        updated_at: new Date().toISOString(),
         external_response: {
           ...pendingTx.external_response,
           ...payload,
@@ -2181,7 +2213,9 @@ if (isPayoutOrTransfer) {
           error_detail: errorDetail
         }
       })
-      .eq("id", pendingTx.id);
+      .eq("id", pendingTx.id)
+      .select("status, updated_at") // 🔥 CRITICAL: Return the updated record
+      .single();
 
     if (updateError) {
       console.error("❌ Failed to update transaction to failed:", updateError);
@@ -2203,10 +2237,8 @@ if (isPayoutOrTransfer) {
       await sendWithdrawalEmailNotification(
         pendingTx.user_id,
         "failed",
-        withdrawalAmount,
-        pendingNombaFee,
-        pendingZidwellFee,
-        totalDeduction,
+        pendingTx.amount,
+        pendingTx.total_deduction,
         recipientName,
         recipientAccount,
         bankName,

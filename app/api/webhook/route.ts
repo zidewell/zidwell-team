@@ -2009,7 +2009,7 @@ export async function POST(req: NextRequest) {
     } // end deposit handling
 
     // ---------- WITHDRAWAL / TRANSFER (OUTGOING) ----------
-  if (isPayoutOrTransfer) {
+if (isPayoutOrTransfer) {
   console.log("➡️ Handling payout/transfer flow");
 
   // Extract merchantTxRef from the correct location in the payload
@@ -2029,30 +2029,60 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Search for transaction using ONLY merchantTxRef
+  // First, check if ANY transaction exists with this merchantTxRef (for debugging)
+  console.log("🔍 Searching for transaction with merchantTxRef:", merchantTxRef);
+  
+  const { data: allTxWithRef, error: allTxError } = await supabase
+    .from("transactions")
+    .select("id, merchant_tx_ref, status, type, amount, created_at")
+    .eq("merchant_tx_ref", merchantTxRef);
+
+  console.log("🔍 All transactions with this merchantTxRef:", allTxWithRef);
+  console.log("🔍 Query error:", allTxError);
+
+  if (allTxError) {
+    console.error("❌ DB error while searching transactions:", allTxError);
+    return NextResponse.json({ error: "DB error" }, { status: 500 });
+  }
+
+  // If no transaction found at all, return immediately
+  if (!allTxWithRef || allTxWithRef.length === 0) {
+    console.warn(`❌ No transaction found with merchantTxRef: ${merchantTxRef}`);
+    console.warn("   This means the transaction was never created or the merchantTxRef is wrong");
+    return NextResponse.json(
+      { message: "Transaction not found in database" },
+      { status: 200 }
+    );
+  }
+
+  // Check what statuses exist
+  const statuses = allTxWithRef.map(tx => tx.status);
+  console.log(`🔍 Found ${allTxWithRef.length} transaction(s) with statuses:`, statuses);
+
+  // Search for pending or processing transaction
   const { data: pendingTxList, error: pendingErr } = await supabase
     .from("transactions")
     .select("*")
-    .eq("merchant_tx_ref", merchantTxRef)  // Direct match on merchant_tx_ref
-    .in("status", ["pending", "processing"])  // Check both statuses
+    .eq("merchant_tx_ref", merchantTxRef)
+    .in("status", ["pending", "processing"])
     .order("created_at", { ascending: false })
     .limit(1);
 
   if (pendingErr) {
-    console.error("❌ DB error while finding transaction:", pendingErr);
+    console.error("❌ DB error while finding pending transaction:", pendingErr);
     return NextResponse.json({ error: "DB error" }, { status: 500 });
   }
 
   const pendingTx = pendingTxList?.[0];
-  console.log("✅ Found transaction by merchantTxRef:", pendingTx);
+  console.log("✅ Found pending/processing transaction:", pendingTx);
 
   if (!pendingTx) {
-    console.warn("⚠️ No transaction found with merchantTxRef:", merchantTxRef);
+    console.warn("⚠️ No pending/processing transaction found with merchantTxRef:", merchantTxRef);
     
-    // Check if transaction might already be completed
+    // Check if transaction is already completed
     const { data: completedTx } = await supabase
       .from("transactions")
-      .select("id, status")
+      .select("id, status, type, amount")
       .eq("merchant_tx_ref", merchantTxRef)
       .in("status", ["success", "failed"])
       .single();
@@ -2060,16 +2090,38 @@ export async function POST(req: NextRequest) {
     if (completedTx) {
       console.log(`ℹ️ Transaction already ${completedTx.status}. Idempotent handling.`);
       return NextResponse.json(
-        { message: `Already ${completedTx.status}` },
+        { 
+          message: `Already ${completedTx.status}`,
+          transaction_id: completedTx.id,
+          status: completedTx.status
+        },
         { status: 200 }
       );
     }
     
+    // If we get here, transaction exists but is in some other state
+    console.error("❌ Transaction exists but is in unexpected state:", allTxWithRef[0].status);
+    console.error("❌ Full transaction data:", allTxWithRef[0]);
+    
     return NextResponse.json(
-      { message: "No matching transfer transaction found" },
+      { 
+        message: "Transaction found but in unexpected state",
+        status: allTxWithRef[0].status,
+        transaction_id: allTxWithRef[0].id
+      },
       { status: 200 }
     );
   }
+
+  // At this point, we have a valid pending/processing transaction
+  console.log("✅ Successfully retrieved transaction:", {
+    id: pendingTx.id,
+    type: pendingTx.type,
+    status: pendingTx.status,
+    amount: pendingTx.amount,
+    fee: pendingTx.fee,
+    merchant_tx_ref: pendingTx.merchant_tx_ref
+  });
 
   // Check if this is a P2P transfer or regular withdrawal
   const isP2PTransfer = pendingTx.type === "p2p_transfer";
@@ -2091,13 +2143,13 @@ export async function POST(req: NextRequest) {
   const nombaFee = Number(payload.data?.transaction?.fee || 0);
 
   // Use fee directly from transaction record
-  const totalFees = Number(pendingTx.fee || 0); // Use fee from transaction table
-  const appFee = totalFees - nombaFee; // Calculate app fee by subtracting nomba fee
-  const totalDeduction = Number(pendingTx.total_deduction);
+  const totalFees = Number(pendingTx.fee || 0);
+  const appFee = Math.max(0, totalFees - nombaFee); // Ensure non-negative
+  const totalDeduction = Number(pendingTx.total_deduction || txAmount + totalFees);
 
-  console.log("💰 Transaction calculations (using fees from DB):");
+  console.log("💰 Transaction calculations:");
   console.log("   - Transaction amount:", txAmount);
-  console.log("   - Total fee (from DB fee column):", totalFees);
+  console.log("   - Total fee (from DB):", totalFees);
   console.log("   - Nomba fee (from webhook):", nombaFee);
   console.log("   - App fee (calculated):", appFee);
   console.log("   - Total deduction (from DB):", totalDeduction);
@@ -2126,7 +2178,7 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    // 🟩 No second deduction here — we already deducted at initiation
+    // Update transaction to success
     const { error: updateErr } = await supabase
       .from("transactions")
       .update({
@@ -2136,26 +2188,32 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", pendingTx.id);
 
-    const withdrawalDetails =
-      pendingTx.external_response?.withdrawal_details || {};
+    if (updateErr) {
+      console.error("❌ Failed to update transaction:", updateErr);
+      return NextResponse.json({ error: "Update failed" }, { status: 500 });
+    }
 
+    console.log(`✅ Transaction ${pendingTx.id} marked as success`);
+
+    // Extract recipient details
     const recipientName =
       payload.data?.customer?.recipientName ||
-      withdrawalDetails.account_name ||
+      pendingTx.receiver?.name ||
       "N/A";
 
     const recipientAccount =
       payload.data?.customer?.accountNumber ||
-      withdrawalDetails.account_number ||
+      pendingTx.receiver?.accountNumber ||
       "N/A";
 
     const bankName =
       payload.data?.customer?.bankName ||
-      withdrawalDetails.bank_name ||
+      pendingTx.receiver?.bankName ||
       "N/A";
 
-    const narration = payload.data?.transaction?.narration;
+    const narration = payload.data?.transaction?.narration || pendingTx.narration;
 
+    // Send email notification
     await sendWithdrawalEmailNotification(
       pendingTx.user_id,
       "success",
@@ -2169,11 +2227,6 @@ export async function POST(req: NextRequest) {
       narration,
       pendingTx.id
     );
-
-    if (updateErr) {
-      console.error("❌ Failed to update transaction:", updateErr);
-      return NextResponse.json({ error: "Update failed" }, { status: 500 });
-    }
 
     // 🔥 NEW: For P2P transfers, also credit the receiver
     if (isP2PTransfer && pendingTx.receiver) {
@@ -2241,6 +2294,7 @@ export async function POST(req: NextRequest) {
           isP2PTransfer ? "P2P Transfer" : "Withdrawal"
         } processed successfully`,
         transaction_type: isP2PTransfer ? "p2p_transfer" : "tansfer",
+        transaction_id: pendingTx.id
       },
       { status: 200 }
     );
@@ -2287,33 +2341,6 @@ export async function POST(req: NextRequest) {
       })
       .eq("id", pendingTx.id);
 
-    // Extract withdrawal details from the actual webhook payload
-    const withdrawalDetails =
-      pendingTx.external_response?.withdrawal_details || {};
-
-    const recipientName =
-      payload.data?.customer?.recipientName ||
-      withdrawalDetails.account_name ||
-      "N/A";
-
-    const recipientAccount =
-      payload.data?.customer?.accountNumber ||
-      withdrawalDetails.account_number ||
-      "N/A";
-
-    const bankName =
-      payload.data?.customer?.bankName ||
-      withdrawalDetails.bank_name ||
-      "N/A";
-
-    console.log("🏦 Extracted Withdrawal Details:", {
-      recipientName,
-      recipientAccount,
-      bankName,
-      narration,
-      errorDetail,
-    });
-
     if (updateError) {
       console.error("❌ Failed to update transaction status:", updateError);
       return NextResponse.json(
@@ -2321,6 +2348,8 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    console.log(`✅ Transaction ${pendingTx.id} marked as failed`);
 
     // Refund wallet via RPC since we deducted earlier
     console.log("🔄 Refunding user wallet...");
@@ -2346,6 +2375,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log(`✅ Refund completed successfully for user ${pendingTx.user_id}`);
+
+    // Extract recipient details for email
+    const recipientName =
+      payload.data?.customer?.recipientName ||
+      pendingTx.receiver?.name ||
+      "N/A";
+
+    const recipientAccount =
+      payload.data?.customer?.accountNumber ||
+      pendingTx.receiver?.accountNumber ||
+      "N/A";
+
+    const bankName =
+      payload.data?.customer?.bankName ||
+      pendingTx.receiver?.bankName ||
+      "N/A";
+
     // Send failure email with error details
     await sendWithdrawalEmailNotification(
       pendingTx.user_id,
@@ -2362,17 +2409,16 @@ export async function POST(req: NextRequest) {
       errorDetail
     );
 
-    console.log(
-      `✅ Refund completed successfully for user ${pendingTx.user_id}`
-    );
     return NextResponse.json(
       {
         refunded: true,
         transaction_type: isP2PTransfer ? "p2p_transfer" : "tansfer",
+        transaction_id: pendingTx.id
       },
       { status: 200 }
     );
   }
+  
   console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
   return NextResponse.json(
     { message: "Ignored transfer event" },

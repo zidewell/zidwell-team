@@ -3,7 +3,6 @@ import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 
-
 export async function POST(req: Request) {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
@@ -178,16 +177,12 @@ export async function POST(req: Request) {
 
       if (refundErr) {
         console.error("❌ Refund failed:", refundErr);
-
-    
-
         return NextResponse.json(
           { message: "Transfer failed, refund pending", nombaResponse: data },
           { status: 400 }
         );
       }
 
-     
       return NextResponse.json(
         {
           message: "Transfer failed, funds refunded successfully.",
@@ -198,7 +193,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ If success, update transaction to processing
     await supabase
       .from("transactions")
       .update({

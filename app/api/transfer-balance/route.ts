@@ -23,7 +23,6 @@ export async function POST(req: Request) {
       narration,
       pin,
       fee,
-      totalDebit,
     } = await req.json();
 
     // ✅ Validate inputs

@@ -228,11 +228,6 @@ export default function TransactionHistory() {
   const durationFilteredTransactions =
     applyDurationFilter(filteredTransactions);
 
-  // // DEBUG: Log filtered results
-  // useEffect(() => {
-  //   console.log("Filtered transactions:", filteredTransactions.length);
-  //   console.log("Duration filtered:", durationFilteredTransactions.length);
-  // }, [filteredTransactions, durationFilteredTransactions]);
 
   // Get currently visible transactions (for Load More)
   const visibleTransactionsList = durationFilteredTransactions.slice(
@@ -398,7 +393,7 @@ export default function TransactionHistory() {
     return null;
   };
 
-  // console.log("transaction", transactions)
+  console.log("transaction", transactions)
 
   // Function to handle viewing transaction details
   const handleViewTransaction = (transaction: any) => {
@@ -1092,7 +1087,7 @@ export default function TransactionHistory() {
                     <div className="flex flex-col sm:flex-row sm:items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-gray-900 text-base sm:text-lg truncate">
-                          {tx.description || tx.type}
+                          {tx.description}
 
                           {tx?.fee > 0 && (
                             <span

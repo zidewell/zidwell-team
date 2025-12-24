@@ -46,14 +46,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Calculate total deduction (amount to recipient + fees)
+    // Calculate total deduction
     const totalDeduction = amount + fee;
 
-    console.log("💰 Using fees from frontend:", {
+    console.log("💰 Transaction details:", {
       amount_to_recipient: amount,
-      fee_from_frontend: fee,
+      fee: fee,
       total_deduction: totalDeduction,
-      calculation: `₦${amount} (to recipient) + ₦${fee} (fees) = ₦${totalDeduction} total`,
     });
 
     // ✅ Verify user + PIN
@@ -76,19 +75,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check balance against total deduction (amount + fees)
+    // Check balance
     if (user.wallet_balance < totalDeduction) {
       return NextResponse.json(
         {
           message: "Insufficient wallet balance (including fees)",
           required: totalDeduction,
           current: user.wallet_balance,
-          shortfall: totalDeduction - user.wallet_balance,
-          fee_breakdown: {
-            amount_to_recipient: amount,
-            fee: fee,
-            total_required: totalDeduction,
-          },
         },
         { status: 400 }
       );
@@ -103,14 +96,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const merchantTxRef = `WD_${Date.now()}`;
+    // Create unique reference for webhook matching
+    const merchantTxRef = `WD_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // ✅ Start database transaction to ensure atomicity
+    // ✅ Start with "pending" status (not "processing")
+    // This matches what your webhook expects
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
         user_id: userId,
-        type: "Transfer",
+        type: "withdrawal", // Fixed: Should match what webhook looks for
         sender: {
           name: senderName || user.first_name || "User",
           accountNumber: senderAccountNumber || "N/A",
@@ -124,16 +119,15 @@ export async function POST(req: Request) {
         amount: amount,
         fee: fee,
         total_deduction: totalDeduction,
-        status: "pending",
+        status: "pending", // CHANGED: Start with "pending" not "processing"
         narration: narration || `Transfer to ${accountName}`,
         merchant_tx_ref: merchantTxRef,
         external_response: {
+          init_timestamp: new Date().toISOString(),
           fee_breakdown: {
             amount_to_recipient: amount,
             fee: fee,
             total_deduction: totalDeduction,
-            calculation: `₦${amount} to recipient + ₦${fee} fees = ₦${totalDeduction} total`,
-            timestamp: new Date().toISOString(),
             fee_source: "frontend_calculation",
           },
           withdrawal_details: {
@@ -142,7 +136,6 @@ export async function POST(req: Request) {
             bank_name: bankName,
             bank_code: bankCode,
             narration: narration,
-            initiated_at: new Date().toISOString(),
           },
         },
       })
@@ -157,20 +150,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Update user wallet balance directly (instead of using RPC)
+    // ✅ Deduct wallet balance immediately
     const { error: updateBalanceError } = await supabase
       .from("users")
       .update({ 
         wallet_balance: user.wallet_balance - totalDeduction 
       })
-      .eq("id", userId)
-      .select("wallet_balance")
-      .single();
+      .eq("id", userId);
 
     if (updateBalanceError) {
       console.error("❌ Failed to deduct wallet balance:", updateBalanceError);
       
-      // Clean up the transaction record since balance update failed
+      // Clean up
       await supabase.from("transactions").delete().eq("id", pendingTx.id);
       
       return NextResponse.json(
@@ -179,10 +170,9 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log("✅ Wallet deducted successfully:", {
+    console.log("✅ Wallet deducted, calling Nomba API...", {
       user_id: userId,
       amount_deducted: totalDeduction,
-      new_balance: user.wallet_balance - totalDeduction,
       merchant_tx_ref: merchantTxRef,
     });
 
@@ -200,66 +190,52 @@ export async function POST(req: Request) {
         accountName,
         bankCode,
         senderName: senderName || user.first_name || "Zidwell User",
-        merchantTxRef,
+        merchantTxRef, // This is crucial for webhook matching
         narration: narration || `Transfer to ${accountName}`,
       }),
     });
 
-    const data = await res.json();
-    console.log("📤 Nomba Transfer Response:", {
+    const nombaResponse = await res.json();
+    console.log("📤 Nomba Response:", {
       status: res.status,
-      nomba_response: data,
-      amount_sent: amount,
+      nomba_response: nombaResponse,
       merchant_tx_ref: merchantTxRef,
     });
 
-    // ✅ Handle immediate Nomba failure
-    if (data.code === "400" || data.status === "failed" || !res.ok) {
-      console.log(
-        "❌ Nomba transfer failed immediately:",
-        data.description || data.message
-      );
+    // ✅ Handle IMMEDIATE Nomba failure (not async webhook failure)
+    if (nombaResponse.code === "400" || !res.ok) {
+      console.log("❌ Nomba transfer failed immediately:", nombaResponse.description);
 
-      // Update transaction to failed
+      // Update transaction to failed immediately
       const { error: updateError } = await supabase
         .from("transactions")
         .update({
           status: "failed",
           external_response: {
             ...pendingTx.external_response,
-            nomba_response: data,
+            nomba_response: nombaResponse,
             failed_at: new Date().toISOString(),
-            error: data.description || data.message,
+            error: nombaResponse.description || "Immediate failure",
+            final_status: "failed",
           },
         })
         .eq("id", pendingTx.id);
-
-      if (updateError) {
-        console.error("❌ Failed to update transaction status:", updateError);
-      }
 
       // Refund wallet balance
       const { error: refundErr } = await supabase
         .from("users")
         .update({ 
-          wallet_balance: user.wallet_balance // Restore original balance
+          wallet_balance: user.wallet_balance 
         })
         .eq("id", userId);
 
       if (refundErr) {
         console.error("❌ Refund failed:", refundErr);
-
         return NextResponse.json(
           {
             success: false,
             message: "Transfer failed, refund pending",
-            nomba_response: data,
-            fee_breakdown: {
-              amount_to_recipient: amount,
-              fees: fee,
-              total_deducted: totalDeduction,
-            },
-            merchant_tx_ref: merchantTxRef,
+            nomba_response: nombaResponse,
           },
           { status: 400 }
         );
@@ -268,85 +244,50 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Transfer failed, funds refunded successfully.",
-          reason: data.description || data.message || "Transfer not successful",
+          message: "Transfer failed immediately",
+          reason: nombaResponse.description,
           refunded: true,
-          refund_amount: totalDeduction,
-          fee_breakdown: {
-            amount_to_recipient: amount,
-            fees: fee,
-            total_deducted: totalDeduction,
-          },
-          merchant_tx_ref: merchantTxRef,
         },
         { status: 400 }
       );
     }
 
-    // ✅ CRITICAL FIX: Update transaction to processing - MUST SUCCEED
+    // ✅ IMPORTANT: Update to "processing" so webhook knows it's been sent
+    // But ONLY if Nomba accepted the request
     const { error: updateProcessingError } = await supabase
       .from("transactions")
       .update({
-        status: "processing",
-        reference: data?.data?.reference || data?.reference || null,
+        status: "processing", // Now webhook will see this as "in-flight"
+        reference: nombaResponse?.data?.reference || nombaResponse?.reference || null,
         external_response: {
           ...pendingTx.external_response,
-          nomba_response: data,
-          updated_at: new Date().toISOString(),
+          nomba_initial_response: nombaResponse,
+          sent_to_nomba_at: new Date().toISOString(),
+          merchant_tx_ref: merchantTxRef, // Ensure this is preserved
         },
       })
       .eq("id", pendingTx.id);
 
-    // 🔥 FIXED: Fail the entire transfer if we cannot record the "processing" state
     if (updateProcessingError) {
-      console.error("❌ FATAL: Failed to update transaction to processing:", updateProcessingError);
-      
-      // Attempt to mark as failed since we cannot proceed correctly
-      await supabase
-        .from("transactions")
-        .update({
-          status: "failed",
-          external_response: {
-            ...pendingTx.external_response,
-            nomba_response: data,
-            update_error: "Failed to set status to processing",
-            failed_at: new Date().toISOString(),
-          },
-        })
-        .eq("id", pendingTx.id);
-
-      // Refund the user since we can't track the transaction properly
-      await supabase
-        .from("users")
-        .update({ 
-          wallet_balance: user.wallet_balance 
-        })
-        .eq("id", userId);
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Transfer initiated but could not be tracked. Funds have been refunded.",
-          error: "Database update failed",
-        },
-        { status: 500 }
-      );
+      console.error("❌ Failed to update to processing:", updateProcessingError);
+      // Don't fail - transaction exists, webhook will handle it
     }
 
-    console.log("✅ Transaction updated to 'processing' status");
+    console.log("✅ Transfer initiated successfully. Awaiting webhook...");
 
+    // ✅ Return success response
     return NextResponse.json({
       success: true,
-      message: "Transfer initiated successfully.",
+      message: "Transfer initiated successfully. Awaiting confirmation.",
       transactionId: pendingTx.id,
-      merchantTxRef,
+      merchantTxRef, // Crucial: Return this for debugging
+      status: "processing",
+      note: "Your transfer is being processed. You'll receive a notification when completed.",
       fee_breakdown: {
         amount_to_recipient: amount,
         fee: fee,
         total_deducted: totalDeduction,
       },
-      note: `₦${amount} will be sent to ${accountName}. Total of ₦${totalDeduction} deducted from your wallet (includes ₦${fee} fees).`,
-      nomba_response: data,
     });
   } catch (error: any) {
     console.error("🔥 Transfer API error:", error);
@@ -354,7 +295,7 @@ export async function POST(req: Request) {
       {
         success: false,
         error: "Server error",
-        message: error.message || error.description || "Internal server error",
+        message: error.message || "Internal server error",
       },
       { status: 500 }
     );

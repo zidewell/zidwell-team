@@ -2,140 +2,11 @@ import { NextResponse } from "next/server";
 import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
-import { transporter } from "@/lib/node-mailer";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-// Helper function to calculate fees consistently
-function calculateWithdrawalFees(amount: number) {
-  // 1. Calculate Nomba fee: 0.5% (₦20 min, ₦100 cap)
-  const nombaPercentage = amount * 0.005; // 0.5%
-  const nombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
-  
-  // 2. Calculate Zidwell fee: 0.5% (₦5 min, ₦50 cap)
-  const zidwellPercentage = amount * 0.005; // 0.5%
-  const zidwellFee = Math.min(Math.max(zidwellPercentage, 5), 50); // Min ₦5, Max ₦50
-  
-  // Total fees
-  const totalFees = nombaFee + zidwellFee;
-  const totalDeduction = amount + totalFees;
-  
-  return {
-    amount, // Amount to recipient
-    nombaFee,
-    zidwellFee,
-    totalFees,
-    totalDeduction,
-  };
-}
-
-// // Processing email notification function (for Transfer API only)
-// async function sendWithdrawalProcessingEmail(
-//   userId: string,
-//   amount: number,
-//   fee: number,
-//   totalDeduction: number,
-//   recipientName: string,
-//   recipientAccount: string,
-//   bankName: string,
-//   transactionId?: string
-// ) {
-//   try {
-//     const { data: user, error } = await supabase
-//       .from("users")
-//       .select("email, first_name")
-//       .eq("id", userId)
-//       .single();
-
-//     if (error || !user) {
-//       console.error(
-//         "Failed to fetch user for processing email notification:",
-//         error
-//       );
-//       return;
-//     }
-
-//     const subject = `Transfer Processing - ₦${amount.toLocaleString()}`;
-//     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
-
-//     const emailBody = `
-// ${greeting}
-
-// Your transfer is being processed. This usually takes a few moments.
-
-// 💰 Transaction Details:
-// • Amount to Send: ₦${amount.toLocaleString()}
-// • Fees: ₦${fee.toLocaleString()}
-// • Total Deducted: ₦${totalDeduction.toLocaleString()}
-// • Recipient: ${recipientName}
-// • Account Number: ${recipientAccount}
-// • Bank: ${bankName}
-// • Transaction ID: ${transactionId || "N/A"}
-// • Date: ${new Date().toLocaleString()}
-// • Status: Processing
-
-// You will receive another notification once the transaction is completed.
-
-// Thank you for using Zidwell!
-
-// Best regards,
-// Zidwell Team
-//     `;
-
-//     await transporter.sendMail({
-//       from: `Zidwell <${process.env.EMAIL_USER}>`,
-//       to: user.email,
-//       subject,
-//       text: emailBody,
-//       html: `
-//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//           <p>${greeting}</p>
-          
-//           <h3 style="color: #f59e0b;">
-//             🟡 Transfer Processing
-//           </h3>
-          
-//           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-//             <h4 style="margin-top: 0;">Transaction Details:</h4>
-//             <p><strong>Amount to Send:</strong> ₦${amount.toLocaleString()}</p>
-//             <p><strong>Fees:</strong> ₦${fee.toLocaleString()}</p>
-//             <p><strong>Total Deducted:</strong> ₦${totalDeduction.toLocaleString()}</p>
-//             <p><strong>Recipient Name:</strong> ${recipientName}</p>
-//             <p><strong>Account Number:</strong> ${recipientAccount}</p>
-//             <p><strong>Bank:</strong> ${bankName}</p>
-//             <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
-//             <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-//             <p><strong>Status:</strong> <span style="color: #f59e0b; font-weight: bold;">
-//               Processing
-//             </span></p>
-//           </div>
-          
-//           <p style="color: #64748b;">
-//             You will receive another notification once the transaction is completed.
-//             This usually takes just a few moments.
-//           </p>
-          
-//           <p>Thank you for using Zidwell!</p>
-          
-//           <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-//           <p style="color: #64748b; font-size: 14px;">
-//             Best regards,<br>
-//             <strong>Zidwell Team</strong>
-//           </p>
-//         </div>
-//       `,
-//     });
-
-//     console.log(
-//       `💰 Processing email notification sent to ${user.email}`
-//     );
-//   } catch (emailError) {
-//     console.error("Failed to send processing email notification:", emailError);
-//   }
-// }
 
 export async function POST(req: Request) {
   try {
@@ -144,7 +15,8 @@ export async function POST(req: Request) {
       senderName,
       senderAccountNumber,
       senderBankName,
-      amount, // Amount recipient should receive
+      amount,
+      fee,
       accountNumber,
       accountName,
       bankCode,
@@ -153,12 +25,16 @@ export async function POST(req: Request) {
       pin,
     } = await req.json();
 
+    console.log({ amount, fee });
+
     // ✅ Validate inputs
     if (
       !userId ||
       !pin ||
       !amount ||
       amount < 100 ||
+      !fee ||
+      fee < 0 ||
       !accountNumber ||
       !accountName ||
       !bankCode ||
@@ -170,21 +46,14 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Calculate fees server-side for consistency
-    const feeCalculation = calculateWithdrawalFees(amount);
-    const recipientAmount = feeCalculation.amount;
-    const nombaFee = feeCalculation.nombaFee;
-    const zidwellFee = feeCalculation.zidwellFee;
-    const totalFees = feeCalculation.totalFees;
-    const totalDeduction = feeCalculation.totalDeduction;
+    // Calculate total deduction (amount to recipient + fees)
+    const totalDeduction = amount + fee;
 
-    console.log("💰 Server-side Fee Calculation:", {
-      amount_to_recipient: recipientAmount,
-      nomba_fee: nombaFee,
-      zidwell_fee: zidwellFee,
-      total_fees: totalFees,
+    console.log("💰 Using fees from frontend:", {
+      amount_to_recipient: amount,
+      fee_from_frontend: fee,
       total_deduction: totalDeduction,
-      calculation: `₦${recipientAmount} (to recipient) + ₦${totalFees} (fees) = ₦${totalDeduction} total`,
+      calculation: `₦${amount} (to recipient) + ₦${fee} (fees) = ₦${totalDeduction} total`,
     });
 
     // ✅ Verify user + PIN
@@ -210,18 +79,16 @@ export async function POST(req: Request) {
     // Check balance against total deduction (amount + fees)
     if (user.wallet_balance < totalDeduction) {
       return NextResponse.json(
-        { 
-          message: "Insufficient wallet balance (including fees)", 
+        {
+          message: "Insufficient wallet balance (including fees)",
           required: totalDeduction,
           current: user.wallet_balance,
           shortfall: totalDeduction - user.wallet_balance,
           fee_breakdown: {
-            amount_to_recipient: recipientAmount,
-            nomba_fee: nombaFee,
-            zidwell_fee: zidwellFee,
-            total_fees: totalFees,
+            amount_to_recipient: amount,
+            fee: fee,
             total_required: totalDeduction,
-          }
+          },
         },
         { status: 400 }
       );
@@ -238,21 +105,12 @@ export async function POST(req: Request) {
 
     const merchantTxRef = `WD_${Date.now()}`;
 
-    // ✅ Insert pending transaction with clear fee breakdown
-    console.log("📝 Creating transaction record with fees:", {
-      amount: recipientAmount,
-      fee: totalFees,
-      total_deduction: totalDeduction,
-      nomba_fee: nombaFee,
-      zidwell_fee: zidwellFee,
-      merchant_tx_ref: merchantTxRef,
-    });
-
+    // ✅ Start database transaction to ensure atomicity
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
         user_id: userId,
-        type: "withdrawal",
+        type: "Transfer",
         sender: {
           name: senderName || user.first_name || "User",
           accountNumber: senderAccountNumber || "N/A",
@@ -263,22 +121,20 @@ export async function POST(req: Request) {
           accountNumber,
           bankName,
         },
-        amount: recipientAmount, // Amount to recipient
-        fee: totalFees, // Total fees - CRITICAL: Must be set
-        total_deduction: totalDeduction, // Amount + fees - CRITICAL: Must be set
+        amount: amount,
+        fee: fee,
+        total_deduction: totalDeduction,
         status: "pending",
         narration: narration || `Transfer to ${accountName}`,
         merchant_tx_ref: merchantTxRef,
         external_response: {
           fee_breakdown: {
-            amount_to_recipient: recipientAmount,
-            webhook_expected_amount: recipientAmount,
-            nomba_fee: nombaFee,
-            zidwell_fee: zidwellFee,
-            total_fees: totalFees,
+            amount_to_recipient: amount,
+            fee: fee,
             total_deduction: totalDeduction,
-            calculation: `₦${recipientAmount} to recipient + ₦${totalFees} fees = ₦${totalDeduction} total`,
+            calculation: `₦${amount} to recipient + ₦${fee} fees = ₦${totalDeduction} total`,
             timestamp: new Date().toISOString(),
+            fee_source: "frontend_calculation",
           },
           withdrawal_details: {
             account_name: accountName,
@@ -287,7 +143,7 @@ export async function POST(req: Request) {
             bank_code: bankCode,
             narration: narration,
             initiated_at: new Date().toISOString(),
-          }
+          },
         },
       })
       .select("*")
@@ -301,19 +157,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Deduct wallet balance first (amount + fees)
-    const { error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
-      user_id: pendingTx.user_id,
-      amt: totalDeduction,
-      transaction_type: "withdrawal",
-      reference: merchantTxRef,
-      description: `Transfer of ₦${recipientAmount} to ${accountName} (includes ₦${totalFees} fees)`,
-    });
+    // ✅ Update user wallet balance directly (instead of using RPC)
+    const { error: updateBalanceError } = await supabase
+      .from("users")
+      .update({ 
+        wallet_balance: user.wallet_balance - totalDeduction 
+      })
+      .eq("id", userId)
+      .select("wallet_balance")
+      .single();
 
-    if (rpcError) {
-      console.error("❌ Failed to deduct wallet balance:", rpcError);
+    if (updateBalanceError) {
+      console.error("❌ Failed to deduct wallet balance:", updateBalanceError);
       
-      // Clean up pending transaction
+      // Clean up the transaction record since balance update failed
       await supabase.from("transactions").delete().eq("id", pendingTx.id);
       
       return NextResponse.json(
@@ -338,7 +195,7 @@ export async function POST(req: Request) {
         accountId: process.env.NOMBA_ACCOUNT_ID!,
       },
       body: JSON.stringify({
-        amount: recipientAmount, // Send amount to recipient
+        amount: amount,
         accountNumber,
         accountName,
         bankCode,
@@ -352,16 +209,19 @@ export async function POST(req: Request) {
     console.log("📤 Nomba Transfer Response:", {
       status: res.status,
       nomba_response: data,
-      amount_sent: recipientAmount,
+      amount_sent: amount,
       merchant_tx_ref: merchantTxRef,
     });
 
-    // ✅ Handle immediate Nomba failure (webhook won't be called for these)
+    // ✅ Handle immediate Nomba failure
     if (data.code === "400" || data.status === "failed" || !res.ok) {
-      console.log("❌ Nomba transfer failed immediately:", data.description || data.message);
+      console.log(
+        "❌ Nomba transfer failed immediately:",
+        data.description || data.message
+      );
 
       // Update transaction to failed
-      await supabase
+      const { error: updateError } = await supabase
         .from("transactions")
         .update({
           status: "failed",
@@ -374,35 +234,29 @@ export async function POST(req: Request) {
         })
         .eq("id", pendingTx.id);
 
+      if (updateError) {
+        console.error("❌ Failed to update transaction status:", updateError);
+      }
+
       // Refund wallet balance
-      const { error: refundErr } = await supabase.rpc("increment_wallet_balance", {
-        user_id: user.id,
-        amt: totalDeduction, // Add back the total deducted amount
-      });
+      const { error: refundErr } = await supabase
+        .from("users")
+        .update({ 
+          wallet_balance: user.wallet_balance // Restore original balance
+        })
+        .eq("id", userId);
 
       if (refundErr) {
         console.error("❌ Refund failed:", refundErr);
 
-        // // Send failure email without refund
-        // await sendWithdrawalProcessingEmail(
-        //   userId,
-        //   recipientAmount,
-        //   totalFees,
-        //   totalDeduction,
-        //   accountName,
-        //   accountNumber,
-        //   bankName,
-        //   pendingTx.id
-        // );
-
         return NextResponse.json(
-          { 
+          {
             success: false,
-            message: "Transfer failed, refund pending", 
+            message: "Transfer failed, refund pending",
             nomba_response: data,
             fee_breakdown: {
-              amount_to_recipient: recipientAmount,
-              fees: totalFees,
+              amount_to_recipient: amount,
+              fees: fee,
               total_deducted: totalDeduction,
             },
             merchant_tx_ref: merchantTxRef,
@@ -419,8 +273,8 @@ export async function POST(req: Request) {
           refunded: true,
           refund_amount: totalDeduction,
           fee_breakdown: {
-            amount_to_recipient: recipientAmount,
-            fees: totalFees,
+            amount_to_recipient: amount,
+            fees: fee,
             total_deducted: totalDeduction,
           },
           merchant_tx_ref: merchantTxRef,
@@ -430,7 +284,7 @@ export async function POST(req: Request) {
     }
 
     // ✅ If request accepted, update transaction to processing
-    await supabase
+    const { error: updateProcessingError } = await supabase
       .from("transactions")
       .update({
         status: "processing",
@@ -443,17 +297,9 @@ export async function POST(req: Request) {
       })
       .eq("id", pendingTx.id);
 
-    // // ✅ Send processing email only
-    // await sendWithdrawalProcessingEmail(
-    //   userId,
-    //   recipientAmount,
-    //   totalFees,
-    //   totalDeduction,
-    //   accountName,
-    //   accountNumber,
-    //   bankName,
-    //   pendingTx.id
-    // );
+    if (updateProcessingError) {
+      console.error("❌ Failed to update transaction to processing:", updateProcessingError);
+    }
 
     return NextResponse.json({
       success: true,
@@ -461,22 +307,20 @@ export async function POST(req: Request) {
       transactionId: pendingTx.id,
       merchantTxRef,
       fee_breakdown: {
-        amount_to_recipient: recipientAmount,
-        nomba_fee: nombaFee,
-        zidwell_fee: zidwellFee,
-        total_fees: totalFees,
+        amount_to_recipient: amount,
+        fee: fee,
         total_deducted: totalDeduction,
       },
-      note: `₦${recipientAmount} will be sent to ${accountName}. Total of ₦${totalDeduction} deducted from your wallet (includes ₦${totalFees} fees).`,
+      note: `₦${amount} will be sent to ${accountName}. Total of ₦${totalDeduction} deducted from your wallet (includes ₦${fee} fees).`,
       nomba_response: data,
     });
   } catch (error: any) {
     console.error("🔥 Transfer API error:", error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         error: "Server error",
-        message: error.message || error.description || "Internal server error" 
+        message: error.message || error.description || "Internal server error",
       },
       { status: 500 }
     );

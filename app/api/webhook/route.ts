@@ -176,9 +176,9 @@ ${greeting}
 Your transfer was successful!
 
 💰 Transaction Details:
-• Amount Sent: ₦${amountSent.toLocaleString()}
+• Amount Sent: ₦${(amountSent).toLocaleString()}
 • Fees: ₦${totalFee.toLocaleString()}
-• Total Deducted: ₦${amountWithFees.toLocaleString()}
+• Total Deducted: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
@@ -200,9 +200,9 @@ ${greeting}
 Your transfer failed.
 
 💰 Transaction Details:
-• Amount to Send: ₦${amountSent.toLocaleString()}
+• Amount Sent: ₦${(amountSent).toLocaleString()}
 • Fees: ₦${totalFee.toLocaleString()}
-• Total Deducted: ₦${amountWithFees.toLocaleString()}
+• Total Deducted: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
 • Account Number: ${recipientAccount}
 • Bank: ${bankName}
@@ -242,22 +242,16 @@ Zidwell Team
           
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount Sent:</strong> ₦${amountSent.toLocaleString()}</p>
+            <p><strong>Amount Sent:</strong> ₦${(amountSent).toLocaleString()}</p>
             ${
               totalFee > 0
                 ? `<div style="margin: 10px 0; padding-left: 10px; border-left: 2px solid #e2e8f0;">
                     <p style="margin: 5px 0;"><strong>Fees:</strong> ₦${totalFee.toLocaleString()}</p>
-                    ${
-                      nombaFee > 0 || zidwellFee > 0
-                        ? `<p style="margin: 5px 0; font-size: 14px; color: #64748b;">
-                            (₦${nombaFee.toLocaleString()} Nomba fee + ₦${zidwellFee.toLocaleString()} Zidwell fee)
-                          </p>`
-                        : ''
-                    }
+                  
                   </div>`
                 : ''
             }
-            <p><strong>Total Deducted:</strong> ₦${amountWithFees.toLocaleString()}</p>
+            <p><strong>Total Deducted:</strong> ₦${totalDeduction.toLocaleString()}</p>
             <p><strong>Recipient Name:</strong> ${recipientName}</p>
             <p><strong>Account Number:</strong> ${recipientAccount}</p>
             <p><strong>Bank:</strong> ${bankName}</p>
@@ -2150,7 +2144,7 @@ if (isPayoutOrTransfer) {
     // Use the webhook Nomba fee if it's provided
     pendingNombaFee = nombaFee;
     pendingFees = pendingNombaFee + pendingZidwellFee;
-    totalDeduction = withdrawalAmount + pendingFees;
+    totalDeduction = withdrawalAmount;
   }
 
   console.log("💰 Amount Reconciliation:", {

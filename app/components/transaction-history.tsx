@@ -34,8 +34,9 @@ const inflowTypes = [
   "referral_reward",
 ];
 
-// Define transaction types that should show as negative amounts (outgoing money)
+
 const outflowTypes = [
+  "transfer",
   "withdrawal",
   "debit",
   "airtime",
@@ -396,6 +397,8 @@ export default function TransactionHistory() {
     }
     return null;
   };
+
+  // console.log("transaction", transactions)
 
   // Function to handle viewing transaction details
   const handleViewTransaction = (transaction: any) => {

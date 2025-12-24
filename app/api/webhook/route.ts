@@ -2064,7 +2064,6 @@ if (isPayoutOrTransfer) {
   console.log("   - Transaction Type:", pendingTx.type);
   console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
 
-  // Handle already successful transactions
   if (pendingTx.status === "success") {
     console.log(`✅ Transaction already marked as success. Skipping.`);
     return NextResponse.json(

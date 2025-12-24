@@ -283,7 +283,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ If request accepted, update transaction to processing
+    // ✅ CRITICAL FIX: Update transaction to processing - MUST SUCCEED
     const { error: updateProcessingError } = await supabase
       .from("transactions")
       .update({
@@ -297,9 +297,43 @@ export async function POST(req: Request) {
       })
       .eq("id", pendingTx.id);
 
+    // 🔥 FIXED: Fail the entire transfer if we cannot record the "processing" state
     if (updateProcessingError) {
-      console.error("❌ Failed to update transaction to processing:", updateProcessingError);
+      console.error("❌ FATAL: Failed to update transaction to processing:", updateProcessingError);
+      
+      // Attempt to mark as failed since we cannot proceed correctly
+      await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          external_response: {
+            ...pendingTx.external_response,
+            nomba_response: data,
+            update_error: "Failed to set status to processing",
+            failed_at: new Date().toISOString(),
+          },
+        })
+        .eq("id", pendingTx.id);
+
+      // Refund the user since we can't track the transaction properly
+      await supabase
+        .from("users")
+        .update({ 
+          wallet_balance: user.wallet_balance 
+        })
+        .eq("id", userId);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Transfer initiated but could not be tracked. Funds have been refunded.",
+          error: "Database update failed",
+        },
+        { status: 500 }
+      );
     }
+
+    console.log("✅ Transaction updated to 'processing' status");
 
     return NextResponse.json({
       success: true,

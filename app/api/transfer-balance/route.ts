@@ -64,7 +64,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const totalDeduction = totalDebit || amount + fee;
+    const totalDeduction = amount + fee;
     if (user.wallet_balance < totalDeduction) {
       return NextResponse.json(
         { message: "Insufficient wallet balance (including fees)" },

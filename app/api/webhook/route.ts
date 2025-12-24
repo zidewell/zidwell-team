@@ -2036,6 +2036,7 @@ export async function POST(req: NextRequest) {
       }
 
       const pendingTx = pendingTxList?.[0];
+      console.log("pendingTx", pendingTx)
 
       if (!pendingTx) {
         console.warn(
@@ -2064,12 +2065,14 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      console.log("pendingTx", pendingTx)
+
       const txAmount = Number(pendingTx.amount ?? transactionAmount ?? 0);
 
       // Use fee directly from transaction record
       const totalFees = Number(pendingTx.fee || 0); // Use fee from transaction table
       const appFee = totalFees - nombaFee; // Calculate app fee by subtracting nomba fee
-      const totalDeduction = Number(pendingTx.total_deduction || txAmount);
+      const totalDeduction = Number(pendingTx.total_deduction);
 
       console.log("💰 Transaction calculations (using fees from DB):");
       console.log("   - Transaction amount:", txAmount);

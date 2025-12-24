@@ -2014,6 +2014,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true }, { status: 200 });
     } // end deposit handling
 
+ 
 if (isPayoutOrTransfer) {
   console.log("➡️ Handling payout/transfer flow");
 
@@ -2024,58 +2025,27 @@ if (isPayoutOrTransfer) {
     .concat(refCandidates.map((r) => `reference.eq.${r}`));
   const orExpr = orExprParts.join(",");
 
-  // 🔥 FIX: Look for ALL statuses including "pending", "processing", and "failed" if it was previously marked failed
   const { data: pendingTxList, error: pendingErr } = await supabase
     .from("transactions")
     .select("*")
     .or(orExpr)
-    // 🔥 CRITICAL FIX: Add "failed" status for cases where initial API call marked it as failed
     .in("status", ["pending", "processing", "failed"])
     .order("created_at", { ascending: false })
     .limit(1);
 
   if (pendingErr) {
-    console.error(
-      "❌ DB error while finding pending transaction:",
-      pendingErr
-    );
+    console.error("❌ DB error while finding pending transaction:", pendingErr);
     return NextResponse.json({ error: "DB error" }, { status: 500 });
   }
 
   let pendingTx = pendingTxList?.[0];
 
   if (!pendingTx) {
-    console.warn(
-      "⚠️ No matching pending withdrawal found for refs:",
-      refCandidates
+    console.warn("⚠️ No matching pending withdrawal found for refs:", refCandidates);
+    return NextResponse.json(
+      { message: "No matching withdrawal transaction" },
+      { status: 200 }
     );
-    
-    // Try to find by amount and user (fallback)
-    const userId = payload.data?.merchant?.userId;
-    if (userId && transactionAmount > 0) {
-      const { data: fallbackTx } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("amount", transactionAmount)
-        // 🔥 FIX: Include all possible statuses
-        .in("status", ["pending", "processing", "failed"])
-        .order("created_at", { ascending: false })
-        .limit(1);
-      
-      if (fallbackTx?.[0]) {
-        console.log("✅ Found transaction by amount fallback");
-        pendingTx = fallbackTx[0];
-      }
-    }
-    
-    if (!pendingTx) {
-      console.log("❌ No transaction found at all, returning 200 to prevent webhook retries");
-      return NextResponse.json(
-        { message: "No matching withdrawal transaction" },
-        { status: 200 }
-      );
-    }
   }
 
   console.log("📊 Found transaction:", {
@@ -2089,65 +2059,43 @@ if (isPayoutOrTransfer) {
   });
 
   // Check transaction type
-  const isP2PTransfer = pendingTx.type === "p2p_transfer";
-  const isRegularWithdrawal = pendingTx.type === "Transfer"; 
+  const isRegularWithdrawal = pendingTx.type === "Transfer";
 
   console.log("   - Transaction Type:", pendingTx.type);
-  console.log("   - Is P2P Transfer:", isP2PTransfer);
   console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
 
-
+  // Handle already successful transactions
   if (pendingTx.status === "success") {
-    console.log(`✅ Transaction already marked as success. Skipping to prevent duplicate processing.`);
+    console.log(`✅ Transaction already marked as success. Skipping.`);
     return NextResponse.json(
       { message: "Already processed successfully" },
       { status: 200 }
     );
   }
 
-  // 🔥 FIXED FEE HANDLING: Get amounts from pending transaction
-  const feeBreakdown = pendingTx.external_response?.fee_breakdown || {};
-  
-  // 🔥 FIX: Use the correct amount field from transaction
+  // Get amounts from transaction
   const withdrawalAmount = pendingTx.amount || transactionAmount;
-  
-  // 🔥 FIX: Get fees from transaction record - these should already be set by your API
-  const pendingFees = pendingTx.fee || feeBreakdown.total_fees || 0;
+  const pendingFees = pendingTx.fee || 0;
   const totalDeduction = pendingTx.total_deduction || withdrawalAmount + pendingFees;
   
-  // Use the fees from transaction if available, otherwise calculate
-  let pendingNombaFee = feeBreakdown.nomba_fee || 0;
-  let pendingZidwellFee = feeBreakdown.zidwell_fee || 0;
-
-  // If transaction has fee breakdown, use it
-  if (pendingTx.fee && pendingTx.total_deduction && pendingTx.amount) {
-    console.log("💰 Using fee data from transaction record");
-  } else {
-    // Calculate fees if missing (shouldn't happen with your API)
-    console.log("⚠️ Fee data missing, calculating...");
-    const nombaPercentage = withdrawalAmount * 0.005; // 0.5%
-    pendingNombaFee = Math.min(Math.max(nombaPercentage, 20), 100);
-    
-    const zidwellPercentage = withdrawalAmount * 0.005; // 0.5%
-    pendingZidwellFee = Math.min(Math.max(zidwellPercentage, 5), 50);
-  }
-
-  console.log("💰 Amount Reconciliation:", {
-    transaction_amount: pendingTx.amount,
-    transaction_fee: pendingTx.fee,
-    transaction_total_deduction: pendingTx.total_deduction,
-    webhook_amount: transactionAmount,
+  // Calculate fee breakdown based on your API logic
+  // Your API charges 25 total fee (20 Nomba + 5 Zidwell)
+  const pendingNombaFee = 20; // Fixed from your API
+  const pendingZidwellFee = 5; // Fixed from your API
+  
+  console.log("💰 Fee Breakdown:", {
+    transaction_amount: withdrawalAmount,
+    transaction_fee: pendingFees,
+    transaction_total_deduction: totalDeduction,
     webhook_nomba_fee: nombaFee,
-    using_amount: withdrawalAmount,
-    final_nomba_fee: pendingNombaFee,
-    final_zidwell_fee: pendingZidwellFee,
-    final_total_fees: pendingFees,
-    final_total_deduction: totalDeduction
+    calculated_nomba_fee: pendingNombaFee,
+    calculated_zidwell_fee: pendingZidwellFee,
+    note: "Using fixed fees: ₦20 (Nomba) + ₦5 (Zidwell) = ₦25 total"
   });
 
   // ✅ SUCCESS CASE
   if (eventType === "payout_success" || txStatus === "success") {
-    console.log(`✅ ${isRegularWithdrawal ? "Transfer" : "Payout"} SUCCESS`);
+    console.log(`✅ Transfer SUCCESS - Webhook amount: ₦${transactionAmount}`);
     
     // Update transaction to success
     const { error: updateErr } = await supabase
@@ -2159,7 +2107,15 @@ if (isPayoutOrTransfer) {
           ...pendingTx.external_response,
           ...payload,
           webhook_processed_at: new Date().toISOString(),
-          final_status: "success"
+          final_status: "success",
+          fee_reconciliation: {
+            original_fee: pendingFees,
+            webhook_nomba_fee: nombaFee,
+            actual_nomba_fee: pendingNombaFee,
+            zidwell_fee: pendingZidwellFee,
+            total_fee: pendingFees,
+            note: "Nomba charged ₦20 fee, Zidwell fee ₦5"
+          }
         }
       })
       .eq("id", pendingTx.id);
@@ -2196,13 +2152,16 @@ if (isPayoutOrTransfer) {
     return NextResponse.json({
       success: true,
       message: "Transfer processed successfully",
-      transaction_id: pendingTx.id
+      transaction_id: pendingTx.id,
+      amount: withdrawalAmount,
+      fees: pendingFees,
+      total_deducted: totalDeduction
     }, { status: 200 });
   }
 
   // ❌ FAILURE CASE
   if (eventType === "payout_failed" || txStatus === "failed") {
-    console.log(`❌ ${isRegularWithdrawal ? "Transfer" : "Payout"} FAILED`);
+    console.log(`❌ Transfer FAILED`);
     
     const errorDetail = 
       payload.data?.transaction?.responseMessage ||

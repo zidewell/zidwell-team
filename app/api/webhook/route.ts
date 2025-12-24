@@ -2023,7 +2023,7 @@ export async function POST(req: NextRequest) {
         .from("transactions")
         .select("*")
         .or(orExpr)
-        .in("status", ["pending", "processing"])
+        .in("status", [ "processing", "pending"])
         .order("created_at", { ascending: false })
         .limit(1);
 

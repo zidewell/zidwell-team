@@ -83,7 +83,6 @@ export async function POST(req: Request) {
 
     const merchantTxRef = `WD_${Date.now()}`;
 
-    // ✅ Insert pending transaction
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({

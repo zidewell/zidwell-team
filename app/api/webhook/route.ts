@@ -132,12 +132,15 @@ Zidwell Team
 
 async function sendWithdrawalEmailNotification(
   userId: string,
-  status: "success" | "failed",
-  amount: number,
-  totalFee: number,
+  status: "success" | "failed", // Only success/failed for webhook
+  amount: number, // Amount sent to recipient
+  nombaFee: number,
+  zidwellFee: number,
+  totalDeduction: number, // Total amount deducted (amount + total fees)
   recipientName: string,
   recipientAccount: string,
   bankName: string,
+  narration?: string,
   transactionId?: string,
   errorDetail?: string
 ) {
@@ -149,186 +152,163 @@ async function sendWithdrawalEmailNotification(
       .single();
 
     if (error || !user) {
-      console.error("Failed to fetch user for email notification:", error);
+      console.error(
+        "Failed to fetch user for Transfer email notification:",
+        error
+      );
       return;
     }
 
-    // Calculate totals
-    const amountSent = amount;
-    const totalDeducted = amount + totalFee;
-
-    // Subject line
-    const subject = status === "success"
-      ? `Transfer Successful - ₦${amountSent.toLocaleString()}`
-      : `Transfer Failed - ₦${amountSent.toLocaleString()}`;
+    const totalFee = nombaFee + zidwellFee;
+    const amountSent = amount; // Amount to recipient
+    const amountWithFees = totalDeduction; // Total deducted (amount + fees)
+    
+    const subject =
+      status === "success"
+        ? `Transfer Successful - ₦${amountSent.toLocaleString()}`
+        : `Transfer Failed - ₦${amountSent.toLocaleString()}`;
 
     const greeting = user.first_name ? `Hi ${user.first_name},` : "Hello,";
 
-    // Success email body (plain text)
-    const successBody = `${greeting}
+    const successBody = `
+${greeting}
 
 Your transfer was successful!
 
 💰 Transaction Details:
 • Amount Sent: ₦${amountSent.toLocaleString()}
-• Transaction Fee: ₦${totalFee.toLocaleString()}
-• Total Deducted: ₦${totalDeducted.toLocaleString()}
+• Fees: ₦${totalFee.toLocaleString()}
+• Total Deducted: ₦${amountWithFees.toLocaleString()}
 • Recipient: ${recipientName}
-• Account: ${recipientAccount} (${bankName})
+• Account Number: ${recipientAccount}
+• Bank: ${bankName}
+• Narration: ${narration || "N/A"}
 • Transaction ID: ${transactionId || "N/A"}
 • Date: ${new Date().toLocaleString()}
 
-The funds should reflect in the recipient's account shortly.
+The funds should reflect in your beneficiary's bank account shortly.
 
-Thank you for using our service!`;
+Thank you for using Zidwell!
 
-    // Failed email body (plain text)
-    const failedBody = `${greeting}
+Best regards,
+Zidwell Team
+    `;
+
+    const failedBody = `
+${greeting}
 
 Your transfer failed.
 
 💰 Transaction Details:
-• Amount: ₦${amountSent.toLocaleString()}
+• Amount to Send: ₦${amountSent.toLocaleString()}
+• Fees: ₦${totalFee.toLocaleString()}
+• Total Deducted: ₦${amountWithFees.toLocaleString()}
 • Recipient: ${recipientName}
-• Account: ${recipientAccount} (${bankName})
+• Account Number: ${recipientAccount}
+• Bank: ${bankName}
+• Narration: ${narration || "N/A"}
 • Transaction ID: ${transactionId || "N/A"}
 • Date: ${new Date().toLocaleString()}
-• Status: Failed
-• Reason: ${errorDetail || "Transaction could not be processed"}
+• Status: ${errorDetail || "Transaction failed"}
 
-${errorDetail?.toLowerCase().includes("refund") 
-  ? "✅ Your funds have been refunded to your wallet." 
-  : "Please contact support for assistance."}
+${
+  errorDetail?.includes("refunded") || errorDetail?.includes("refund")
+    ? "✅ Your wallet has been refunded successfully."
+    : "Please contact support if you have any questions."
+}
 
 Best regards,
-Support Team`;
+Zidwell Team
+    `;
 
-    // Select email body based on status
     const emailBody = status === "success" ? successBody : failedBody;
+
     const statusColor = status === "success" ? "#22c55e" : "#ef4444";
     const statusIcon = status === "success" ? "✅" : "❌";
     const statusText = status === "success" ? "Transfer Successful" : "Transfer Failed";
 
-    // HTML email template
-    const htmlTemplate = `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: #ffffff; border-radius: 8px; padding: 24px;">
-    <p style="color: #374151; font-size: 16px; margin-bottom: 20px;">
-      ${greeting}
-    </p>
-    
-    <div style="background: ${status === "success" ? "#f0fdf4" : "#fef2f2"}; 
-                border-left: 4px solid ${statusColor};
-                padding: 16px; 
-                margin-bottom: 24px; 
-                border-radius: 4px;">
-      <h3 style="margin: 0; color: ${statusColor}; display: flex; align-items: center; gap: 8px;">
-        ${statusIcon} ${statusText}
-      </h3>
-    </div>
-    
-    <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-      <h4 style="margin-top: 0; color: #1f2937; margin-bottom: 16px;">
-        Transaction Details
-      </h4>
-      
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563; width: 40%;">Amount:</td>
-          <td style="padding: 8px 0; color: #1f2937; font-weight: bold;">
-            ₦${amountSent.toLocaleString()}
-          </td>
-        </tr>
-        ${totalFee > 0 ? `
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563;">Transaction Fee:</td>
-          <td style="padding: 8px 0; color: #1f2937;">₦${totalFee.toLocaleString()}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563;">Total Deducted:</td>
-          <td style="padding: 8px 0; color: #1f2937; font-weight: bold;">
-            ₦${totalDeducted.toLocaleString()}
-          </td>
-        </tr>
-        ` : ''}
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563;">Recipient:</td>
-          <td style="padding: 8px 0; color: #1f2937;">${recipientName}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563;">Account:</td>
-          <td style="padding: 8px 0; color: #1f2937;">${recipientAccount}</td>
-        </tr>
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563;">Bank:</td>
-          <td style="padding: 8px 0; color: #1f2937;">${bankName}</td>
-        </tr>
-        ${transactionId ? `
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563;">Transaction ID:</td>
-          <td style="padding: 8px 0; color: #6b7280; font-family: monospace; font-size: 14px;">
-            ${transactionId}
-          </td>
-        </tr>
-        ` : ''}
-        <tr>
-          <td style="padding: 8px 0; color: #4b5563;">Date:</td>
-          <td style="padding: 8px 0; color: #1f2937;">${new Date().toLocaleString()}</td>
-        </tr>
-      </table>
-      
-      ${status === "failed" ? `
-      <div style="margin-top: 16px; padding: 12px; background: #fef2f2; border-radius: 4px;">
-        <p style="margin: 0; color: #dc2626; font-size: 14px;">
-          <strong>Reason:</strong> ${errorDetail || "Transaction could not be processed"}
-        </p>
-      </div>
-      ` : ''}
-    </div>
-    
-    ${status === "success" ? `
-    <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
-      <p style="margin: 0; color: #065f46; display: flex; align-items: center; gap: 8px;">
-        <svg style="width: 16px; height: 16px; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        The funds should reflect in the recipient's account within 1-2 business hours.
-      </p>
-    </div>
-    ` : ''}
-    
-    ${status === "failed" && errorDetail?.toLowerCase().includes("refund") ? `
-    <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
-      <p style="margin: 0; color: #065f46; display: flex; align-items: center; gap: 8px;">
-        <svg style="width: 16px; height: 16px; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Your funds have been refunded to your wallet.
-      </p>
-    </div>
-    ` : ''}
-    
-    <p style="color: #6b7280; font-size: 14px; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
-      Thank you for using our service!<br>
-      If you have any questions, please contact our support team.
-    </p>
-  </div>
-</div>
-    `;
-
-    // Send the email
     await transporter.sendMail({
-      from: `Your Service Name <${process.env.EMAIL_USER}>`,
+      from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
       text: emailBody,
-      html: htmlTemplate,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <p>${greeting}</p>
+          
+          <h3 style="color: ${statusColor};">
+            ${statusIcon} ${statusText}
+          </h3>
+          
+          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <h4 style="margin-top: 0;">Transaction Details:</h4>
+            <p><strong>Amount Sent:</strong> ₦${amountSent.toLocaleString()}</p>
+            ${
+              totalFee > 0
+                ? `<div style="margin: 10px 0; padding-left: 10px; border-left: 2px solid #e2e8f0;">
+                    <p style="margin: 5px 0;"><strong>Fees:</strong> ₦${totalFee.toLocaleString()}</p>
+                    ${
+                      nombaFee > 0 || zidwellFee > 0
+                        ? `<p style="margin: 5px 0; font-size: 14px; color: #64748b;">
+                            (₦${nombaFee.toLocaleString()} Nomba fee + ₦${zidwellFee.toLocaleString()} Zidwell fee)
+                          </p>`
+                        : ''
+                    }
+                  </div>`
+                : ''
+            }
+            <p><strong>Total Deducted:</strong> ₦${amountWithFees.toLocaleString()}</p>
+            <p><strong>Recipient Name:</strong> ${recipientName}</p>
+            <p><strong>Account Number:</strong> ${recipientAccount}</p>
+            <p><strong>Bank:</strong> ${bankName}</p>
+            <p><strong>Narration:</strong> ${narration || "N/A"}</p>
+            <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
+            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+            <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
+              ${status === "success" ? "Success" : "Failed"}
+            </span></p>
+            ${
+              status === "failed"
+                ? `<p><strong>Reason:</strong> ${
+                    errorDetail || "Transaction failed"
+                  }</p>`
+                : ""
+            }
+          </div>
+          
+          ${
+            status === "success"
+              ? `<p style="color: #64748b;">
+                  The funds should reflect in your beneficiary's bank account shortly.
+                  If there are any issues, please contact our support team.
+                </p>`
+              : ""
+          }
+          
+          ${
+            status === "failed" &&
+            (errorDetail?.includes("refunded") ||
+              errorDetail?.includes("refund"))
+              ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
+              : ""
+          }
+          
+          <p>Thank you for using Zidwell!</p>
+          
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+          <p style="color: #64748b; font-size: 14px;">
+            Best regards,<br>
+            <strong>Zidwell Team</strong>
+          </p>
+        </div>
+      `,
     });
 
-    console.log(`📧 ${status.toUpperCase()} transaction email sent to ${user.email}`);
-    
+    console.log(
+      `💰 Withdrawal email notification sent to ${user.email} for ${status} transaction`
+    );
   } catch (emailError) {
-    console.error("Failed to send transaction email:", emailError);
+    console.error("Failed to send withdrawal email notification:", emailError);
   }
 }
 

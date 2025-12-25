@@ -2009,7 +2009,7 @@ export async function POST(req: NextRequest) {
     } // end deposit handling
 
     // ---------- WITHDRAWAL / TRANSFER (OUTGOING) ----------
-  if (isPayoutOrTransfer) {
+if (isPayoutOrTransfer) {
   console.log("➡️ Handling payout/transfer flow");
 
   // First, try to find by merchantTxRef (this should be the most reliable)
@@ -2118,40 +2118,13 @@ export async function POST(req: NextRequest) {
     created_at: pendingTx.created_at
   });
 
-  // IMPORTANT: Remove the status filter from the query
-  // The webhook should be able to handle already processed transactions for idempotency
+  // Check if already processed
   if (["success", "failed"].includes(pendingTx.status)) {
-    console.log(`⚠️ Transaction already ${pendingTx.status}. Performing idempotent check.`);
-    
-    // Check if this webhook event is newer than the last update
-    const lastUpdate = new Date(pendingTx.updated_at || pendingTx.created_at);
-    const now = new Date();
-    const hoursDiff = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
-    
-    if (hoursDiff < 24) { // Within 24 hours
-      console.log(`✅ Transaction ${pendingTx.status} within last 24 hours, responding appropriately`);
-      
-      // If it's already success/failed, just return appropriate response
-      if (pendingTx.status === "success") {
-        return NextResponse.json(
-          {
-            success: true,
-            message: "Transaction already processed successfully",
-            transaction_id: pendingTx.id,
-          },
-          { status: 200 }
-        );
-      } else {
-        return NextResponse.json(
-          {
-            refunded: true,
-            message: "Transaction already marked as failed",
-            transaction_id: pendingTx.id,
-          },
-          { status: 200 }
-        );
-      }
-    }
+    console.log(`⚠️ Transaction already ${pendingTx.status}. Skipping.`);
+    return NextResponse.json(
+      { message: "Already processed" },
+      { status: 200 }
+    );
   }
 
   // Check if this is a P2P transfer or regular withdrawal
@@ -2215,7 +2188,7 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    // Update the transaction - USE THE CORRECT ID
+    // Update the transaction - REMOVED updated_at since column doesn't exist
     const { error: updateErr } = await supabase
       .from("transactions")
       .update({
@@ -2224,9 +2197,9 @@ export async function POST(req: NextRequest) {
         external_response: updatedExternalResponse,
         total_deduction: totalDeduction,
         fee: totalFees,
-        updated_at: new Date().toISOString(), // Always update timestamp
+        // REMOVED: updated_at: new Date().toISOString()
       })
-      .eq("id", pendingTx.id); // Use the ID we found
+      .eq("id", pendingTx.id);
 
     if (updateErr) {
       console.error("❌ Failed to update transaction:", updateErr);
@@ -2358,16 +2331,16 @@ export async function POST(req: NextRequest) {
       },
     };
 
-    // Update transaction to failed - USE THE CORRECT ID
+    // Update transaction to failed - REMOVED updated_at
     const { error: updateError } = await supabase
       .from("transactions")
       .update({
         status: "failed",
         external_response: updatedExternalResponse,
         reference: nombaTransactionId || pendingTx.reference,
-        updated_at: new Date().toISOString(),
+        // REMOVED: updated_at: new Date().toISOString()
       })
-      .eq("id", pendingTx.id); // Use the ID we found
+      .eq("id", pendingTx.id);
 
     if (updateError) {
       console.error("❌ Failed to update transaction status:", updateError);

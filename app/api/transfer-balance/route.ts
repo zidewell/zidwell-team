@@ -204,6 +204,7 @@ export async function POST(req: Request) {
       .from("transactions")
       .update({
         status: "processing",
+        description: `Transfer of ₦${amount}`,
         reference: data?.data?.reference || null,
         external_response: data,
       })

@@ -2123,7 +2123,7 @@ export async function POST(req: NextRequest) {
           },
         };
 
-        // 🟩 No second deduction here — we already deducted at initiation
+      
         const { error: updateErr } = await supabase
           .from("transactions")
           .update({
@@ -2134,6 +2134,8 @@ export async function POST(req: NextRequest) {
             fee: totalFees,
           })
           .eq("id", pendingTx.id);
+
+          console.log("pendingTx", pendingTx)
 
         const withdrawalDetails =
           pendingTx.external_response?.withdrawal_details || {};

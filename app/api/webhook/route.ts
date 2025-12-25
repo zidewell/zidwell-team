@@ -403,7 +403,6 @@ Zidwell Team
   }
 }
 
-// ADD THIS HELPER FUNCTION BEFORE THE MAIN POST FUNCTION
 async function processInvoicePaymentForDifferentUser(
   invoice: any,
   depositorUserId: string,
@@ -471,8 +470,6 @@ async function processInvoicePaymentForDifferentUser(
 export async function POST(req: NextRequest) {
   try {
     console.log("====== Nomba Webhook Triggered ======");
-
-    // 1) Read raw body and parse
     const rawBody = await req.text();
     console.log("🔸 Raw body length:", rawBody?.length);
     let payload: any;
@@ -488,7 +485,6 @@ export async function POST(req: NextRequest) {
       payload?.event_type || payload?.eventType
     );
 
-    // 2) Signature verification (HMAC SHA256 -> Base64)
     const timestamp = req.headers.get("nomba-timestamp");
     const signature =
       req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
@@ -504,7 +500,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build hash payload according to Nomba docs (use safe optional chaining)
     const hashingPayload = `${payload.event_type}:${payload.requestId}:${
       payload.data?.merchant?.userId || ""
     }:${payload.data?.merchant?.walletId || ""}:${
@@ -2048,7 +2043,6 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Check if this is a P2P transfer or regular withdrawal
       const isP2PTransfer = pendingTx.type === "p2p_transfer";
       const isRegularWithdrawal = pendingTx.type === "withdrawal";
 
@@ -2068,29 +2062,25 @@ export async function POST(req: NextRequest) {
 
       let appFee = 0;
       let totalFees = 0;
-     let totalDeduction = Number(pendingTx.amount);
-    
- let nombaFee = Number(payload.data?.transaction?.fee || 0);
-      if (isRegularWithdrawal) {
-         
-  
- 
-  totalFees = Number(pendingTx.amount - txAmount);
-  appFee = Math.max(0, totalFees - nombaFee);
-  
+      let totalDeduction = Number(pendingTx.amount);
 
-  console.log("💰 Transaction calculations:");
-  console.log("   - Transaction amount:", txAmount);
-  console.log("   - Total fee (from DB):", totalFees);
-  console.log("   - Nomba fee (from webhook):", nombaFee);
-  console.log("   - App fee (calculated):", appFee);
-  console.log("   - Total deduction (from DB):", totalDeduction);
-  console.log("   - Is P2P Transfer:", isP2PTransfer);
+      let nombaFee = Number(payload.data?.transaction?.fee || 0);
+      if (isRegularWithdrawal) {
+        totalFees = Number(pendingTx.amount - txAmount);
+        appFee = Math.max(0, totalFees - nombaFee);
+
+        console.log("💰 Transaction calculations:");
+        console.log("   - Transaction amount:", txAmount);
+        console.log("   - Total fee (from DB):", totalFees);
+        console.log("   - Nomba fee (from webhook):", nombaFee);
+        console.log("   - App fee (calculated):", appFee);
+        console.log("   - Total deduction (from DB):", totalDeduction);
+        console.log("   - Is P2P Transfer:", isP2PTransfer);
       } else if (isP2PTransfer) {
         // 🔥 P2P transfers have NO FEES
         appFee = 0;
         totalFees = 0; // No fees for P2P
-        totalDeduction = txAmount; 
+        totalDeduction = txAmount;
 
         console.log("💰 P2P Transfer calculations (NO FEES):");
         console.log("   - Transfer amount:", txAmount);
@@ -2123,7 +2113,6 @@ export async function POST(req: NextRequest) {
           },
         };
 
-      
         const { error: updateErr } = await supabase
           .from("transactions")
           .update({
@@ -2135,7 +2124,7 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
 
-          console.log("pendingTx", pendingTx )
+        console.log("pendingTx", pendingTx);
 
         const withdrawalDetails =
           pendingTx.external_response?.withdrawal_details || {};
@@ -2330,7 +2319,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Refund wallet via RPC since we deducted earlier
+   
         console.log("🔄 Refunding user wallet...");
         const refundReference = `refund_${
           nombaTransactionId || crypto.randomUUID()
@@ -2339,7 +2328,7 @@ export async function POST(req: NextRequest) {
           "deduct_wallet_balance",
           {
             user_id: pendingTx.user_id,
-            amt: -totalDeduction, // negative = credit back
+            amt: -totalDeduction,
             transaction_type: "credit",
             reference: refundReference,
             description: `Refund for failed ${

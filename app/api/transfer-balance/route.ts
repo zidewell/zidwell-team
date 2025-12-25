@@ -4,6 +4,10 @@ import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 
 
+
+
+
+
 export async function POST(req: Request) {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
@@ -153,51 +157,6 @@ export async function POST(req: Request) {
 
     const data = await res.json();
     // console.log("transfer data", data);
-
-    // ✅ Handle failure immediately
-    if (data.code === "400") {
-      console.log("❌ Nomba transfer failed:", data.description);
-
-      // Update transaction to failed
-      await supabase
-        .from("transactions")
-        .update({
-          status: "failed",
-          external_response: data,
-        })
-        .eq("id", pendingTx.id);
-
-      // Refund wallet balance (reverse previous deduction)
-      const refundReference = `refund_${merchantTxRef}`;
-      const { error: refundErr } = await supabase.rpc("deduct_wallet_balance", {
-        user_id: user.id,
-        amt: -totalDeduction,
-        transaction_type: "credit",
-        reference: refundReference,
-        description: `Refund for failed Transfer of ₦${amount} (fee ₦${fee})`,
-      });
-
-      if (refundErr) {
-        console.error("❌ Refund failed:", refundErr);
-
-    
-
-        return NextResponse.json(
-          { message: "Transfer failed, refund pending", nombaResponse: data },
-          { status: 400 }
-        );
-      }
-
-     
-      return NextResponse.json(
-        {
-          message: "Transfer failed, funds refunded successfully.",
-          reason: data.description || "Transfer not successful",
-          refunded: true,
-        },
-        { status: 400 }
-      );
-    }
 
 
     await supabase

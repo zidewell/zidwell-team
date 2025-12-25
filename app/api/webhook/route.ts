@@ -2064,17 +2064,18 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const txAmount = Number(pendingTx.amount ?? transactionAmount ?? 0);
+      const txAmount = Number(transactionAmount ?? 0);
 
       let appFee = 0;
       let totalFees = 0;
      let totalDeduction = Number(pendingTx.total_deduction || txAmount + totalFees);
+    
  let nombaFee = Number(payload.data?.transaction?.fee || 0);
       if (isRegularWithdrawal) {
          
   
  
-  totalFees = Number(pendingTx.fee || 0);
+  totalFees = Number(pendingTx.amount - txAmount);
   appFee = Math.max(0, totalFees - nombaFee);
   
 

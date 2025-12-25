@@ -1,32 +1,32 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
 function Contact() {
-  const [form, setForm] = useState({ name: '', email: '', message: '' });
-  const [status, setStatus] = useState('');
+  const [form, setForm] = useState({ name: "", email: "", message: "" });
+  const [status, setStatus] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus('Sending...');
+    setStatus("Sending...");
 
     try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        setStatus('Message sent!');
-        setForm({ name: '', email: '', message: '' });
+        setStatus("Message sent!");
+        setForm({ name: "", email: "", message: "" });
       } else {
-        setStatus(data.message || 'Something went wrong.');
+        setStatus(data.message || "Something went wrong.");
       }
     } catch (err) {
-      setStatus('Failed to send message.');
+      setStatus("Failed to send message.");
     }
   };
 
@@ -41,7 +41,8 @@ function Contact() {
           Contact Us
         </h1>
         <p className="text-gray-500 text-center mb-10">
-          Got a question, feedback, or partnership idea? We'd love to hear from you.
+          Got a question, feedback, or partnership idea? We'd love to hear from
+          you.
         </p>
 
         <form className="space-y-6" onSubmit={handleSubmit}>

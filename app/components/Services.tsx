@@ -17,22 +17,22 @@ import { useRouter } from "next/navigation";
 const Services = () => {
   const router = useRouter();
   const services = [
-     {
+    {
       icon: <Calculator className="h-10 w-10" />,
       title: "Tax Manager",
       description: "File your taxes easily with our guided process.",
       color: "from-indigo-500 to-indigo-600",
       link: "/tax-filing",
     },
-   
-     {
+
+    {
       icon: <Scale className="h-10 w-10" />,
       title: "Simple Agreement",
       description: "Create business agreements to secure deals.",
       color: "from-gray-500 to-gray-600",
       link: "/agreements",
     },
-      {
+    {
       icon: <Receipt className="h-10 w-10" />,
       title: "Issue Receipts",
       description: "Create receipts to back up your transactions.",
@@ -55,7 +55,7 @@ const Services = () => {
       color: "from-green-500 to-green-600",
       link: "/platform-services",
     },
-  
+
     {
       icon: <Zap className="h-10 w-10" />,
       title: "Buy Power",
@@ -71,7 +71,7 @@ const Services = () => {
       color: "from-purple-500 to-purple-600",
       link: "/platform-services",
     },
-   
+
     {
       icon: <FileText className="h-10 w-10" />,
       title: "Create Invoice",

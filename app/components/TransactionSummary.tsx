@@ -53,15 +53,17 @@ export default function TransactionSummary({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-md w-full mx-auto bg-white rounded-2xl shadow-lg p-6 space-y-3">
-             
               <div className="flex flex-col items-center ">
                 <div className="text-gray-500 text-sm">You're sending</div>
                 <div className="text-3xl font-bold text-gray-900">
-                  ₦{typeof amount === 'number' ? amount.toLocaleString() : amount}
+                  ₦
+                  {typeof amount === "number"
+                    ? amount.toLocaleString()
+                    : amount}
                 </div>
                 <FeeDisplay
                   type="transfer"
-                  amount={typeof amount === 'string' ? Number(amount) : amount}
+                  amount={typeof amount === "string" ? Number(amount) : amount}
                   paymentMethod={paymentMethod}
                 />
               </div>

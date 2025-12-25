@@ -1,123 +1,109 @@
-import { Card, CardContent } from "./ui/card";
-import { Star } from "lucide-react";
-// import image4 from "/zid-pic/image4.jpg";
-// import image15 from "/zid-pic/image15.jpg";
-// import image13 from "/zid-pic/image13.jpg";
+import { Quote } from "lucide-react";
+import zainabImg from "../../public/zainab.jpg";
+import peterImg from "../../public/peter.jpg";
+import johnsonImg from "../../public/johnson.jpg";
+import bimboImg from "../../public/bimbo.jpg";
 import Image from "next/image";
-const Testimonials = () => {
-  const testimonials: any = [
-    {
-      name: "Adebayo Johnson",
-      role: "Small Business Owner",
-      company: "Lagos",
-      image: "/zid-pic/image15.jpg",
-      content:
-        "Zidwell has made paying my business electricity bills so much easier. I can now focus on growing my business instead of worrying about bill payments.",
-      rating: 3,
-    },
-    {
-      name: "Fatima Abdullahi",
-      role: "Teacher",
-      company: "Abuja",
-      image:
-        "https://images.unsplash.com/photo-1639702259398-73fc596690bc?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8YmxhY2slMjBwZW9wbGUlMjB3aXRoJTIwaGlqYWJ8ZW58MHx8MHx8fDA%3D",
-      content:
-        "I love how I can pay all my family's bills from one place. The reminders ensure I never miss a payment, and the interface is so user-friendly.",
-      rating: 5,
-    },
-    {
-      name: "Chinedu Okafor",
-      role: "IT Consultant",
-      company: "Port Harcourt",
-      image: "/zid-pic/image4.jpg",
-      content:
-        "The AI accountant feature is a game-changer for my freelance business. It helps me track expenses and create professional invoices effortlessly.",
-      rating: 4,
-    },
-    {
-      name: "Kemi Adebayo",
-      role: "Restaurant Owner",
-      company: "Ibadan",
-      image:
-        "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fGJsYWNrJTIwcGVvcGxlfGVufDB8fDB8fHww",
-      content:
-        "Zidwell's bulk payment feature saves me hours every month. I can pay for cable TV, internet, and electricity for all my branches at once.",
-      rating: 3,
-    },
-    {
-      name: "Ibrahim Musa",
-      role: "University Student",
-      company: "Kano",
-      image:
-        "https://images.unsplash.com/photo-1531384441138-2736e62e0919?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjN8fGJsYWNrJTIwcGVvcGxlfGVufDB8fDB8fHww",
-      content:
-        "As a student, I need to manage my finances carefully. Zidwell helps me buy data and airtime at great rates, and I can track all my spending.",
-      rating: 5,
-    },
-    {
-      name: "Grace Onyeka",
-      role: "Entrepreneur",
-      company: "Enugu",
-      image: "/zid-pic/image13.jpg",
-      content:
-        "The customer support is exceptional. Whenever I have an issue, they resolve it quickly. Zidwell has truly simplified my life.",
-      rating: 3,
-    },
-  ];
 
+const testimonials = [
+  {
+    quote:
+      "Zidwell helped me stop guessing my finances. Everything feels more organised now.",
+    author: "Zainab",
+    role: "Business Owner, Lagos",
+    image: zainabImg,
+  },
+  {
+    quote:
+      "I like that it's not just about paying bills — it actually helps you think better about money.",
+    author: "Peter",
+    role: "Entrepreneur, Abuja",
+    image: peterImg,
+  },
+  {
+    quote: "The receipts and tax support alone are worth it.",
+    author: "Johnson",
+    role: "Small Business Owner, Port Harcourt",
+    image: johnsonImg,
+  },
+  {
+    quote: "Can't believe I didn't find this app sooner!",
+    author: "Bimbo",
+    role: "Freelancer, Ibadan",
+    image: bimboImg,
+  },
+];
+
+const Testimonials = () => {
   return (
-    <section data-aos="fade-up" id="testimonials" className="py-20 bg-gray-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Loved by
-            <span className="ml-2 text-[#C29307]">Users Everywhere</span>
+    <section className="py-20 md:py-32">
+      <div className="container mx-auto px-4">
+        {/* Section Header */}
+        <div className="max-w-3xl mx-auto text-center mb-12">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
+            Loved by Our <span className="text-[#C29307]">Users</span>
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Join over 5k+ satisfied users who trust Zidwell for all their bill
-            payment needs.
+          <p className="text-lg text-gray-500 dark:text-gray-400">
+            Real stories from real Nigerian businesses
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {testimonials.map((testimonial: any, index: any) => (
-            <Card
+        {/* Face Collage */}
+        <div className="flex justify-center items-center gap-4 mb-12">
+          <div className="flex -space-x-4">
+            {testimonials.map((testimonial, index) => (
+              <div
+                key={index}
+                className="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-gray-50 dark:border-gray-950 overflow-hidden shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]"
+                style={{ zIndex: testimonials.length - index }}
+              >
+                <Image
+                  src={testimonial.image}
+                  alt={testimonial.author}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="ml-4">
+            <p className="font-bold text-lg text-gray-900 dark:text-gray-50">
+              500+
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Happy Users
+            </p>
+          </div>
+        </div>
+
+        {/* Testimonials Grid */}
+        <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+          {testimonials.map((testimonial, index) => (
+            <div
               key={index}
-              className="bg-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] p-6 md:p-8 hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150"
             >
-              <CardContent className="p-8">
-                <div className="flex items-center mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className="h-5 w-5 text-yellow-400 fill-current"
-                    />
-                  ))}
-                </div>
-
-                <p className="text-gray-600 mb-6 leading-relaxed italic">
-                  "{testimonial.content}"
-                </p>
-
-                <div className="flex items-center">
+              <Quote className="w-10 h-10 text-[#C29307] mb-4" />
+              <p className="text-lg font-medium mb-6 text-gray-900 dark:text-gray-50">
+                "{testimonial.quote}"
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full border-2 border-gray-900 dark:border-gray-50 overflow-hidden">
                   <Image
-                    width={32}
-                    height={32}
                     src={testimonial.image}
-                    alt={testimonial.name}
-                    className="w-12 h-12 rounded-full mr-4 object-cover"
+                    alt={testimonial.author}
+                    className="w-full h-full object-cover"
                   />
-                  <div>
-                    <h4 className="font-semibold text-gray-900">
-                      {testimonial.name}
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      {testimonial.role}, {testimonial.company}
-                    </p>
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <p className="font-bold text-gray-900 dark:text-gray-50">
+                    {testimonial.author}
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {testimonial.role}
+                  </p>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>

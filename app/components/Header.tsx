@@ -7,10 +7,10 @@ import { Menu, X } from "lucide-react";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { useUserContextData } from "../context/userData";
-
+import { Button2 } from "./ui/button2";
 
 const Header = () => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [hasScrolled, setHasScrolled] = useState(false);
   const { user } = useUserContextData();
   const router = useRouter();
@@ -22,9 +22,9 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle("overflow-hidden", isOpen);
+    document.body.classList.toggle("overflow-hidden", isMenuOpen);
     return () => document.body.classList.remove("overflow-hidden");
-  }, [isOpen]);
+  }, [isMenuOpen]);
 
   const scrollToId = (id: string) => {
     const el = document.getElementById(id);
@@ -32,11 +32,11 @@ const Header = () => {
       const yOffset = -96;
       const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
       window.scrollTo({ top: y, behavior: "smooth" });
-      setIsOpen(false);
+      setIsMenuOpen(false);
     }
   };
 
-  const links = [
+  const navLinks = [
     { name: "Services", href: "services" },
     { name: "Testimonial", href: "testimonials" },
     { name: "Pricing", href: "pricing" },
@@ -51,146 +51,153 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed top-0 w-full bg-white/95 backdrop-blur-md z-50 transition-all duration-300 ${
-        hasScrolled ? "border-b border-gray-200 shadow-sm" : "border-none"
-      }`}
+      className={`fixed top-0 left-0 right-0 z-50 bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-md transition-all duration-200
+  ${
+    hasScrolled
+      ? "border-b-2 border-gray-900 dark:border-gray-50"
+      : "border-b border-transparent"
+  }`}
     >
-      <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center gap-2 g-black">
+      
             <Image
               src="/logo.png"
               alt="Zidwell Logo"
-              width={32}
-              height={32}
-              className="w-20 object-contain"
+              width={40}
+              height={40}
+              className="w-10 h-10 object-contain border-2 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] bg-black dark:bg-gray-950 p-1  border-[#C29307]"
             />
-            <h1 className="font-bold text-lg ml-1">Zidwell</h1>
+            <span className="font-black text-xl tracking-tight text-gray-900 dark:text-gray-50">
+              Zidwell
+            </span>
           </Link>
 
-          {/* Desktop Nav */}
-          <nav className="hidden lg:flex  space-x-6 items-center">
-            {links.map((link) =>
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center gap-8">
+            {navLinks.map((link) =>
               link.external ? (
                 <Link
                   key={link.name}
                   href={link.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-600 cursor-pointer hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                  className="font-medium text-gray-900/80 dark:text-gray-50/80 hover:text-gray-900 dark:hover:text-gray-50 transition-colors relative group"
                 >
                   {link.name}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#C29307] transition-all group-hover:w-full" />
                 </Link>
               ) : (
                 <button
                   key={link.name}
                   onClick={() => scrollToId(link.href)}
-                  className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium transition-colors"
+                  className="font-medium text-gray-900/80 dark:text-gray-50/80 hover:text-gray-900 dark:hover:text-gray-50 transition-colors relative group"
                 >
                   {link.name}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#C29307] transition-all group-hover:w-full" />
                 </button>
               )
             )}
-
-         
           </nav>
 
           {/* Auth Buttons */}
           {user ? (
-            <Button
-              className="bg-[#C29307] text-white hover:bg-[#a87e06] hidden lg:block"
-              onClick={() => router.push("/dashboard")}
-            >
-              Dashboard
-            </Button>
+            <div className="hidden md:flex items-center gap-3">
+              <Button2 onClick={() => router.push("/dashboard")} size="sm">
+                Dashboard
+              </Button2>
+            </div>
           ) : (
-            <div className="hidden lg:flex items-center space-x-4">
+            <div className="hidden md:flex items-center gap-3">
               <Button
                 variant="ghost"
                 onClick={() => router.push("/auth/login")}
+                size="sm"
               >
-                Sign In
+                Log In
               </Button>
-              <Button
-                className="bg-[#C29307] text-white hover:bg-[#a87e06]"
-                onClick={() => router.push("/auth/signup")}
-              >
-                Register
-              </Button>
+              <Button2 onClick={() => router.push("/auth/signup")} size="sm">
+                Get Started Free
+              </Button2>
             </div>
           )}
 
           {/* Mobile Menu Button */}
-          <div className="lg:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="lg:hidden p-2 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] bg-gray-50 dark:bg-gray-950"
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
         </div>
 
-        {/* Mobile Menu */}
-        {isOpen && (
-          <div className="lg:hidden mt-2">
-            <div
-              className="fixed h-screen inset-0 bg-black/20 backdrop-blur-sm"
-              onClick={() => setIsOpen(false)}
-            ></div>
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-t rounded-md shadow-lg relative z-50">
-              {links.map((link) =>
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="lg:hidden py-4 border-t border-gray-200 dark:border-gray-800">
+            <nav className="flex flex-col gap-4">
+              {navLinks.map((link) =>
                 link.external ? (
                   <Link
                     key={link.name}
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-gray-600 cursor-pointer hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="font-medium text-gray-900/80 dark:text-gray-50/80 hover:text-gray-900 dark:hover:text-gray-50 transition-colors py-2"
                   >
                     {link.name}
                   </Link>
                 ) : (
                   <button
                     key={link.name}
-                    onClick={() => scrollToId(link.href)}
-                    className="w-full text-left text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
+                    onClick={() => {
+                      scrollToId(link.href);
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full text-left font-medium text-gray-900/80 dark:text-gray-50/80 hover:text-gray-900 dark:hover:text-gray-50 transition-colors py-2"
                   >
                     {link.name}
                   </button>
                 )
               )}
 
-            
-
               {/* Auth Section */}
-              <div className="pt-4 pb-3 border-t border-gray-200">
+              <div className="flex flex-col gap-3 pt-4">
                 {user ? (
-                  <Button
-                    className="bg-[#C29307] text-white hover:bg-[#a87e06] w-full"
-                    onClick={() => router.push("/dashboard")}
+                  <Button2
+                    onClick={() => {
+                      router.push("/dashboard");
+                      setIsMenuOpen(false);
+                    }}
                   >
                     Dashboard
-                  </Button>
+                  </Button2>
                 ) : (
-                  <div className="flex flex-col space-y-2">
+                  <>
                     <Button
-                      onClick={() => router.push("/auth/login")}
-                      variant="outline"
+                      variant="ghost"
+                      className="w-full justify-center"
+                      onClick={() => {
+                        router.push("/auth/login");
+                        setIsMenuOpen(false);
+                      }}
                     >
-                      Sign In
+                      Log In
                     </Button>
-                    <Button
-                      className="bg-[#C29307] text-white hover:bg-[#a87e06]"
-                      onClick={() => router.push("/auth/signup")}
+                    <Button2
+                      onClick={() => {
+                        router.push("/auth/signup");
+                        setIsMenuOpen(false);
+                      }}
                     >
-                      Register
-                    </Button>
-                  </div>
+                      Get Started Free
+                    </Button2>
+                  </>
                 )}
               </div>
-            </div>
+            </nav>
           </div>
         )}
       </div>

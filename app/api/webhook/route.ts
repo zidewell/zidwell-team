@@ -174,7 +174,7 @@ ${greeting}
 Your transfer was successful!
 
 💰 Transaction Details:
-• Amount: ₦${(amount - totalFee).toLocaleString()}
+• Amount: ₦${(amount).toLocaleString()}
 • Fee: ₦${totalFee.toLocaleString()}
 • Total Deductin: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
@@ -198,7 +198,7 @@ ${greeting}
 Your transfer failed.
 
 💰 Transaction Details:
-• Amount: ₦${(amount - totalFee).toLocaleString()}
+• Amount: ₦${(amount).toLocaleString()}
 • Fee: ₦${totalFee.toLocaleString()}
 • Total Deduction: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
@@ -242,7 +242,7 @@ Zidwell Team
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">Transaction Details:</h4>
             <p><strong>Amount:</strong> ₦${(
-              amount - totalFee
+              amount
             ).toLocaleString()}</p>
             <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
             <p><strong>Total Deduction:</strong> ₦${totalDeduction.toLocaleString()}</p>
@@ -403,7 +403,6 @@ Zidwell Team
   }
 }
 
-// ADD THIS HELPER FUNCTION BEFORE THE MAIN POST FUNCTION
 async function processInvoicePaymentForDifferentUser(
   invoice: any,
   depositorUserId: string,
@@ -471,8 +470,6 @@ async function processInvoicePaymentForDifferentUser(
 export async function POST(req: NextRequest) {
   try {
     console.log("====== Nomba Webhook Triggered ======");
-
-    // 1) Read raw body and parse
     const rawBody = await req.text();
     console.log("🔸 Raw body length:", rawBody?.length);
     let payload: any;
@@ -488,7 +485,6 @@ export async function POST(req: NextRequest) {
       payload?.event_type || payload?.eventType
     );
 
-    // 2) Signature verification (HMAC SHA256 -> Base64)
     const timestamp = req.headers.get("nomba-timestamp");
     const signature =
       req.headers.get("nomba-sig-value") || req.headers.get("nomba-signature");
@@ -504,7 +500,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build hash payload according to Nomba docs (use safe optional chaining)
     const hashingPayload = `${payload.event_type}:${payload.requestId}:${
       payload.data?.merchant?.userId || ""
     }:${payload.data?.merchant?.walletId || ""}:${
@@ -2048,7 +2043,6 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Check if this is a P2P transfer or regular withdrawal
       const isP2PTransfer = pendingTx.type === "p2p_transfer";
       const isRegularWithdrawal = pendingTx.type === "withdrawal";
 
@@ -2064,32 +2058,29 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const txAmount = Number(pendingTx.amount ?? transactionAmount ?? 0);
+      const txAmount = Number(transactionAmount ?? 0);
 
       let appFee = 0;
       let totalFees = 0;
-      let totalDeduction = txAmount;
+      let totalDeduction = Number(pendingTx.amount);
 
+      let nombaFee = Number(payload.data?.transaction?.fee || 0);
       if (isRegularWithdrawal) {
-        // Regular withdrawal fee logic: 1% (₦20 min, ₦1000 cap)
-        appFee = txAmount * 0.0025;
-        appFee = Math.max(appFee, 20);
-        appFee = Math.min(appFee, 150);
-        appFee = Number(appFee.toFixed(2));
-        totalFees = Number((nombaFee + appFee).toFixed(2));
-        totalDeduction = txAmount;
+        totalFees = Number(pendingTx.amount - txAmount);
+        appFee = Math.max(0, totalFees - nombaFee);
 
-        console.log("💰 Regular Withdrawal calculations:");
-        console.log("   - Withdrawal amount:", txAmount);
-        console.log("   - Nomba fee:", nombaFee);
-        console.log("   - Our app fee:", appFee);
-        console.log("   - Total fees:", totalFees);
-        console.log("   - Total deduction:", totalDeduction);
+        console.log("💰 Transaction calculations:");
+        console.log("   - Transaction amount:", txAmount);
+        console.log("   - Total fee (from DB):", totalFees);
+        console.log("   - Nomba fee (from webhook):", nombaFee);
+        console.log("   - App fee (calculated):", appFee);
+        console.log("   - Total deduction (from DB):", totalDeduction);
+        console.log("   - Is P2P Transfer:", isP2PTransfer);
       } else if (isP2PTransfer) {
         // 🔥 P2P transfers have NO FEES
         appFee = 0;
         totalFees = 0; // No fees for P2P
-        totalDeduction = txAmount; // Only deduct the transfer amount
+        totalDeduction = txAmount;
 
         console.log("💰 P2P Transfer calculations (NO FEES):");
         console.log("   - Transfer amount:", txAmount);
@@ -2122,7 +2113,6 @@ export async function POST(req: NextRequest) {
           },
         };
 
-        // 🟩 No second deduction here — we already deducted at initiation
         const { error: updateErr } = await supabase
           .from("transactions")
           .update({
@@ -2133,6 +2123,8 @@ export async function POST(req: NextRequest) {
             fee: totalFees,
           })
           .eq("id", pendingTx.id);
+
+        console.log("pendingTx", pendingTx);
 
         const withdrawalDetails =
           pendingTx.external_response?.withdrawal_details || {};
@@ -2327,7 +2319,7 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Refund wallet via RPC since we deducted earlier
+   
         console.log("🔄 Refunding user wallet...");
         const refundReference = `refund_${
           nombaTransactionId || crypto.randomUUID()
@@ -2336,7 +2328,7 @@ export async function POST(req: NextRequest) {
           "deduct_wallet_balance",
           {
             user_id: pendingTx.user_id,
-            amt: -totalDeduction, // negative = credit back
+            amt: -totalDeduction,
             transaction_type: "credit",
             reference: refundReference,
             description: `Refund for failed ${

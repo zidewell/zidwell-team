@@ -28,36 +28,41 @@ import {
 const fetcher = async (url: string) => {
   const response = await fetch(url);
   const data = await response.json();
-  
+
   if (!response.ok) {
-    const error = new Error(data.error || 'An error occurred while fetching the data.');
+    const error = new Error(
+      data.error || "An error occurred while fetching the data."
+    );
     throw error;
   }
-  
+
   return data;
 };
 
 const ROLE_PERMISSIONS = {
-  "super_admin": {
+  super_admin: {
     name: "Super Admin",
-    description: "Has full control of the system — all features, all data, and major approvals",
+    description:
+      "Has full control of the system — all features, all data, and major approvals",
   },
-  "operations_admin": {
+  operations_admin: {
     name: "Operations Admin",
-    description: "Manages all day-to-day app activities, transactions, and customer wallets",
+    description:
+      "Manages all day-to-day app activities, transactions, and customer wallets",
   },
-  "support_admin": {
+  support_admin: {
     name: "Customer Support",
     description: "Handles user inquiries, disputes, and verifications",
   },
-  "finance_admin": {
+  finance_admin: {
     name: "Finance & Accounting",
-    description: "Oversees financial data, tax filing reports, and income management",
+    description:
+      "Oversees financial data, tax filing reports, and income management",
   },
-  "legal_admin": {
+  legal_admin: {
     name: "Legal & Compliance",
     description: "Ensures all regulatory and documentation compliance",
-  }
+  },
 };
 
 const getRoleIcon = (role: string) => {
@@ -66,7 +71,7 @@ const getRoleIcon = (role: string) => {
     operations_admin: "⚙️",
     support_admin: "💬",
     finance_admin: "💰",
-    legal_admin: "⚖️"
+    legal_admin: "⚖️",
   };
   return icons[role as keyof typeof icons] || "👤";
 };
@@ -77,27 +82,30 @@ const getRoleColor = (role: string) => {
     operations_admin: "bg-blue-100 text-blue-800",
     support_admin: "bg-green-100 text-green-800",
     finance_admin: "bg-purple-100 text-purple-800",
-    legal_admin: "bg-orange-100 text-orange-800"
+    legal_admin: "bg-orange-100 text-orange-800",
   };
   return colors[role as keyof typeof colors] || "bg-gray-100 text-gray-800";
 };
 
-const formatDateSafe = (dateString: string | null, options: Intl.DateTimeFormatOptions = {}) => {
+const formatDateSafe = (
+  dateString: string | null,
+  options: Intl.DateTimeFormatOptions = {}
+) => {
   if (!dateString) return "Never";
-  
+
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return "Invalid date";
-    
-    if (typeof window === 'undefined') {
-      return date.toISOString().split('T')[0];
+
+    if (typeof window === "undefined") {
+      return date.toISOString().split("T")[0];
     }
-    
+
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-      ...options
+      ...options,
     });
   } catch (error) {
     return "Invalid date";
@@ -135,19 +143,21 @@ export default function AdminManagementPage() {
 
   const admins = React.useMemo(() => {
     if (!data || error) return [];
-    
+
     if (data.error) {
       return [];
     }
-    
+
     const adminsData = data.admins || data.data || [];
-    
+
     if (!Array.isArray(adminsData)) {
       return [];
     }
-    
+
     return adminsData.map((admin: any) => {
-      const roleInfo = ROLE_PERMISSIONS[admin.admin_role as keyof typeof ROLE_PERMISSIONS] || ROLE_PERMISSIONS.support_admin;
+      const roleInfo =
+        ROLE_PERMISSIONS[admin.admin_role as keyof typeof ROLE_PERMISSIONS] ||
+        ROLE_PERMISSIONS.support_admin;
       return {
         ...admin,
         full_name: `${admin.first_name} ${admin.last_name}`,
@@ -158,7 +168,7 @@ export default function AdminManagementPage() {
         role_description: roleInfo.description,
         role_icon: getRoleIcon(admin.admin_role),
         role_color: getRoleColor(admin.admin_role),
-        status: admin.is_blocked ? 'inactive' : 'active'
+        status: admin.is_blocked ? "inactive" : "active",
       };
     });
   }, [data, error]);
@@ -166,13 +176,14 @@ export default function AdminManagementPage() {
   const isAdminRecentlyActive = (admin: any) => {
     const isActiveStatus = !admin.is_blocked;
     const hasRecentLogin = admin.last_login_raw;
-    
+
     if (hasRecentLogin) {
       const lastLogin = new Date(admin.last_login_raw);
-      const daysSinceLogin = (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceLogin =
+        (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24);
       return isActiveStatus && daysSinceLogin <= 30;
     }
-    
+
     return isActiveStatus;
   };
 
@@ -204,25 +215,25 @@ export default function AdminManagementPage() {
       operations_admin: 0,
       support_admin: 0,
       finance_admin: 0,
-      legal_admin: 0
+      legal_admin: 0,
     };
-    
+
     admins.forEach((admin: any) => {
       if (counts.hasOwnProperty(admin.admin_role)) {
         counts[admin.admin_role as keyof typeof counts]++;
       }
     });
-    
+
     return counts;
   };
 
   const roleCounts = getRoleCounts();
-  const activeAdmins = admins.filter((admin:any) => !admin.is_blocked);
+  const activeAdmins = admins.filter((admin: any) => !admin.is_blocked);
   const activeToday = admins.filter(isAdminActiveToday);
   const activeThisWeek = admins.filter(isAdminActiveThisWeek);
   const inactiveAdmins = admins.filter(isAdminInactive);
-  const blockedAdmins = admins.filter((admin:any) => admin.is_blocked);
-  
+  const blockedAdmins = admins.filter((admin: any) => admin.is_blocked);
+
   const stats = {
     total: admins.length,
     active: activeAdmins.length,
@@ -230,27 +241,28 @@ export default function AdminManagementPage() {
     operations_admin: roleCounts.operations_admin,
     support_admin: roleCounts.support_admin,
     finance_admin: roleCounts.finance_admin,
-    legal_admin: roleCounts.legal_admin
+    legal_admin: roleCounts.legal_admin,
   };
 
   const filteredAdmins = admins.filter((admin: any) => {
-    const matchesSearch = 
+    const matchesSearch =
       admin.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       admin.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       admin.role_display?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || 
+
+    const matchesStatus =
+      statusFilter === "all" ||
       (statusFilter === "active" && !admin.is_blocked) ||
       (statusFilter === "inactive" && admin.is_blocked);
-    
+
     const matchesRole = roleFilter === "all" || admin.admin_role === roleFilter;
-    const matchesActivity = 
+    const matchesActivity =
       activityFilter === "all" ||
       (activityFilter === "active" && isAdminRecentlyActive(admin)) ||
       (activityFilter === "today" && isAdminActiveToday(admin)) ||
       (activityFilter === "week" && isAdminActiveThisWeek(admin)) ||
       (activityFilter === "inactive" && isAdminInactive(admin));
-    
+
     return matchesSearch && matchesStatus && matchesRole && matchesActivity;
   });
 
@@ -283,12 +295,16 @@ export default function AdminManagementPage() {
       });
 
       const responseData = await r.json();
-      
+
       if (!r.ok) {
         throw new Error(responseData.error || "Delete failed");
       }
 
-      Swal.fire("Deleted", `${admin.email} has been removed as admin.`, "success");
+      Swal.fire(
+        "Deleted",
+        `${admin.email} has been removed as admin.`,
+        "success"
+      );
       mutate();
     } catch (err: any) {
       console.error(err);
@@ -320,7 +336,7 @@ export default function AdminManagementPage() {
           if (!value) {
             return "Please provide a reason for deactivation";
           }
-        }
+        },
       });
 
       if (!deactivateReason) return;
@@ -330,7 +346,11 @@ export default function AdminManagementPage() {
     const confirm = await Swal.fire({
       title: `${actionText} admin?`,
       text: isCurrentlyActive
-        ? `Deactivate ${admin.email}? They will lose access to the admin panel.${reason ? ` Reason: ${reason}` : ''}`
+        ? `Deactivate ${
+            admin.email
+          }? They will lose access to the admin panel.${
+            reason ? ` Reason: ${reason}` : ""
+          }`
         : `Activate ${admin.email}? They will be able to access the admin panel.`,
       icon: "warning",
       showCancelButton: true,
@@ -344,14 +364,14 @@ export default function AdminManagementPage() {
       const r = await fetch(`/api/admin-apis/admins/${admin.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          action, 
-          reason: action === "deactivate" ? reason : "Admin activated" 
+        body: JSON.stringify({
+          action,
+          reason: action === "deactivate" ? reason : "Admin activated",
         }),
       });
 
       const responseData = await r.json();
-      
+
       if (!r.ok) {
         throw new Error(responseData.error || `Failed to ${action} admin`);
       }
@@ -382,13 +402,22 @@ export default function AdminManagementPage() {
           admin.email ?? ""
         )}">` +
         `<select id="swal-role" class="swal2-select">
-          ${Object.entries(ROLE_PERMISSIONS).map(([key, role]) => 
-            `<option value="${key}" ${admin.admin_role === key ? "selected" : ""}>${getRoleIcon(key)} ${role.name}</option>`
-          ).join('')}
+          ${Object.entries(ROLE_PERMISSIONS)
+            .map(
+              ([key, role]) =>
+                `<option value="${key}" ${
+                  admin.admin_role === key ? "selected" : ""
+                }>${getRoleIcon(key)} ${role.name}</option>`
+            )
+            .join("")}
          </select>` +
         `<select id="swal-status" class="swal2-select">
-          <option value="active" ${!admin.is_blocked ? 'selected' : ''}>Active</option>
-          <option value="inactive" ${admin.is_blocked ? 'selected' : ''}>Inactive</option>
+          <option value="active" ${
+            !admin.is_blocked ? "selected" : ""
+          }>Active</option>
+          <option value="inactive" ${
+            admin.is_blocked ? "selected" : ""
+          }>Inactive</option>
          </select>`,
       focusConfirm: false,
       showCancelButton: true,
@@ -405,8 +434,9 @@ export default function AdminManagementPage() {
         )?.value?.trim();
         const role = (document.getElementById("swal-role") as HTMLSelectElement)
           ?.value;
-        const status = (document.getElementById("swal-status") as HTMLSelectElement)
-          ?.value;
+        const status = (
+          document.getElementById("swal-status") as HTMLSelectElement
+        )?.value;
 
         if (!first_name || !last_name) {
           Swal.showValidationMessage("First name and last name are required");
@@ -421,7 +451,7 @@ export default function AdminManagementPage() {
       },
     });
 
-    if (!formValues) return; 
+    if (!formValues) return;
 
     try {
       const r = await fetch(`/api/admin-apis/admins/${admin.id}`, {
@@ -451,9 +481,14 @@ export default function AdminManagementPage() {
         `<input id="swal-last_name" class="swal2-input" placeholder="Last name" required>` +
         `<input id="swal-email" class="swal2-input" placeholder="Email" type="email" required>` +
         `<select id="swal-role" class="swal2-select" required>
-          ${Object.entries(ROLE_PERMISSIONS).map(([key, role]) => 
-            `<option value="${key}">${getRoleIcon(key)} ${role.name}</option>`
-          ).join('')}
+          ${Object.entries(ROLE_PERMISSIONS)
+            .map(
+              ([key, role]) =>
+                `<option value="${key}">${getRoleIcon(key)} ${
+                  role.name
+                }</option>`
+            )
+            .join("")}
          </select>` +
         `<select id="swal-status" class="swal2-select" required>
           <option value="active">Active</option>
@@ -474,8 +509,9 @@ export default function AdminManagementPage() {
         )?.value?.trim();
         const role = (document.getElementById("swal-role") as HTMLSelectElement)
           ?.value;
-        const status = (document.getElementById("swal-status") as HTMLSelectElement)
-          ?.value;
+        const status = (
+          document.getElementById("swal-status") as HTMLSelectElement
+        )?.value;
 
         if (!first_name || !last_name) {
           Swal.showValidationMessage("First name and last name are required");
@@ -504,7 +540,11 @@ export default function AdminManagementPage() {
         throw new Error(errText || "Failed to create admin");
       }
 
-      Swal.fire("Created", `Admin ${formValues.email} created successfully.`, "success");
+      Swal.fire(
+        "Created",
+        `Admin ${formValues.email} created successfully.`,
+        "success"
+      );
       mutate();
     } catch (err) {
       console.error(err);
@@ -514,14 +554,14 @@ export default function AdminManagementPage() {
 
   const handleForceLogout = async (admin: any) => {
     const result = await Swal.fire({
-      title: 'Force Logout?',
+      title: "Force Logout?",
       text: `This will immediately log out ${admin.email} from all admin sessions.`,
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Force Logout',
-      cancelButtonText: 'Cancel'
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Force Logout",
+      cancelButtonText: "Cancel",
     });
 
     if (!result.isConfirmed) return;
@@ -550,11 +590,13 @@ export default function AdminManagementPage() {
 
   const handleViewLoginHistory = async (admin: any) => {
     try {
-      const response = await fetch(`/api/admin-apis/admins/${admin.id}/login-history`);
+      const response = await fetch(
+        `/api/admin-apis/admins/${admin.id}/login-history`
+      );
       if (!response.ok) throw new Error("Failed to fetch login history");
-      
+
       const history = await response.json();
-      
+
       let historyHtml = '<div class="text-left max-h-64 overflow-y-auto">';
       if (history.length === 0) {
         historyHtml += '<p class="text-gray-500">No login history found.</p>';
@@ -562,20 +604,22 @@ export default function AdminManagementPage() {
         historyHtml += '<ul class="space-y-2">';
         history.forEach((entry: any) => {
           const loginTime = formatDateTimeSafe(entry.login_time);
-          const logoutTime = entry.logout_time 
+          const logoutTime = entry.logout_time
             ? formatDateTimeSafe(entry.logout_time)
-            : 'Still logged in';
+            : "Still logged in";
           historyHtml += `
             <li class="border-b pb-2">
               <div class="font-medium">Login: ${loginTime}</div>
               <div class="text-sm text-gray-600">Logout: ${logoutTime}</div>
-              <div class="text-xs text-gray-500">IP: ${entry.ip_address || 'Unknown'}</div>
+              <div class="text-xs text-gray-500">IP: ${
+                entry.ip_address || "Unknown"
+              }</div>
             </li>
           `;
         });
-        historyHtml += '</ul>';
+        historyHtml += "</ul>";
       }
-      historyHtml += '</div>';
+      historyHtml += "</div>";
 
       await Swal.fire({
         title: `Login History - ${admin.email}`,
@@ -590,32 +634,38 @@ export default function AdminManagementPage() {
   };
 
   const handleViewPermissions = async (admin: any) => {
-    const roleInfo = ROLE_PERMISSIONS[admin.admin_role as keyof typeof ROLE_PERMISSIONS] || ROLE_PERMISSIONS.support_admin;
-    
+    const roleInfo =
+      ROLE_PERMISSIONS[admin.admin_role as keyof typeof ROLE_PERMISSIONS] ||
+      ROLE_PERMISSIONS.support_admin;
+
     let permissionsHtml = '<div class="text-left max-h-96 overflow-y-auto">';
-    permissionsHtml += `<div class="mb-4 p-3 rounded-lg ${getRoleColor(admin.admin_role)}">`;
-    permissionsHtml += `<h3 class="font-bold text-lg">${getRoleIcon(admin.admin_role)} ${roleInfo.name}</h3>`;
+    permissionsHtml += `<div class="mb-4 p-3 rounded-lg ${getRoleColor(
+      admin.admin_role
+    )}">`;
+    permissionsHtml += `<h3 class="font-bold text-lg">${getRoleIcon(
+      admin.admin_role
+    )} ${roleInfo.name}</h3>`;
     permissionsHtml += `<p class="text-sm mt-1">${roleInfo.description}</p>`;
     permissionsHtml += `</div>`;
-    
+
     permissionsHtml += `<h4 class="font-semibold mb-2">Key Permissions:</h4>`;
     permissionsHtml += `<ul class="space-y-2 text-sm">`;
-    
+
     const basePermissions = [
       "Access admin dashboard",
-      "View user accounts and profiles", 
+      "View user accounts and profiles",
       "Manage user status (block/unblock)",
       "View transaction history",
-      "Monitor system activity"
+      "Monitor system activity",
     ];
 
-    basePermissions.forEach(permission => {
+    basePermissions.forEach((permission) => {
       permissionsHtml += `<li class="flex items-start">
         <span class="text-green-500 mr-2 mt-0.5">✓</span>
         <span>${permission}</span>
       </li>`;
     });
-    
+
     permissionsHtml += `</ul>`;
     permissionsHtml += `</div>`;
 
@@ -645,7 +695,9 @@ export default function AdminManagementPage() {
 
   const renderRoleCell = (value: string, row: any) => {
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row.role_color}`}>
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${row.role_color}`}
+      >
         {row.role_icon} {row.role_display}
       </span>
     );
@@ -671,22 +723,25 @@ export default function AdminManagementPage() {
     if (!row.last_login_raw) {
       return <span className="text-gray-400 italic">Never</span>;
     }
-    
+
     const formattedDate = formatDateTimeSafe(row.last_login_raw);
-    
+
     if (!isClient) {
       return formattedDate;
     }
-    
+
     try {
       const loginDate = new Date(row.last_login_raw);
       if (isNaN(loginDate.getTime())) return "Invalid date";
-      
+
       const now = new Date();
-      const hoursDiff = (now.getTime() - loginDate.getTime()) / (1000 * 60 * 60);
-      
+      const hoursDiff =
+        (now.getTime() - loginDate.getTime()) / (1000 * 60 * 60);
+
       if (hoursDiff < 24) {
-        return <span className="text-green-600 font-medium">{formattedDate}</span>;
+        return (
+          <span className="text-green-600 font-medium">{formattedDate}</span>
+        );
       } else if (hoursDiff < 168) {
         return <span className="text-blue-600">{formattedDate}</span>;
       } else {
@@ -730,8 +785,14 @@ export default function AdminManagementPage() {
     return (
       <AdminLayout>
         <div className="p-6">
-          <p className="text-red-600">Access Denied: {error.message || 'You do not have permission to access admin management'}</p>
-          <p className="text-sm text-gray-600 mt-2">Only Super Admins can access this section.</p>
+          <p className="text-red-600">
+            Access Denied:{" "}
+            {error.message ||
+              "You do not have permission to access admin management"}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            Only Super Admins can access this section.
+          </p>
         </div>
       </AdminLayout>
     );
@@ -741,8 +802,14 @@ export default function AdminManagementPage() {
     return (
       <AdminLayout>
         <div className="p-6">
-          <p className="text-red-600">Access Denied: {data?.error || 'You do not have permission to view admin management'}</p>
-          <p className="text-sm text-gray-600 mt-2">Only Super Admins can access this section.</p>
+          <p className="text-red-600">
+            Access Denied:{" "}
+            {data?.error ||
+              "You do not have permission to view admin management"}
+          </p>
+          <p className="text-sm text-gray-600 mt-2">
+            Only Super Admins can access this section.
+          </p>
         </div>
       </AdminLayout>
     );
@@ -770,7 +837,10 @@ export default function AdminManagementPage() {
             <Button variant="outline" onClick={() => mutate()}>
               🔄 Refresh
             </Button>
-            <Button className="bg-[#C29307] text-white hover:bg-[#a87e06]" onClick={handleCreateAdmin}>
+            <Button
+              className="bg-[#C29307] text-white hover:bg-[#a87e06]"
+              onClick={handleCreateAdmin}
+            >
               + Add Admin
             </Button>
           </div>
@@ -827,7 +897,7 @@ export default function AdminManagementPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
+
           <div className="w-full md:w-1/5">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -840,7 +910,7 @@ export default function AdminManagementPage() {
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="w-full md:w-1/5">
             <Select value={roleFilter} onValueChange={setRoleFilter}>
               <SelectTrigger>
@@ -856,7 +926,7 @@ export default function AdminManagementPage() {
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="w-full md:w-1/5">
             <Select value={activityFilter} onValueChange={setActivityFilter}>
               <SelectTrigger>
@@ -892,8 +962,8 @@ export default function AdminManagementPage() {
               label: "View Permissions",
               onClick: handleViewPermissions,
               className: "text-purple-600",
-              icon: "🔐"
-            }
+              icon: "🔐",
+            },
           ]}
         />
 
@@ -905,7 +975,9 @@ export default function AdminManagementPage() {
                   <PaginationPrevious
                     href="#"
                     onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    className={
+                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
                   />
                 </PaginationItem>
 
@@ -924,8 +996,14 @@ export default function AdminManagementPage() {
                 <PaginationItem>
                   <PaginationNext
                     href="#"
-                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                    className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(p + 1, totalPages))
+                    }
+                    className={
+                      currentPage >= totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
                   />
                 </PaginationItem>
               </PaginationContent>

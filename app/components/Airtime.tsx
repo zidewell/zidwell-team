@@ -103,9 +103,12 @@ export default function AirtimePurchase() {
   const router = useRouter();
 
   // New states for saved beneficiaries
-  const [savedBeneficiaries, setSavedBeneficiaries] = useState<SavedBeneficiary[]>([]);
+  const [savedBeneficiaries, setSavedBeneficiaries] = useState<
+    SavedBeneficiary[]
+  >([]);
   const [saveBeneficiary, setSaveBeneficiary] = useState(false);
-  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] = useState<SavedBeneficiary | null>(null);
+  const [selectedSavedBeneficiary, setSelectedSavedBeneficiary] =
+    useState<SavedBeneficiary | null>(null);
   const [showSavedBeneficiaries, setShowSavedBeneficiaries] = useState(false);
   const [loadingBeneficiaries, setLoadingBeneficiaries] = useState(false);
 
@@ -116,9 +119,11 @@ export default function AirtimePurchase() {
     const fetchSavedBeneficiaries = async () => {
       setLoadingBeneficiaries(true);
       try {
-        const response = await fetch(`/api/save-airtime-beneficiaries?userId=${userData.id}&type=airtime`);
+        const response = await fetch(
+          `/api/save-airtime-beneficiaries?userId=${userData.id}&type=airtime`
+        );
         const data = await response.json();
-        
+
         if (data.success) {
           setSavedBeneficiaries(data.beneficiaries || []);
         }
@@ -137,7 +142,10 @@ export default function AirtimePurchase() {
     setPhoneNumber(cleanValue);
 
     // If user starts typing and a saved beneficiary was selected, clear it
-    if (selectedSavedBeneficiary && cleanValue !== selectedSavedBeneficiary.phoneNumber) {
+    if (
+      selectedSavedBeneficiary &&
+      cleanValue !== selectedSavedBeneficiary.phoneNumber
+    ) {
       setSelectedSavedBeneficiary(null);
     }
 
@@ -178,20 +186,20 @@ export default function AirtimePurchase() {
   const handleSelectSavedBeneficiary = (beneficiary: SavedBeneficiary) => {
     setSelectedSavedBeneficiary(beneficiary);
     setPhoneNumber(beneficiary.phoneNumber);
-    
+
     // Find and set the corresponding provider
-    const provider = prefixColorMap.find(p => p.id === beneficiary.network);
+    const provider = prefixColorMap.find((p) => p.id === beneficiary.network);
     if (provider) {
       setSelectedProvider(provider);
     }
-    
+
     // Set amount if beneficiary has a saved amount
     if (beneficiary.amount) {
       setSelectedAmount(beneficiary.amount);
       setCustomAmount("");
       setIsCustomAmount(false);
     }
-    
+
     setShowSavedBeneficiaries(false);
     setSaveBeneficiary(false); // Don't save an already saved beneficiary
   };
@@ -255,10 +263,9 @@ export default function AirtimePurchase() {
 
     const amount = isCustomAmount ? parseInt(customAmount) : selectedAmount;
 
-    if (!amount || amount < 100) 
+    if (!amount || amount < 100)
       newErrors.amount = "Amount must be at least ₦100";
-    else if (amount > 50000)
-      newErrors.amount = "Maximum amount is ₦50,000";
+    else if (amount > 50000) newErrors.amount = "Maximum amount is ₦50,000";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -301,7 +308,7 @@ export default function AirtimePurchase() {
           const updated = { ...prev, zidcoinBalance: data.zidCoinBalance };
           localStorage.setItem("userData", JSON.stringify(updated));
           return updated;
-        });  
+        });
       }
 
       // Save beneficiary if toggle is enabled and it's a new beneficiary
@@ -462,7 +469,9 @@ export default function AirtimePurchase() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setShowSavedBeneficiaries(!showSavedBeneficiaries)}
+                      onClick={() =>
+                        setShowSavedBeneficiaries(!showSavedBeneficiaries)
+                      }
                       className="flex items-center gap-1"
                     >
                       <Bookmark className="h-4 w-4" />
@@ -475,13 +484,17 @@ export default function AirtimePurchase() {
                       {loadingBeneficiaries ? (
                         <div className="flex items-center justify-center py-4">
                           <Loader2 className="h-5 w-5 animate-spin text-[#C29307]" />
-                          <span className="ml-2 text-sm">Loading beneficiaries...</span>
+                          <span className="ml-2 text-sm">
+                            Loading beneficiaries...
+                          </span>
                         </div>
                       ) : (
                         savedBeneficiaries.map((beneficiary) => (
                           <div
                             key={beneficiary.id}
-                            onClick={() => handleSelectSavedBeneficiary(beneficiary)}
+                            onClick={() =>
+                              handleSelectSavedBeneficiary(beneficiary)
+                            }
                             className={`p-3 rounded cursor-pointer transition-colors ${
                               selectedSavedBeneficiary?.id === beneficiary.id
                                 ? "bg-blue-100 border border-blue-300"
@@ -547,30 +560,30 @@ export default function AirtimePurchase() {
                 )}
 
                 {/* Save Beneficiary Toggle - Only show when user manually enters phone number (not from saved beneficiaries) */}
-                {!selectedSavedBeneficiary && 
-                 phoneNumber.length === 11 && 
-                 selectedProvider && (
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-3">
-                    <span className="text-sm font-medium text-gray-700">
-                      Save to beneficiaries
-                    </span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={saveBeneficiary}
-                        onChange={(e) => setSaveBeneficiary(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div
-                        className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
+                {!selectedSavedBeneficiary &&
+                  phoneNumber.length === 11 &&
+                  selectedProvider && (
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border mt-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Save to beneficiaries
+                      </span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveBeneficiary}
+                          onChange={(e) => setSaveBeneficiary(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div
+                          className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
                         peer-checked:after:translate-x-full peer-checked:after:border-white 
                         after:content-[''] after:absolute after:top-0.5 after:left-0.5 
                         after:bg-white after:border-gray-300 after:border after:rounded-full 
                         after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C29307]"
-                      ></div>
-                    </label>
-                  </div>
-                )}
+                        ></div>
+                      </label>
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>

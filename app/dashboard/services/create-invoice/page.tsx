@@ -136,8 +136,9 @@ export default function invoicePage() {
 
                       <div className="bg-[#C29307]/10 rounded-lg p-4 border border-[#C29307]/20">
                         <p className="text-sm text-foreground">
-                          <span className="font-semibold">Platform fee:</span> Only 2% per
-                          transaction, capped at ₦2,000, transferable to the customer.
+                          <span className="font-semibold">Platform fee:</span>{" "}
+                          Only 2% per transaction, capped at ₦2,000,
+                          transferable to the customer.
                         </p>
                       </div>
                     </div>

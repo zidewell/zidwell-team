@@ -20,7 +20,8 @@ export default function DashboardFooter() {
               <span className="text-[#C29307]">Zidwell Finance</span> ©2025
             </p>
             <p className="mt-1 text-xs text-gray-500">
-              Created by Zidwell Technologies in collaboration with banking partners licensed by the Central Bank of Nigeria (CBN)
+              Created by Zidwell Technologies in collaboration with banking
+              partners licensed by the Central Bank of Nigeria (CBN)
             </p>
           </footer>
         </div>

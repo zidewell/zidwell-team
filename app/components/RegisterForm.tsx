@@ -39,7 +39,7 @@ function RegisterForm() {
     password: "",
     confirmPassword: "",
     phone: "",
-    referralSource: "", 
+    referralSource: "",
   });
   const [showModal, setShowModal] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -64,7 +64,7 @@ function RegisterForm() {
   }, []);
 
   // Navigation handlers
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5)); 
+  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const handleNextStep = () => {
@@ -79,8 +79,15 @@ function RegisterForm() {
 
   const validateCurrentStep = (): Record<string, string> => {
     const newErrors: Record<string, string> = {};
-    const { firstName, lastName, email, phone, password, confirmPassword, referralSource } =
-      formData;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+      confirmPassword,
+      referralSource,
+    } = formData;
 
     if (currentStep === 1) {
       if (!firstName) newErrors.firstName = "Please enter your first name.";
@@ -101,7 +108,8 @@ function RegisterForm() {
     }
 
     if (currentStep === 4) {
-      if (!referralSource) newErrors.referralSource = "Please select how you heard about us.";
+      if (!referralSource)
+        newErrors.referralSource = "Please select how you heard about us.";
     }
 
     if (currentStep === 5) {
@@ -114,7 +122,8 @@ function RegisterForm() {
   const stepHeaders: any = {
     1: {
       title: "Let's get to know you!",
-      subtitle: "Nigerians everywhere are using Zidwell to run their business… Welcome onboard",
+      subtitle:
+        "Nigerians everywhere are using Zidwell to run their business… Welcome onboard",
     },
     2: {
       title: "A few more details",
@@ -144,8 +153,15 @@ function RegisterForm() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    const { firstName, lastName, email, phone, password, confirmPassword, referralSource } =
-      formData;
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      password,
+      confirmPassword,
+      referralSource,
+    } = formData;
 
     if (!firstName) newErrors.firstName = "Please enter your first name.";
     if (!lastName) newErrors.lastName = "Please enter your last name.";
@@ -156,7 +172,8 @@ function RegisterForm() {
     if (!password) newErrors.password = "Please enter a password.";
     if (password !== confirmPassword)
       newErrors.confirmPassword = "Passwords do not match.";
-    if (!referralSource) newErrors.referralSource = "Please select how you heard about us.";
+    if (!referralSource)
+      newErrors.referralSource = "Please select how you heard about us.";
     if (!acceptTerms) newErrors.terms = "You must accept the terms.";
 
     return newErrors;
@@ -201,7 +218,8 @@ function RegisterForm() {
     }
 
     setLoading(true);
-    const { firstName, lastName, phone, email, password, referralSource } = formData;
+    const { firstName, lastName, phone, email, password, referralSource } =
+      formData;
 
     try {
       // 1. Sign up user with Supabase Auth
@@ -420,14 +438,21 @@ function RegisterForm() {
 
         {currentStep === 4 && (
           <>
-            <Label htmlFor="referralSource">How did you hear about Zidwell?</Label>
-            <Select onValueChange={handleSelectChange} value={formData.referralSource}>
+            <Label htmlFor="referralSource">
+              How did you hear about Zidwell?
+            </Label>
+            <Select
+              onValueChange={handleSelectChange}
+              value={formData.referralSource}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="A friend">A friend</SelectItem>
-                <SelectItem value="Random google search">Random google search</SelectItem>
+                <SelectItem value="Random google search">
+                  Random google search
+                </SelectItem>
                 <SelectItem value="WhatsApp Group">WhatsApp Group</SelectItem>
                 <SelectItem value="An event">An event</SelectItem>
                 <SelectItem value="Instagram">Instagram</SelectItem>

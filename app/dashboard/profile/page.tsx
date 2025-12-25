@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import DashboardSidebar from "../../components/dashboard-sidebar";
 import DashboardHeader from "../../components/dashboard-hearder";
 import ProfileSettings from "../../components/Profile-settings";

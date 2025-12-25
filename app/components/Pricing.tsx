@@ -1,321 +1,216 @@
-// components/Pricing.tsx
-"use client";
-import { useRouter } from "next/navigation";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader } from "./ui/card";
-import { Check, Crown, Zap, Building, Star } from "lucide-react";
-import Swal from "sweetalert2";
-import { useState, useEffect } from "react";
-import { useUserContextData } from "../context/userData";
+import { Check, Sparkles } from "lucide-react";
+import { Button2 } from "./ui/button2";
+
+const plans = [
+  {
+    name: "Pay Per Use",
+    price: "Free",
+    period: "to Join",
+    description:
+      "Best for: solo hustlers and side businesses who want to pay as they grow.",
+    features: [
+      "Free corporate account with your business name",
+      "Bill Payments: Airtime, Data, Electricity, Cable",
+      "10 free invoices/receipts monthly",
+      "Simple Contracts: ₦1,000 each",
+      "Lawyer-signed Contracts: ₦11,000 each",
+      "Tax Filing Support: 3% of monthly revenue",
+      "Cashback: ₦20 per ₦2,500 spent",
+      "Referral Rewards: ₦20 per signup",
+    ],
+    cta: "Get Started Free",
+    highlight: false,
+  },
+  {
+    name: "Growth",
+    price: "₦20,000",
+    period: "/month",
+    yearlyPrice: "₦200,000/year (save ₦40k)",
+    description:
+      "Best for: growing businesses that want structure without stress.",
+    features: [
+      "Everything in Free, plus:",
+      "Unlimited invoices, receipts & contracts",
+      "Business SOP templates",
+      "Business growth templates",
+      "Brand & marketing templates",
+      "Monthly Financial Wellness Workshops",
+      "Monthly Financial Wellness Clinic",
+      "Active WhatsApp business community",
+      "Business tools dashboard",
+      "Priority support",
+    ],
+    cta: "Start Growth Plan",
+    highlight: false,
+  },
+  {
+    name: "Premium",
+    price: "₦50,000",
+    period: "/month",
+    yearlyPrice: "₦500,000/year (save ₦100k)",
+    description:
+      "Best for: founders and CEOs who want both business performance and personal wellness.",
+    features: [
+      "Everything in Growth, plus:",
+      "Zero transaction fees",
+      "Monthly accounting & bookkeeping support",
+      "Tax management support (filing assistance)",
+      "Monthly mental health & group therapy",
+      "Quarterly business/finance consultant",
+      "Personal growth coaching sessions",
+      "CEO Wellness Wave program",
+      "24/7 business support access",
+      "Deeper financial insights & reporting",
+    ],
+    cta: "Start Premium",
+    highlight: true,
+  },
+  {
+    name: "Elite",
+    price: "₦100,000",
+    period: "/month",
+    yearlyPrice: "Customized pricing available",
+    description:
+      "Best for: established businesses, founders, and teams that want hands-on support.",
+    features: [
+      "Everything in Premium, plus:",
+      "Dedicated bookkeeping review",
+      "Advanced tax planning & advisory",
+      "Dedicated account manager",
+      "Full accounting & bookkeeping management",
+      "End-to-end tax handling",
+      "One-on-one consulting sessions",
+      "Custom SOPs & operational frameworks",
+      "Strategic financial planning",
+      "Private consultant access",
+      "Custom team & enterprise solutions",
+    ],
+    cta: "Contact Sales",
+    highlight: false,
+  },
+];
 
 const Pricing = () => {
-  const router = useRouter();
-  const { user } = useUserContextData();
-  const [loading, setLoading] = useState<string | null>(null);
-
-  // Check if we should auto-scroll to pricing after login
-  useEffect(() => {
-    // Check URL parameters for login redirect
-    const urlParams = new URLSearchParams(window.location.search);
-    const fromLogin = urlParams.get('fromLogin');
-    const scrollToPricing = urlParams.get('scrollToPricing');
-
-    if (fromLogin === 'true' && scrollToPricing === 'true' && user) {
-      // Get the stored plan from localStorage
-      const savedPlan = localStorage.getItem('selectedPlan');
-      
-      if (savedPlan) {
-        const plan = JSON.parse(savedPlan);
-        
-        // Clear the stored plan
-        localStorage.removeItem('selectedPlan');
-        
-        // Remove the query parameters from URL
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-        
-        // Scroll to pricing section
-        setTimeout(() => {
-          const pricingSection = document.getElementById('pricing');
-          if (pricingSection) {
-            pricingSection.scrollIntoView({ 
-              behavior: 'smooth',
-              block: 'start'
-            });
-          }
-          
-          // Show a message that we're resuming their subscription
-          Swal.fire({
-            title: 'Welcome Back!',
-            text: `Continuing with your ${plan.name} subscription...`,
-            icon: 'info',
-            timer: 2000,
-            showConfirmButton: false
-          }).then(() => {
-            // Automatically proceed with the subscription
-            handlePlanSubscription(plan);
-          });
-        }, 1000);
-      }
-    }
-  }, [user]);
-
-  const handleSubscribe = async (plan: any) => {
-    if (!user) {
-      // Store the selected plan in localStorage
-      localStorage.setItem('selectedPlan', JSON.stringify(plan));
-      
-      // Get current page path for return URL
-      const currentPath = window.location.pathname;
-      
-      // Redirect to login with return URL that includes scroll parameters
-      router.push(`/auth/login?returnUrl=${currentPath}&fromLogin=true&scrollToPricing=true`);
-      return;
-    }
-
-    // User is authenticated, proceed with subscription
-    handlePlanSubscription(plan);
-  };
-
-  const handlePlanSubscription = async (plan: any) => {
-    if (plan.name === "Pay Per Use") {
-      // Handle free plan
-      // try {
-      //   const response = await fetch('/api/subscriptions/free', {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({
-      //       userId: user?.id,
-      //       planName: plan.name,
-      //     }),
-      //   });
-
-      //   const data = await response.json();
-        
-      //   if (data.success) {
-      //     Swal.fire({
-      //       icon: 'success',
-      //       title: 'Welcome!',
-      //       text: 'You are now on the Pay Per Use plan.',
-      //     }).then(() => {
-      //       router.push('/dashboard');
-      //     });
-      //   } else {
-      //     throw new Error(data.message || 'Failed to activate free plan');
-      //   }
-      // } catch (error: any) {
-      //   Swal.fire({
-      //     icon: 'error',
-      //     title: 'Error',
-      //     text: error.message || 'Failed to activate free plan.',
-      //   });
-      // }
-
-      router.push('/auth/signup');
-      return;
-    }
-
-    setLoading(plan.name);
-
-    try {
-      // Generate a simple plan ID based on plan name
-      const planId = plan.name.toLowerCase().replace(/\s+/g, '-');
-      const amount = parseFloat(plan.price.replace('₦', '').replace(',', ''));
-
-      // Initialize subscription payment
-      const response = await fetch('/api/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: user?.email,
-          fullName: `${user?.firstName} ${user?.lastName}`,
-          planId: planId,
-          planName: plan.name,
-          amount: amount,
-          userId: user?.id,
-          features: plan.features
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        // Redirect to payment page
-        window.location.href = data.checkoutUrl;
-      } else {
-        Swal.fire({
-          icon: 'error',
-          title: 'Subscription Failed',
-          text: data.error || data.detail || 'Could not initialize subscription',
-        });
-      }
-    } catch (error: any) {
-      console.error('Subscription error:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: error.message || 'Something went wrong. Please try again.',
-      });
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const getPlanIcon = (planName: string) => {
-    switch (planName) {
-      case "Business Starter": return <Zap className="w-6 h-6" />;
-      case "Premium CFO": return <Building className="w-6 h-6" />;
-      case "Diamond CFO": return <Crown className="w-6 h-6" />;
-      default: return <Star className="w-6 h-6" />;
-    }
-  };
-
-  const plans = [
-    {
-      name: "Pay Per Use",
-      price: "Free",
-      interval: "Join anytime",
-      bestFor: "solo hustlers and side businesses who want to pay as they grow.",
-      features: [
-        "Bill Payments: Airtime, Data, Electricity, Cable (Govt. standard fees apply)",
-        "Invoices/payment links: ₦100 each + 3% per paid invoice (transferable to payee)",
-        "Receipts: ₦100 each",
-        "Simple Contracts: ₦1,000 each",
-        "Lawyer-Signed Contracts: ₦11,000 each",
-        "Tax Filing Support: 3% of monthly revenue",
-        "Free virtual bank account creation",
-        "Deposit fee: 0.75%",
-        "Withdrawals/settlements fee: 0.75%",
-        "Cashback: ₦20 back for every ₦2,000 spent",
-        "Referral Rewards: ₦20 per signup",
-        "Referral Transaction Rewards: ₦20 per ₦10,000 spent by your referral",
-      ],
-      buttonText: "Get Started",
-    },
-    // {
-    //   name: "Business Starter",
-    //   price: "₦5,000",
-    //   interval: "per month",
-    //   bestFor: "SMEs that want freedom from pay-per-use charges.",
-    //   features: [
-    //     "Unlimited Invoices & Receipts (no ₦100 fee)",
-    //     "Invoice payment fees: 1.5% (reduced from 3%)",
-    //     "Contracts: 10 contracts per month",
-    //     "Lawyer-Signed Contracts: ₦9,500 each",
-    //     "Cashback & rewards included",
-    //     "Tax Filing Support: 2% of monthly revenue capped at ₦100k",
-    //   ],
-    //   buttonText: "Subscribe",
-    //   highlighted: true,
-    // },
-    {
-      name: "Premium CFO",
-      price: "₦20,000",
-      interval: "per month",
-      bestFor: "serious entrepreneurs who want peace of mind, growth, and full access.",
-      features: [
-        "Unlimited Invoices & Receipts",
-        "Unlimited Contracts",
-        "Zero Transaction Fees on invoices",
-        "Priority Support",
-      ],
-      buttonText: "Subscribe",
-      highlighted: true,
-    },
-    {
-      name: "Diamond CFO",
-      price: "₦250,000",
-      interval: "per month",
-      bestFor: "Entrepreneurs who want one-on-one financial support.",
-      features: [
-        "Dedicated Business Advisor",
-        "Premium CFO Support",
-        "Free Access to BOH Events",
-      ],
-      buttonText: "Subscribe",
-    },
-  ];
-
   return (
-    <section id="pricing" className="py-20 bg-white">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Simple
-            <span className="block bg-[#C29307] bg-clip-text text-transparent">
-              Transparent Pricing
-            </span>
+    <section
+      id="pricing"
+      className="py-20 md:py-32 bg-gray-100/30 dark:bg-gray-900/30"
+    >
+      <div className="container mx-auto px-4">
+        {/* Section Header */}
+        <div className="max-w-3xl mx-auto text-center mb-16">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
+            Simple plans that <span className="text-[#C29307]">grow</span> with
+            you
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Start free and upgrade as your needs grow. No hidden fees, no surprises.
+          <p className="text-lg text-gray-500 dark:text-gray-400">
+            Start free, upgrade when you're ready
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mx-auto md:mx-16">
+        {/* Pricing Grid */}
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-6">
           {plans.map((plan, index) => (
-            <Card
+            <div
               key={index}
-              className={`relative flex flex-col h-full ${
-                plan.highlighted
-                  ? "border-2 border-[#C29307] shadow-xl scale-105"
-                  : "border border-gray-200 hover:shadow-lg"
-              } transition-all duration-300`}
+              className={`relative flex flex-col ${
+                plan.highlight
+                  ? "bg-[#C29307] text-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[6px_6px_0px_#111827] dark:shadow-[6px_6px_0px_#fbbf24]"
+                  : "bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24]"
+              } p-6 hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150`}
             >
-              {plan.highlighted && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-[#C29307] text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    Most Popular
-                  </span>
+              {plan.highlight && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gray-900 dark:bg-gray-50 text-gray-50 dark:text-gray-900 text-xs font-bold flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  POPULAR
                 </div>
               )}
 
-              <CardHeader className="text-center pb-6 pt-8">
-                <div className="flex justify-center mb-3">
-                  {getPlanIcon(plan.name)}
-                </div>
-                <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                <p className="text-gray-500 text-sm mb-3">{plan.bestFor}</p>
-                <div className="mb-2">
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-gray-500 text-sm ml-1">{plan.interval}</span>
-                </div>
-              </CardHeader>
-
-              <CardContent className="flex-1 flex flex-col">
-                <Button
-                  onClick={() => handleSubscribe(plan)}
-                  disabled={loading === plan.name}
-                  className={`w-full ${
-                    plan.highlighted 
-                      ? 'bg-[#C29307] hover:bg-[#a67a05] text-white' 
-                      : plan.name === "Pay Per Use"
-                      ? 'bg-green-600 hover:bg-green-700 text-white'
-                      : 'bg-gray-900 hover:bg-gray-800 text-white'
-                  } py-3 rounded-lg font-semibold mb-6`}
+              <div className="mb-6">
+                <h3
+                  className={`text-xl font-bold mb-2 ${
+                    plan.highlight
+                      ? "text-gray-900"
+                      : "text-gray-900 dark:text-gray-50"
+                  }`}
                 >
-                  {loading === plan.name ? 'Processing...' : plan.buttonText}
-                </Button>
-
-                <div className="flex-1">
-                  <ul className="space-y-3">
-                    {plan.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <Check className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-600 text-sm leading-relaxed">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {plan.name}
+                </h3>
+                <div className="flex items-baseline gap-1">
+                  <span
+                    className={`text-3xl font-black ${
+                      plan.highlight
+                        ? "text-gray-900"
+                        : "text-gray-900 dark:text-gray-50"
+                    }`}
+                  >
+                    {plan.price}
+                  </span>
+                  <span
+                    className={`text-sm ${
+                      plan.highlight
+                        ? "text-gray-900/70"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                  >
+                    {plan.period}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                {plan.yearlyPrice && (
+                  <p
+                    className={`text-xs mt-1 ${
+                      plan.highlight
+                        ? "text-gray-900/70"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                  >
+                    {plan.yearlyPrice}
+                  </p>
+                )}
+                <p
+                  className={`text-sm mt-3 ${
+                    plan.highlight
+                      ? "text-gray-900/80"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}
+                >
+                  {plan.description}
+                </p>
+              </div>
 
-        {/* Additional info */}
-        <div className="text-center mt-12">
-          <p className="text-gray-600">
-            All paid plans include a 7-day money-back guarantee. No long-term contracts.
-          </p>
+              <ul className="space-y-3 mb-8 flex-grow">
+                {plan.features.map((feature, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <Check
+                      className={`w-4 h-4 shrink-0 mt-0.5 ${
+                        plan.highlight ? "text-gray-900" : "text-[#C29307]"
+                      }`}
+                    />
+                    <span
+                      className={
+                        plan.highlight
+                          ? "text-gray-900"
+                          : "text-gray-900 dark:text-gray-50"
+                      }
+                    >
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button2
+                variant={plan.highlight ? "heroOutline" : "default"}
+                className={`w-full ${
+                  plan.highlight
+                    ? "bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    : ""
+                }`}
+              >
+                {plan.cta}
+              </Button2>
+            </div>
+          ))}
         </div>
       </div>
     </section>

@@ -7,7 +7,6 @@ import { Button } from "@/app/components/ui/button";
 import { useRouter } from "next/navigation";
 import supabase from "@/app/supabase/supabase";
 
-
 const PasswordReset = () => {
   const [email, setEmail] = useState<string>("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -15,8 +14,9 @@ const PasswordReset = () => {
 
   const router = useRouter();
 
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (
+    event: FormEvent<HTMLFormElement>
+  ): Promise<void> => {
     event.preventDefault();
 
     const newErrors: { [key: string]: string } = {};
@@ -40,11 +40,10 @@ const PasswordReset = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${baseUrl}/auth/password-reset/update-password`, 
-        
+        redirectTo: `${baseUrl}/auth/password-reset/update-password`,
       });
 
-      console.log(error)
+      console.log(error);
 
       if (error) throw error;
 

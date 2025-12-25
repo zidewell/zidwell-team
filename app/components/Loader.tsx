@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 
 function Loader() {
   const [progress, setProgress] = useState(0);
@@ -23,15 +23,17 @@ function Loader() {
       <div className="w-64">
         {/* Ultra-thin progress bar */}
         <div className="bg-gray-300 rounded-full h-0.5 mb-2 overflow-hidden">
-          <div 
+          <div
             className="bg-[#C29307] h-full rounded-full transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}
           />
         </div>
-        
+
         {/* Centered percentage only */}
         <div className="text-center">
-          <span className="text-[#C29307] text-sm font-medium">{progress}%</span>
+          <span className="text-[#C29307] text-sm font-medium">
+            {progress}%
+          </span>
         </div>
       </div>
     </div>

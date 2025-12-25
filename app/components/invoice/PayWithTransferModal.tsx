@@ -10,7 +10,7 @@ import {
   DialogDescription,
 } from "@/app/components/ui/dialog";
 import { TransferCheckout } from "@/app/components/invoice/TransferCheckout";
-import { useToast } from "@/app/hooks/use-toast"; 
+import { useToast } from "@/app/hooks/use-toast";
 import { AlertCircle } from "lucide-react";
 
 // Types
@@ -49,10 +49,14 @@ export function PayWithTransferModal({
   initiatorBankName,
 }: PayWithTransferModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [paymentStatus, setPaymentStatus] = useState<"pending" | "verified" | "not_found">("pending");
-  const [autoCheckInterval, setAutoCheckInterval] = useState<NodeJS.Timeout | null>(null);
-  const [lastCheckResult, setLastCheckResult] = useState<PaymentCheckResponse | null>(null);
-  
+  const [paymentStatus, setPaymentStatus] = useState<
+    "pending" | "verified" | "not_found"
+  >("pending");
+  const [autoCheckInterval, setAutoCheckInterval] =
+    useState<NodeJS.Timeout | null>(null);
+  const [lastCheckResult, setLastCheckResult] =
+    useState<PaymentCheckResponse | null>(null);
+
   const autoCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
 
@@ -68,30 +72,31 @@ export function PayWithTransferModal({
     };
   }, [autoCheckInterval]);
 
-  const checkPaymentStatus = useCallback(async (): Promise<PaymentCheckResponse> => {
-    try {
-      const response = await fetch("/api/check-invoice-tranfer-payment", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          invoiceId,
-          amount,
-          payerEmail: payerInfo.email,
-        }),
-      });
+  const checkPaymentStatus =
+    useCallback(async (): Promise<PaymentCheckResponse> => {
+      try {
+        const response = await fetch("/api/check-invoice-tranfer-payment", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            invoiceId,
+            amount,
+            payerEmail: payerInfo.email,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        console.error("Error checking payment status:", error);
+        return { paymentExists: false };
       }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Error checking payment status:", error);
-      return { paymentExists: false };
-    }
-  }, [invoiceId, amount, payerInfo.email]);
+    }, [invoiceId, amount, payerInfo.email]);
 
   const handleStartAutoCheck = useCallback(() => {
     // Clear any existing interval
@@ -126,7 +131,8 @@ export function PayWithTransferModal({
     if (!initiatorAccountNumber) {
       toast({
         title: "Bank Details Required",
-        description: "Bank account details are not available. Please contact the invoice sender.",
+        description:
+          "Bank account details are not available. Please contact the invoice sender.",
         variant: "destructive",
       });
       return;
@@ -152,13 +158,13 @@ export function PayWithTransferModal({
 
       // Start automatic checking
       handleStartAutoCheck();
-      
+
       // Show success message
       toast({
         title: "Transfer Confirmation Started",
-        description: "We're now checking for your payment. This may take a few minutes.",
+        description:
+          "We're now checking for your payment. This may take a few minutes.",
       });
-
     } catch (error) {
       console.error("Transfer confirmation error:", error);
       toast({
@@ -172,18 +178,18 @@ export function PayWithTransferModal({
 
   const handleManualCheck = useCallback(async () => {
     setIsSubmitting(true);
-    
+
     try {
       const result = await checkPaymentStatus();
       setLastCheckResult(result);
-      
+
       if (result.paymentExists) {
         setPaymentStatus("verified");
         toast({
           title: "Payment Found!",
           description: "Your payment has been verified successfully.",
         });
-        
+
         // Stop auto-checking if payment is found
         if (autoCheckIntervalRef.current) {
           clearInterval(autoCheckIntervalRef.current);
@@ -192,7 +198,8 @@ export function PayWithTransferModal({
       } else {
         toast({
           title: "Payment Not Found",
-          description: "We haven't detected your payment yet. Please try again in a few minutes.",
+          description:
+            "We haven't detected your payment yet. Please try again in a few minutes.",
         });
       }
     } catch (error) {
@@ -255,8 +262,6 @@ export function PayWithTransferModal({
         </DialogHeader>
 
         <div className="py-4">
-          
-
           <TransferCheckout
             bankDetails={bankDetails}
             invoiceDetails={invoiceDetails}
@@ -274,19 +279,40 @@ export function PayWithTransferModal({
           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center mb-2">
               <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-2">
-                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-4 h-4 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
-              <h4 className="font-semibold text-green-800">🎉 Payment Verified!</h4>
+              <h4 className="font-semibold text-green-800">
+                🎉 Payment Verified!
+              </h4>
             </div>
-            
+
             <div className="space-y-2 text-sm text-green-700">
-              <p><strong>Invoice:</strong> {invoiceId}</p>
-              <p><strong>Amount:</strong> ₦{amount.toLocaleString()}</p>
-              <p><strong>Status:</strong> Verified</p>
+              <p>
+                <strong>Invoice:</strong> {invoiceId}
+              </p>
+              <p>
+                <strong>Amount:</strong> ₦{amount.toLocaleString()}
+              </p>
+              <p>
+                <strong>Status:</strong> Verified
+              </p>
               {lastCheckResult?.paymentId && (
-                <p><strong>Payment Reference:</strong> {lastCheckResult.paymentId}</p>
+                <p>
+                  <strong>Payment Reference:</strong>{" "}
+                  {lastCheckResult.paymentId}
+                </p>
               )}
             </div>
           </div>
@@ -307,7 +333,7 @@ export function PayWithTransferModal({
                   Live
                 </span>
               </div>
-              
+
               <div className="text-sm text-blue-700 space-y-2">
                 <p>• We're checking for your payment every 30 seconds</p>
                 <p>• This can take 5-30 minutes depending on your bank</p>
@@ -330,14 +356,14 @@ export function PayWithTransferModal({
         )}
 
         <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleClose}
             className="border-gray-300"
           >
             {paymentStatus === "verified" ? "Close" : "Cancel"}
           </Button>
-          
+
           {paymentStatus !== "verified" && (
             <Button
               onClick={handleManualCheck}

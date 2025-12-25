@@ -368,7 +368,7 @@ const InvoiceItemForm = ({
                 step="1"
                 required
                 className={errors.quantity ? "border-red-500" : ""}
-            />
+              />
               {errors.quantity && (
                 <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>
               )}
@@ -434,7 +434,10 @@ const InvoiceItemRow = ({
     <div className="grid grid-cols-12 gap-2 md:gap-3 items-center mb-3 p-3 border rounded-md hover:bg-accent/5 transition-colors">
       {/* Description - Responsive */}
       <div className="col-span-7 md:col-span-5">
-        <div className="font-medium truncate text-sm md:text-base" title={item.description}>
+        <div
+          className="font-medium truncate text-sm md:text-base"
+          title={item.description}
+        >
           {item.description || "No description"}
         </div>
       </div>
@@ -730,7 +733,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     // Always generate a new ID for both new items AND edited items
     const itemWithId = {
       ...item,
-      id: generateItemId() // Always generate new ID
+      id: generateItemId(), // Always generate new ID
     };
 
     if (editingItem) {
@@ -757,13 +760,13 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
     const updatedItems = form.invoice_items.filter((item) => {
       return item.id !== id;
     });
-    
+
     // Update the form state with the new array
     setForm((prev) => ({
       ...prev,
       invoice_items: updatedItems,
     }));
-    
+
     showCustomNotification({
       type: "success",
       title: "Item Removed!",
@@ -2283,12 +2286,12 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
                         <div className="md:col-span-2 text-right">TOTAL</div>
                         <div className="md:col-span-2 text-right">ACTIONS</div>
                       </div>
-                      
+
                       {/* Mobile header hint */}
                       <div className="md:hidden text-xs text-muted-foreground mb-2">
                         Tap items to see details
                       </div>
-                      
+
                       <div className="space-y-2">
                         {form.invoice_items.map((item) => (
                           <InvoiceItemRow

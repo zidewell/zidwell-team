@@ -16,25 +16,39 @@ import { useEffect, useState } from "react";
 
 // Markdown parser for notification messages
 const parseMarkdown = (text: string) => {
-  if (!text) return '';
-  
-  return text
-    // Headers
-    .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-2 mb-1">$1</h1>')
-    .replace(/^## (.*$)/gim, '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>')
-    .replace(/^### (.*$)/gim, '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>')
-    // Bold
-    .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
-    // Italic
-    .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
-    // Strikethrough
-    .replace(/~~(.*?)~~/gim, '<s class="line-through">$1</s>')
-    // Links
-    .replace(/\[([^\[]+)\]\(([^\)]+)\)/gim, '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>')
-    // Line breaks
-    .replace(/\n/gim, '<br />')
-    // Image placeholder
-    .replace(/\[Image: (.*?)\]/gim, '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>');
+  if (!text) return "";
+
+  return (
+    text
+      // Headers
+      .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-2 mb-1">$1</h1>')
+      .replace(
+        /^## (.*$)/gim,
+        '<h2 class="text-base font-bold mt-1 mb-1">$1</h2>'
+      )
+      .replace(
+        /^### (.*$)/gim,
+        '<h3 class="text-sm font-bold mt-1 mb-0.5">$1</h3>'
+      )
+      // Bold
+      .replace(/\*\*(.*?)\*\*/gim, '<strong class="font-bold">$1</strong>')
+      // Italic
+      .replace(/\*(.*?)\*/gim, '<em class="italic">$1</em>')
+      // Strikethrough
+      .replace(/~~(.*?)~~/gim, '<s class="line-through">$1</s>')
+      // Links
+      .replace(
+        /\[([^\[]+)\]\(([^\)]+)\)/gim,
+        '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>'
+      )
+      // Line breaks
+      .replace(/\n/gim, "<br />")
+      // Image placeholder
+      .replace(
+        /\[Image: (.*?)\]/gim,
+        '<div class="bg-gray-100 border rounded p-1 my-1 text-xs text-gray-600">🖼️ Image: $1</div>'
+      )
+  );
 };
 
 export default function NotificationBell() {
@@ -52,7 +66,7 @@ export default function NotificationBell() {
 
   const handleNotificationClick = async (notificationId: string) => {
     if (!notificationId) {
-      console.error('Notification ID is required');
+      console.error("Notification ID is required");
       return;
     }
 
@@ -61,7 +75,7 @@ export default function NotificationBell() {
       // Refresh unread count after marking as read
       await fetchUnreadCount();
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      console.error("Failed to mark notification as read:", error);
     }
   };
 
@@ -69,8 +83,8 @@ export default function NotificationBell() {
     setIsOpen(open);
     if (open && userData?.id) {
       // Refresh notifications when dropdown opens
-      fetchNotifications('all', 10).catch(error => {
-        console.error('Failed to fetch notifications:', error);
+      fetchNotifications("all", 10).catch((error) => {
+        console.error("Failed to fetch notifications:", error);
       });
     }
   };
@@ -80,8 +94,8 @@ export default function NotificationBell() {
     if (!isOpen || !userData?.id) return;
 
     const interval = setInterval(() => {
-      fetchNotifications('all', 10).catch(error => {
-        console.error('Failed to refresh notifications:', error);
+      fetchNotifications("all", 10).catch((error) => {
+        console.error("Failed to refresh notifications:", error);
       });
     }, 30000); // Refresh every 30 seconds when open
 
@@ -92,15 +106,24 @@ export default function NotificationBell() {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'contract': return '📝';
-      case 'wallet': return '💰';
-      case 'transaction': return '💸';
-      case 'security': return '🔒';
-      case 'info': return 'ℹ️';
-      case 'success': return '✅';
-      case 'warning': return '⚠️';
-      case 'error': return '❌';
-      default: return '🔔';
+      case "contract":
+        return "📝";
+      case "wallet":
+        return "💰";
+      case "transaction":
+        return "💸";
+      case "security":
+        return "🔒";
+      case "info":
+        return "ℹ️";
+      case "success":
+        return "✅";
+      case "warning":
+        return "⚠️";
+      case "error":
+        return "❌";
+      default:
+        return "🔔";
     }
   };
 
@@ -108,7 +131,7 @@ export default function NotificationBell() {
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
+
     if (diffInHours < 1) {
       return `${Math.floor(diffInHours * 60)}m ago`;
     } else if (diffInHours < 24) {
@@ -121,24 +144,29 @@ export default function NotificationBell() {
   return (
     <DropdownMenu onOpenChange={handleDropdownOpen}>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="ghost" 
+        <Button
+          variant="ghost"
           className="relative p-2"
-          aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ''}`}
+          aria-label={`Notifications ${
+            unreadCount > 0 ? `(${unreadCount} unread)` : ""
+          }`}
         >
           <div className="text-xl">🔔</div>
           {unreadCount > 0 && (
-            <Badge 
+            <Badge
               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-red-500 text-white"
               aria-live="polite"
             >
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {unreadCount > 9 ? "9+" : unreadCount}
             </Badge>
           )}
         </Button>
       </DropdownMenuTrigger>
-      
-      <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+
+      <DropdownMenuContent
+        align="end"
+        className="w-80 max-h-96 overflow-y-auto"
+      >
         <div className="flex items-center justify-between p-3 border-b">
           <span className="font-semibold text-base">Notifications</span>
           {unreadCount > 0 && (
@@ -158,14 +186,18 @@ export default function NotificationBell() {
             <div className="p-6 text-center text-gray-500">
               <div className="text-3xl mb-2">🔔</div>
               <p className="text-sm">No notifications yet</p>
-              <p className="text-xs mt-1">We'll notify you when something arrives</p>
+              <p className="text-xs mt-1">
+                We'll notify you when something arrives
+              </p>
             </div>
           ) : (
             notifications.slice(0, 10).map((notification) => (
-              <DropdownMenuItem 
-                key={notification.id} 
+              <DropdownMenuItem
+                key={notification.id}
                 className={`p-3 cursor-pointer border-b last:border-b-0 ${
-                  !notification.read_at ? 'bg-blue-50 border-l-2 border-l-[#C29307]' : ''
+                  !notification.read_at
+                    ? "bg-blue-50 border-l-2 border-l-[#C29307]"
+                    : ""
                 } hover:bg-gray-50 transition-colors`}
                 onClick={() => handleNotificationClick(notification.id)}
               >
@@ -182,16 +214,16 @@ export default function NotificationBell() {
                       </div>
                     </div>
                     {!notification.read_at && (
-                      <div 
+                      <div
                         className="w-2 h-2 bg-[#C29307] rounded-full flex-shrink-0 mt-1.5"
                         aria-label="Unread notification"
                       />
                     )}
                   </div>
-                  <div 
+                  <div
                     className="text-xs text-gray-600 line-clamp-2 break-words ml-5 prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ 
-                      __html: parseMarkdown(notification.message) 
+                    dangerouslySetInnerHTML={{
+                      __html: parseMarkdown(notification.message),
                     }}
                   />
                   <div className="flex justify-between items-center text-xs text-gray-500 ml-5">
@@ -208,8 +240,8 @@ export default function NotificationBell() {
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild className="p-0">
-              <Link 
-                href="/dashboard/notifications" 
+              <Link
+                href="/dashboard/notifications"
                 className="cursor-pointer text-center justify-center py-2 text-[#C29307] hover:text-[#C29307] text-sm font-medium"
               >
                 View All Notifications

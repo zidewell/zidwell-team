@@ -1,100 +1,107 @@
 import {
-  Shield,
-  Zap,
-  Clock,
-  Smartphone,
   CreditCard,
+  Receipt,
+  FileText,
+  Upload,
+  Wallet,
   Users,
-  CheckCircle,
-  HeadphonesIcon,
-  Bell,
-  HelpCircle,
-  File,
+  Gift,
+  Shield,
 } from "lucide-react";
-import { Card, CardContent } from "./ui/card";
+
+const features = [
+  {
+    icon: CreditCard,
+    title: "Pay Bills with Ease",
+    description: "Handle bills for you and your staff seamlessly in one place.",
+  },
+  {
+    icon: Gift,
+    title: "Earn Cashback & Rewards",
+    description:
+      "Get rewarded for every transaction with ZidCoins and referral bonuses.",
+  },
+  {
+    icon: Receipt,
+    title: "Professional Receipts & Invoices",
+    description:
+      "Create professional documentation for every transaction automatically.",
+  },
+  {
+    icon: FileText,
+    title: "Simple Agreements",
+    description:
+      "Generate contracts and agreements to protect your business deals.",
+  },
+  {
+    icon: Upload,
+    title: "Tax Support",
+    description: "Upload bank statements and get your taxes handled with ease.",
+  },
+  {
+    icon: Wallet,
+    title: "Prepaid Debit Cards",
+    description:
+      "Access prepaid cards for everyday business and personal spending.",
+  },
+  {
+    icon: Users,
+    title: "Growth Community",
+    description:
+      "Join a community focused on growth, structure, and smarter money habits.",
+  },
+  {
+    icon: Shield,
+    title: "Secure & Protected",
+    description:
+      "Your money is safe with regulated partners and standard security practices.",
+  },
+];
 
 const Features = () => {
-  const features = [
-    {
-      icon: <Zap className="h-8 w-8" />,
-      title: "Smooth, Instant Payments",
-      description:
-        "Pay bills and handle transactions in seconds, without the usual stress or delay.",
-    },
-    {
-      icon: <Shield className="h-8 w-8" />,
-      title: "Bank-Level Security",
-      description:
-        "Your money and data are protected with the same encryption trusted by top financial institutions.",
-    },
-    {
-      icon: <Clock className="h-8 w-8" />,
-      title: "Always On, Always Reliable",
-      description:
-        "Day or night, Zidwell is here — ready whenever your business needs to move.",
-    },
-
-    {
-      icon: <CreditCard className="h-8 w-8" />,
-      title: "Multiple Payment Options",
-      description:
-        "Use cards, bank transfers, or mobile money. We support all major payment methods.",
-    },
-
-    {
-      icon: <CheckCircle className="h-8 w-8" />,
-      title: "All-in-One Simplicity",
-      description:
-        "From bank transfers to mobile payments, every method works seamlessly inside Zidwell.",
-    },
-
-    {
-      icon: <File className="h-8 w-8" />,
-      title: "Stay Organized Effortlessly",
-      description:
-        "See your entire financial history, download receipts, and stay on top of your business in one view.",
-    },
-    {
-      icon: <HelpCircle className="h-8 w-8" />,
-      title: "Real Support, Real People",
-      description:
-        "Whenever you need help, our support team is just a message away — fast, friendly, and ready to help you win.",
-    },
-  ];
-
   return (
-    <section data-aos="fade-down" id="features" className="py-20 bg-white">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Why Choose <span className="text-[#C29307]">Zidwell?</span>
+    <section
+      id="features"
+      className="py-20 md:py-32 bg-gray-100/30 dark:bg-gray-900/30"
+    >
+      <div className="container mx-auto px-4">
+        {/* Section Header */}
+        <div className="max-w-3xl mx-auto text-center mb-16">
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 text-gray-900 dark:text-gray-50">
+            What <span className="text-[#C29307]">Zidwell</span> Does
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Because managing your business should feel effortless. Zidwell
-            brings everything — bills, invoices, contracts, and taxes — into one
-            simple, secure space designed for peace of mind.
+          <p className="text-lg text-gray-500 dark:text-gray-400">
+            Zidwell is more than a payment app. It's a financial wellness
+            platform designed for real life and real businesses.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Features Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((feature, index) => (
-            <Card
+            <div
               key={index}
-              className="group hover:shadow-lg transition-all duration-300 border-0 bg-gray-50 hover:bg-white hover:scale-105"
+              className="group bg-white dark:bg-gray-900 border-2 border-gray-900 dark:border-gray-50 p-6 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] hover:shadow-[6px_6px_0px_#111827] dark:hover:shadow-[6px_6px_0px_#fbbf24] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all duration-150"
             >
-              <CardContent className="p-8">
-                <div className="mb-4 text-[#C29307] transition-colors duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {feature.description}
-                </p>
-              </CardContent>
-            </Card>
+              <div className="w-12 h-12 bg-[#C29307] border-2 border-gray-900 dark:border-gray-50 shadow-[4px_4px_0px_#111827] dark:shadow-[4px_4px_0px_#fbbf24] flex items-center justify-center mb-4 group-hover:bg-amber-400 transition-colors">
+                <feature.icon className="w-6 h-6 text-gray-900" />
+              </div>
+              <h3 className="text-lg font-bold mb-2 text-gray-900 dark:text-gray-50">
+                {feature.title}
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                {feature.description}
+              </p>
+            </div>
           ))}
+        </div>
+
+        {/* Bottom Text */}
+        <div className="max-w-2xl mx-auto text-center mt-16">
+          <p className="text-xl font-semibold text-gray-900 dark:text-gray-50">
+            Everything you need to manage your business finances —{" "}
+            <span className="text-[#C29307]">without the stress.</span>
+          </p>
         </div>
       </div>
     </section>

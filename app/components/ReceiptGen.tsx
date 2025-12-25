@@ -106,7 +106,7 @@ export default function ReceiptManager() {
     (rcp) => rcp.status === "pending"
   ).length;
 
-   const filteredReceipts = receipts?.filter((receipt) => {
+  const filteredReceipts = receipts?.filter((receipt) => {
     const title = receipt.bill_to || "";
     const status = receipt.status || "";
     const matchesSearch = title
@@ -120,40 +120,39 @@ export default function ReceiptManager() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-       {activeTab === "Receipts" && (
-        
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Total Receipt</p>
-              <p className="text-2xl font-bold text-gray-900">
-                ₦{totalAmount.toLocaleString()}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Signed Receipt</p>
-              <p className="text-2xl font-bold text-green-600">
-                {signedReceipt}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-sm text-gray-600 mb-1">Pending Receipt</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {pendingReceipt}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {activeTab === "Receipts" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Total Receipt</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  ₦{totalAmount.toLocaleString()}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Signed Receipt</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {signedReceipt}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-600 mb-1">Pending Receipt</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  {pendingReceipt}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -180,21 +179,19 @@ export default function ReceiptManager() {
 
                 {/* Status Filter Buttons */}
                 <div className="flex flex-wrap gap-2">
-                   {["All", "Signed", "Pending", "Draft"].map(
-                    (status) => (
-                      <Button
-                        key={status}
-                        variant={
-                          selectedStatus === status ? "default" : "outline"
-                        }
-                        size="sm"
-                        className="hover:bg-[#C29307] hover:text-white border hover:shadow-xl transition-all duration-300"
-                        onClick={() => setSelectedStatus(status)}
-                      >
-                        {status}
-                      </Button>
-                    )
-                  )}
+                  {["All", "Signed", "Pending", "Draft"].map((status) => (
+                    <Button
+                      key={status}
+                      variant={
+                        selectedStatus === status ? "default" : "outline"
+                      }
+                      size="sm"
+                      className="hover:bg-[#C29307] hover:text-white border hover:shadow-xl transition-all duration-300"
+                      onClick={() => setSelectedStatus(status)}
+                    >
+                      {status}
+                    </Button>
+                  ))}
                 </div>
 
                 {/* New Reciept Button */}
@@ -212,10 +209,7 @@ export default function ReceiptManager() {
           </Card>
 
           {/* Reciepts List */}
-          <RecieptList
-            receipts={filteredReceipts}
-            loading={loading}
-          />
+          <RecieptList receipts={filteredReceipts} loading={loading} />
         </TabsContent>
 
         <CreateReceipt />

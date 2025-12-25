@@ -171,7 +171,9 @@ export default function DashboardSidebar() {
                         <button
                           onClick={() => setShowBalance(!showBalance)}
                           className="p-1 hover:bg-gray-800 rounded-md transition-colors duration-200"
-                          aria-label={showBalance ? "Hide balance" : "Show balance"}
+                          aria-label={
+                            showBalance ? "Hide balance" : "Show balance"
+                          }
                         >
                           {showBalance ? (
                             <Eye className="w-4 h-4 text-gray-400 hover:text-gray-300" />
@@ -206,7 +208,7 @@ export default function DashboardSidebar() {
               }}
               isActive={pathname === "/dashboard/fund-account"}
             />
-             <NavItem
+            <NavItem
               item={{
                 name: "Create Invoice",
                 href: "/dashboard/services/create-invoice",
@@ -300,8 +302,6 @@ export default function DashboardSidebar() {
                 isActive={pathname === "/dashboard/services/buy-cable-tv"}
               />
             </Dropdown>
-
-           
           </div>
 
           {/* Preferences */}

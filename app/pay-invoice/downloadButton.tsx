@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { Download } from "lucide-react";
-import { useToast } from "../hooks/use-toast"; 
+import { useToast } from "../hooks/use-toast";
 
 // Types - Make sure these match your other components
 interface InvoiceItem {
@@ -62,10 +62,14 @@ const getPaymentProgress = (invoice: InvoiceData): number => {
 
 const getPaymentCountText = (invoice: any): string => {
   if (!invoice.payment_count) return "";
-  return invoice.payment_count === 1 ? "1 payment" : `${invoice.payment_count} payments`;
+  return invoice.payment_count === 1
+    ? "1 payment"
+    : `${invoice.payment_count} payments`;
 };
 
-export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceButtonProps) {
+export default function DownloadInvoiceButton({
+  invoiceData,
+}: DownloadInvoiceButtonProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -78,14 +82,13 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
         ? invoiceData.invoice_items
         : [];
 
-      const subtotal = invoiceData.subtotal || invoiceItems.reduce(
-        (sum: number, item: InvoiceItem) => {
+      const subtotal =
+        invoiceData.subtotal ||
+        invoiceItems.reduce((sum: number, item: InvoiceItem) => {
           const unitPrice = item.unitPrice || item.unit_price || 0;
           const quantity = item.quantity || 0;
-          return sum + (quantity * unitPrice);
-        },
-        0
-      );
+          return sum + quantity * unitPrice;
+        }, 0);
 
       const feeAmount = invoiceData.fee_amount || 0;
       const totalAmount = invoiceData.total_amount || subtotal + feeAmount;
@@ -285,7 +288,8 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
                 ${invoiceData.bill_to ? `<p>${invoiceData.bill_to}</p>` : ""}
 
                 ${
-                  invoiceData.initiator_account_name && invoiceData.initiator_account_number
+                  invoiceData.initiator_account_name &&
+                  invoiceData.initiator_account_number
                     ? `
                     <div class="account-details">
                       <h2>Account Details</h2>
@@ -300,13 +304,17 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
               <div class="invoice-info">
                 <h1>INVOICE</h1>
                 <p><strong>Invoice #:</strong> ${invoiceData.invoice_id}</p>
-                <p><strong>Issue Date:</strong> ${formatDate(invoiceData.issue_date)}</p>
+                <p><strong>Issue Date:</strong> ${formatDate(
+                  invoiceData.issue_date
+                )}</p>
                 <p><strong>Status:</strong> ${
                   invoiceData.status
                 } <span class="status-badge">${invoiceData.status.toUpperCase()}</span></p>
 
                 <small class="invoice-narration">
-                  Ensure this invoice number <strong>${invoiceData.invoice_id}</strong> is used as the narration when you transfer to make payment valid.
+                  Ensure this invoice number <strong>${
+                    invoiceData.invoice_id
+                  }</strong> is used as the narration when you transfer to make payment valid.
                 </small>
               </div>
             </div>
@@ -356,9 +364,17 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
             <div class="section">
               <div class="payment-info">
                 <h3>Payment Information</h3>
-                <p><strong>Amount Paid:</strong> ₦${Number(paidAmount).toLocaleString()}</p>
-                <p><strong>Balance Due:</strong> ₦${Number(totalAmount - paidAmount).toLocaleString()}</p>
-                ${paymentCountText ? `<p><strong>Payments:</strong> ${paymentCountText}</p>` : ''}
+                <p><strong>Amount Paid:</strong> ₦${Number(
+                  paidAmount
+                ).toLocaleString()}</p>
+                <p><strong>Balance Due:</strong> ₦${Number(
+                  totalAmount - paidAmount
+                ).toLocaleString()}</p>
+                ${
+                  paymentCountText
+                    ? `<p><strong>Payments:</strong> ${paymentCountText}</p>`
+                    : ""
+                }
                 <div class="progress-bar">
                   <div class="progress-fill" style="width: ${paymentProgress}%"></div>
                 </div>
@@ -385,7 +401,9 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
                     ?.map(
                       (item) => `
                     <tr>
-                      <td>${item.item_description || item.description || ""}</td>
+                      <td>${
+                        item.item_description || item.description || ""
+                      }</td>
                       <td>${item.quantity || 0}</td>
                       <td>₦${Number(
                         item.unit_price || item.unitPrice || 0
@@ -480,10 +498,10 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
       `;
 
       // Call the PDF generation API
-      const response = await fetch('/api/generate-pdf', {
-        method: 'POST',
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           html: htmlContent,
@@ -493,20 +511,22 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to generate PDF: ${response.status} - ${errorText}`);
+        throw new Error(
+          `Failed to generate PDF: ${response.status} - ${errorText}`
+        );
       }
 
       // Create blob and download
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
+      const a = document.createElement("a");
+      a.style.display = "none";
       a.href = url;
       a.download = `invoice-${invoiceData.invoice_id}-${Date.now()}.pdf`;
-      
+
       document.body.appendChild(a);
       a.click();
-      
+
       // Clean up
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
@@ -515,12 +535,14 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
         title: "PDF Downloaded Successfully",
         description: `Invoice ${invoiceData.invoice_id} has been downloaded.`,
       });
-
     } catch (error) {
-      console.error('PDF download error:', error);
+      console.error("PDF download error:", error);
       toast({
         title: "Download Failed",
-        description: error instanceof Error ? error.message : "Failed to download PDF. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to download PDF. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -529,9 +551,9 @@ export default function DownloadInvoiceButton({ invoiceData }: DownloadInvoiceBu
   };
 
   return (
-    <Button 
-      variant="outline" 
-      size="lg" 
+    <Button
+      variant="outline"
+      size="lg"
       className="w-full border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
       onClick={handleDownloadPDF}
       disabled={loading}

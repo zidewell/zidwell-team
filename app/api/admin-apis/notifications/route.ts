@@ -61,25 +61,25 @@ function getSenderDisplayName(adminUser: any) {
 }
 
 // Enhanced markdown parser function for email and in-app notifications with image support
-const parseMarkdown = (text: string, context: 'email' | 'app' = 'app') => {
+const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
   if (!text) return "";
 
   // First, handle images differently for email vs app
   let processed = text;
-  
-  if (context === 'email') {
+
+  if (context === "email") {
     // For email: Create table-based image layout for better compatibility
     processed = processed.replace(
       /<img[^>]*src=["']([^"']+)["'][^>]*>/gim,
       (match, imageUrl) => {
         // Check if it's a base64 image (shouldn't be in final email)
-        if (imageUrl.startsWith('data:image')) {
+        if (imageUrl.startsWith("data:image")) {
           return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
                     🖼️ <strong>Image included in notification</strong><br>
                     <small>(View in the app to see the image)</small>
                   </div>`;
         }
-        
+
         // For external URLs, create email-friendly image tag with table layout
         return `
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0; max-width: 100%; width: 100%;">
@@ -110,13 +110,15 @@ const parseMarkdown = (text: string, context: 'email' | 'app' = 'app') => {
       /!\[([^\]]*)\]\(([^)]+)\)/gim,
       (match, altText, imageUrl) => {
         // Check if it's a base64 image
-        if (imageUrl.startsWith('data:image')) {
+        if (imageUrl.startsWith("data:image")) {
           return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
-                    🖼️ <strong>${altText || 'Image included in notification'}</strong><br>
+                    🖼️ <strong>${
+                      altText || "Image included in notification"
+                    }</strong><br>
                     <small>(View in the app to see the image)</small>
                   </div>`;
         }
-        
+
         return `
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 20px 0; max-width: 100%; width: 100%;">
             <tr>
@@ -126,12 +128,16 @@ const parseMarkdown = (text: string, context: 'email' | 'app' = 'app') => {
                     <td align="center" style="padding: 15px;">
                       <img 
                         src="${imageUrl}" 
-                        alt="${altText || 'Notification Image'}" 
+                        alt="${altText || "Notification Image"}" 
                         style="display: block; max-width: 100%; height: auto; border-radius: 6px; margin: 0 auto; border: 0; outline: none; text-decoration: none;"
                         width="100%"
                         border="0"
                       />
-                      ${altText ? `<div style="font-size: 12px; color: #6b7280; margin-top: 10px; font-style: italic; padding: 0 10px;">${altText}</div>` : ''}
+                      ${
+                        altText
+                          ? `<div style="font-size: 12px; color: #6b7280; margin-top: 10px; font-style: italic; padding: 0 10px;">${altText}</div>`
+                          : ""
+                      }
                     </td>
                   </tr>
                 </table>
@@ -147,13 +153,15 @@ const parseMarkdown = (text: string, context: 'email' | 'app' = 'app') => {
       /<img[^>]*src=["']([^"']+)["'][^>]*>/gim,
       (match, imageUrl) => {
         // Remove any existing inline styles and add our own
-        return match.replace(
-          /style=["'][^"']*["']/i,
-          'style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;"'
-        ).replace(
-          /<img/i,
-          '<img style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;"'
-        );
+        return match
+          .replace(
+            /style=["'][^"']*["']/i,
+            'style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;"'
+          )
+          .replace(
+            /<img/i,
+            '<img style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;"'
+          );
       }
     );
 
@@ -161,7 +169,9 @@ const parseMarkdown = (text: string, context: 'email' | 'app' = 'app') => {
     processed = processed.replace(
       /!\[([^\]]*)\]\(([^)]+)\)/gim,
       (match, altText, imageUrl) => {
-        return `<img src="${imageUrl}" alt="${altText || 'Notification Image'}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;" />`;
+        return `<img src="${imageUrl}" alt="${
+          altText || "Notification Image"
+        }" style="max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; border: 1px solid #e5e7eb;" />`;
       }
     );
   }
@@ -172,47 +182,47 @@ const parseMarkdown = (text: string, context: 'email' | 'app' = 'app') => {
       // Headers
       .replace(
         /^# (.*$)/gim,
-        context === 'email' 
+        context === "email"
           ? '<h1 style="font-size: 24px; font-weight: bold; margin: 25px 0 15px 0; color: #333333; line-height: 1.3;">$1</h1>'
           : '<h1 class="text-2xl font-bold mt-4 mb-2">$1</h1>'
       )
       .replace(
         /^## (.*$)/gim,
-        context === 'email'
+        context === "email"
           ? '<h2 style="font-size: 20px; font-weight: bold; margin: 20px 0 12px 0; color: #333333; line-height: 1.3;">$1</h2>'
           : '<h2 class="text-xl font-bold mt-3 mb-2">$1</h2>'
       )
       .replace(
         /^### (.*$)/gim,
-        context === 'email'
+        context === "email"
           ? '<h3 style="font-size: 18px; font-weight: bold; margin: 18px 0 10px 0; color: #333333; line-height: 1.3;">$1</h3>'
           : '<h3 class="text-lg font-bold mt-3 mb-1">$1</h3>'
       )
       // Bold
       .replace(
         /\*\*(.*?)\*\*/gim,
-        context === 'email'
+        context === "email"
           ? '<strong style="font-weight: bold;">$1</strong>'
           : '<strong class="font-bold">$1</strong>'
       )
       // Italic
       .replace(
         /\*(.*?)\*/gim,
-        context === 'email'
+        context === "email"
           ? '<em style="font-style: italic;">$1</em>'
           : '<em class="italic">$1</em>'
       )
       // Strikethrough
       .replace(
         /~~(.*?)~~/gim,
-        context === 'email'
+        context === "email"
           ? '<s style="text-decoration: line-through;">$1</s>'
           : '<s class="line-through">$1</s>'
       )
       // Links
       .replace(
         /\[([^\[]+)\]\(([^\)]+)\)/gim,
-        context === 'email'
+        context === "email"
           ? '<a href="$2" style="color: #C29307; text-decoration: none; font-weight: 500;" target="_blank">$1</a>'
           : '<a href="$2" class="text-blue-500 underline hover:text-blue-700" target="_blank">$1</a>'
       )
@@ -221,39 +231,39 @@ const parseMarkdown = (text: string, context: 'email' | 'app' = 'app') => {
       // Legacy image placeholder support
       .replace(
         /\[Image: (.*?)\]/gim,
-        context === 'email'
+        context === "email"
           ? '<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666;">🖼️ Image: $1</div>'
           : '<div class="bg-gray-50 p-4 rounded-lg border-l-4 border-[#C29307] my-4 text-sm text-gray-600">🖼️ Image: $1</div>'
       )
       // Handle HTML line breaks
-      .replace(/<br\s*\/?>/gim, '<br>')
+      .replace(/<br\s*\/?>/gim, "<br>")
   );
 };
 
 // Function to extract image URLs from markdown
 function extractImageUrlsFromMarkdown(markdown: string): string[] {
   const imageUrls: string[] = [];
-  
+
   // Match HTML img tags
   const htmlImgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/g;
   let match;
-  
+
   while ((match = htmlImgRegex.exec(markdown)) !== null) {
     const url = match[1];
-    if (url && !url.startsWith('#') && !url.startsWith('data:image')) {
+    if (url && !url.startsWith("#") && !url.startsWith("data:image")) {
       imageUrls.push(url);
     }
   }
-  
+
   // Match markdown image syntax
   const mdImgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
   while ((match = mdImgRegex.exec(markdown)) !== null) {
     const url = match[2];
-    if (url && !url.startsWith('#') && !url.startsWith('data:image')) {
+    if (url && !url.startsWith("#") && !url.startsWith("data:image")) {
       imageUrls.push(url);
     }
   }
-  
+
   return imageUrls;
 }
 
@@ -261,40 +271,42 @@ function extractImageUrlsFromMarkdown(markdown: string): string[] {
 async function deleteImagesFromStorage(imageUrls: string[]) {
   try {
     const imagesToDelete: string[] = [];
-    
+
     // Extract file paths from URLs
     for (const url of imageUrls) {
       try {
         const urlObj = new URL(url);
-        const pathParts = urlObj.pathname.split('/');
-        const bucketIndex = pathParts.indexOf('notification-images');
-        
+        const pathParts = urlObj.pathname.split("/");
+        const bucketIndex = pathParts.indexOf("notification-images");
+
         if (bucketIndex !== -1 && bucketIndex + 1 < pathParts.length) {
-          const filePath = pathParts.slice(bucketIndex + 1).join('/');
+          const filePath = pathParts.slice(bucketIndex + 1).join("/");
           imagesToDelete.push(filePath);
           console.log("Image to delete:", filePath);
         }
       } catch (error) {
-        console.error('Error parsing URL:', url, error);
+        console.error("Error parsing URL:", url, error);
       }
     }
-    
+
     if (imagesToDelete.length > 0) {
       console.log(`Deleting ${imagesToDelete.length} images from storage...`);
       const { error } = await supabase.storage
-        .from('notification-images')
+        .from("notification-images")
         .remove(imagesToDelete);
-        
+
       if (error) {
-        console.error('Error deleting images:', error);
+        console.error("Error deleting images:", error);
       } else {
-        console.log(`Successfully deleted ${imagesToDelete.length} images from storage`);
+        console.log(
+          `Successfully deleted ${imagesToDelete.length} images from storage`
+        );
       }
     } else {
       console.log("No images to delete from storage");
     }
   } catch (error) {
-    console.error('Error in deleteImagesFromStorage:', error);
+    console.error("Error in deleteImagesFromStorage:", error);
   }
 }
 
@@ -315,33 +327,35 @@ async function sendEmailNotification({
   try {
     console.log(`📧 Attempting to send email to: ${to}`);
     console.log("Original message length:", message.length);
-    
+
     // Debug: Check for images in the message
     const imageUrls = extractImageUrlsFromMarkdown(message);
     console.log(`Found ${imageUrls.length} image URLs in message:`, imageUrls);
-    
+
     // Check for base64 images (should not be in final email)
     const base64Images = message.match(/data:image\/[^;]+;base64,[^"'\s]+/g);
     if (base64Images && base64Images.length > 0) {
-      console.warn(`⚠️ Warning: Found ${base64Images.length} base64 images in email message!`);
+      console.warn(
+        `⚠️ Warning: Found ${base64Images.length} base64 images in email message!`
+      );
       console.warn("Base64 images may not display properly in email clients.");
     }
-    
+
     const senderName = getSenderDisplayName(adminUser);
     const signatureName =
       senderName !== "Zidwell Team" ? senderName : "Zidwell Team";
 
     // Parse the message for email with enhanced image handling
-    const emailHtml = parseMarkdown(message, 'email');
-    
+    const emailHtml = parseMarkdown(message, "email");
+
     // Create plain text version
     const plainText = message
-      .replace(/<[^>]*>/g, '')
-      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, 'Image: $1')
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/~~(.*?)~~/g, '$1')
-      .replace(/\n{3,}/g, '\n\n');
+      .replace(/<[^>]*>/g, "")
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "Image: $1")
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/~~(.*?)~~/g, "$1")
+      .replace(/\n{3,}/g, "\n\n");
 
     const mailOptions = {
       from: `Zidwell <${process.env.EMAIL_USER}>`,
@@ -610,7 +624,7 @@ async function sendNotificationToUsers({
     console.log("Channels:", channels);
     console.log("Specific users:", specific_users.length);
     console.log("Sender:", getSenderDisplayName(adminUser));
-    
+
     // Debug: Check message for images
     console.log("Message length:", message.length);
     const imageUrls = extractImageUrlsFromMarkdown(message);
@@ -671,8 +685,8 @@ async function sendNotificationToUsers({
     if (channels.includes("in_app")) {
       try {
         // Parse message for in-app display
-        const inAppMessage = parseMarkdown(message, 'app');
-        
+        const inAppMessage = parseMarkdown(message, "app");
+
         const notifications = users.map((user) => ({
           user_id: user.id,
           title,
@@ -811,11 +825,11 @@ export async function POST(req: NextRequest) {
     console.log("=== START: Notification Creation ===");
     console.log("Request URL:", req.url);
     console.log("Request method:", req.method);
-    
+
     // Check admin authentication
     console.log("Calling requireAdmin...");
     const adminUser = await requireAdmin(req);
-    
+
     if (adminUser instanceof NextResponse) {
       console.log("❌ requireAdmin returned NextResponse (failed)");
       console.log("Response status:", adminUser.status);
@@ -823,44 +837,47 @@ export async function POST(req: NextRequest) {
       console.log("Error response body:", JSON.stringify(errorBody, null, 2));
       return adminUser;
     }
-    
+
     console.log("✅ Admin authenticated successfully");
     console.log("Admin user object:", {
       id: adminUser?.id,
       email: adminUser?.email,
       admin_role: adminUser?.admin_role,
-      hasAdminRole: !!adminUser?.admin_role
+      hasAdminRole: !!adminUser?.admin_role,
     });
-    
+
     const allowedRoles = ["super_admin", "operations_admin"];
     console.log("Checking permissions...");
     console.log("User role:", adminUser?.admin_role);
     console.log("Allowed roles:", allowedRoles);
-    console.log("Is role allowed?", allowedRoles.includes(adminUser?.admin_role));
-    
+    console.log(
+      "Is role allowed?",
+      allowedRoles.includes(adminUser?.admin_role)
+    );
+
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       console.log("❌ Permission denied!");
       console.log("User role", adminUser?.admin_role, "is not in allowedRoles");
       return NextResponse.json(
-        { 
+        {
           success: false,
           error: "Insufficient permissions",
           details: {
             userRole: adminUser?.admin_role,
             allowedRoles: allowedRoles,
-            requiredFor: "creating notifications"
-          }
+            requiredFor: "creating notifications",
+          },
         },
         { status: 403 }
       );
     }
-    
+
     console.log("✅ Permission check passed");
-    
+
     // Get client info for audit log
     const clientInfo = getClientInfo(req.headers);
     console.log("Client info:", clientInfo);
-    
+
     // Parse request body
     console.log("Parsing request body...");
     const body = await req.json();
@@ -872,23 +889,29 @@ export async function POST(req: NextRequest) {
       specific_users_count: body.specific_users?.length || 0,
       channels: body.channels,
       is_urgent: body.is_urgent,
-      scheduled_for: body.scheduled_for
+      scheduled_for: body.scheduled_for,
     });
-    
+
     // Debug: Check for images in the message
-    const imageUrls = extractImageUrlsFromMarkdown(body.message || '');
+    const imageUrls = extractImageUrlsFromMarkdown(body.message || "");
     console.log(`Found ${imageUrls.length} image URLs in message`);
     imageUrls.forEach((url, i) => {
       console.log(`  Image ${i + 1}: ${url.substring(0, 100)}...`);
     });
-    
+
     // Check for base64 images
-    const base64Images = (body.message || '').match(/data:image\/[^;]+;base64,[^"'\s]+/g);
+    const base64Images = (body.message || "").match(
+      /data:image\/[^;]+;base64,[^"'\s]+/g
+    );
     if (base64Images && base64Images.length > 0) {
-      console.log(`⚠️ Warning: Found ${base64Images.length} base64 images in message`);
-      console.log("Base64 images should have been uploaded already. This may cause issues.");
+      console.log(
+        `⚠️ Warning: Found ${base64Images.length} base64 images in message`
+      );
+      console.log(
+        "Base64 images should have been uploaded already. This may cause issues."
+      );
     }
-    
+
     // Validate required fields
     if (!body.title || !body.message) {
       console.log("❌ Validation failed: Missing title or message");
@@ -899,20 +922,26 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     console.log("✅ Required fields validation passed");
-    
+
     // Validate specific users selection
-    if (body.target_audience === "specific_users" && (!body.specific_users || body.specific_users.length === 0)) {
-      console.log("❌ Validation failed: Specific users required but not provided");
+    if (
+      body.target_audience === "specific_users" &&
+      (!body.specific_users || body.specific_users.length === 0)
+    ) {
+      console.log(
+        "❌ Validation failed: Specific users required but not provided"
+      );
       return NextResponse.json(
         {
-          error: "At least one user must be selected for specific user notifications",
+          error:
+            "At least one user must be selected for specific user notifications",
         },
         { status: 400 }
       );
     }
-    
+
     // Validate channels
     if (!body.channels || body.channels.length === 0) {
       console.log("❌ Validation failed: No channels selected");
@@ -921,9 +950,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     console.log("✅ All validations passed");
-    
+
     // 🕵️ AUDIT LOG: Track notification creation attempt
     console.log("Creating audit log...");
     await createAuditLog({
@@ -950,7 +979,7 @@ export async function POST(req: NextRequest) {
       userAgent: clientInfo.userAgent,
     });
     console.log("✅ Audit log created");
-    
+
     // Prepare notification data
     console.log("Preparing notification data...");
     const notificationData: any = {
@@ -958,7 +987,8 @@ export async function POST(req: NextRequest) {
       message: body.message,
       type: body.type || "info",
       target_audience: body.target_audience || "all_users",
-      specific_users: body.specific_users?.length > 0 ? body.specific_users : [],
+      specific_users:
+        body.specific_users?.length > 0 ? body.specific_users : [],
       channels: body.channels || ["in_app"],
       is_urgent: body.is_urgent || false,
       status: body.scheduled_for ? "scheduled" : "sending",
@@ -966,20 +996,20 @@ export async function POST(req: NextRequest) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    
+
     // Add optional fields only if they have values
     if (body.scheduled_for) {
       notificationData.scheduled_for = body.scheduled_for;
     }
-    
+
     console.log("Notification data prepared:", {
       title: notificationData.title,
       status: notificationData.status,
       target_audience: notificationData.target_audience,
       scheduled_for: notificationData.scheduled_for,
-      image_count: imageUrls.length
+      image_count: imageUrls.length,
     });
-    
+
     // Insert into database
     console.log("Inserting notification into database...");
     const { data: notification, error: notifError } = await supabase
@@ -987,16 +1017,16 @@ export async function POST(req: NextRequest) {
       .insert(notificationData)
       .select()
       .single();
-    
+
     if (notifError) {
       console.error("❌ Database insertion error:", notifError);
       console.error("Error details:", {
         message: notifError.message,
         code: notifError.code,
         details: notifError.details,
-        hint: notifError.hint
+        hint: notifError.hint,
       });
-      
+
       // 🕵️ AUDIT LOG: Track notification creation failure
       await createAuditLog({
         userId: adminUser?.id,
@@ -1016,16 +1046,16 @@ export async function POST(req: NextRequest) {
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
       });
-      
+
       throw notifError;
     }
-    
+
     console.log("✅ Notification created in database:", notification.id);
-    
+
     // If notification is scheduled, return success without sending immediately
     if (body.scheduled_for) {
       console.log("⏰ Notification is scheduled for:", body.scheduled_for);
-      
+
       // 🕵️ AUDIT LOG: Track scheduled notification creation
       await createAuditLog({
         userId: adminUser?.id,
@@ -1050,9 +1080,9 @@ export async function POST(req: NextRequest) {
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
       });
-      
+
       console.log("✅ Returning success for scheduled notification");
-      
+
       return NextResponse.json({
         success: true,
         notification: {
@@ -1068,9 +1098,9 @@ export async function POST(req: NextRequest) {
         },
       });
     }
-    
+
     console.log("🚀 Sending notification immediately...");
-    
+
     // Send notification immediately if not scheduled
     const sendResult = await sendNotificationToUsers({
       title: body.title,
@@ -1082,15 +1112,15 @@ export async function POST(req: NextRequest) {
       admin_notification_id: notification.id,
       adminUser,
     });
-    
+
     console.log("📤 Send result:", {
       success: sendResult.success,
       total: sendResult.total,
       successful: sendResult.successful,
       failed: sendResult.failed,
-      image_count: sendResult.image_count
+      image_count: sendResult.image_count,
     });
-    
+
     // 🕵️ AUDIT LOG: Track notification sending result
     if (sendResult.success) {
       console.log("✅ Notification sent successfully");
@@ -1144,9 +1174,9 @@ export async function POST(req: NextRequest) {
         userAgent: clientInfo.userAgent,
       });
     }
-    
+
     console.log("=== END: Notification Creation ===");
-    
+
     return NextResponse.json({
       success: sendResult.success,
       notification: {
@@ -1170,12 +1200,12 @@ export async function POST(req: NextRequest) {
     console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
     console.error("Error full:", error);
-    
+
     // 🕵️ AUDIT LOG: Track unexpected errors
     const cookieHeader = req.headers.get("cookie") || "";
     const adminUser = await getAdminUserInfo(cookieHeader);
     const clientInfo = getClientInfo(req.headers);
-    
+
     console.log("Creating error audit log...");
     await createAuditLog({
       userId: adminUser?.id,
@@ -1192,13 +1222,17 @@ export async function POST(req: NextRequest) {
       ipAddress: clientInfo.ipAddress,
       userAgent: clientInfo.userAgent,
     });
-    
+
     console.error("=== END ERROR ===");
-    
-    return NextResponse.json({ 
-      error: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 });
+
+    return NextResponse.json(
+      {
+        error: error.message,
+        details:
+          process.env.NODE_ENV === "development" ? error.stack : undefined,
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -1438,8 +1472,10 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Extract image URLs from the message before deleting
-    const imageUrls = extractImageUrlsFromMarkdown(existingNotification.message);
-    
+    const imageUrls = extractImageUrlsFromMarkdown(
+      existingNotification.message
+    );
+
     // Delete the notification
     const { error } = await supabase
       .from("admin_notifications")
@@ -1472,8 +1508,8 @@ export async function DELETE(req: NextRequest) {
 
     // Delete associated images from storage (async, don't wait for completion)
     if (imageUrls.length > 0) {
-      deleteImagesFromStorage(imageUrls).catch(error => {
-        console.error('Failed to delete images:', error);
+      deleteImagesFromStorage(imageUrls).catch((error) => {
+        console.error("Failed to delete images:", error);
       });
     }
 
@@ -1579,11 +1615,15 @@ export async function PATCH(req: Request) {
     let imagesToDelete: string[] = [];
     if (updates.message && updates.message !== currentNotification.message) {
       // Extract old image URLs
-      const oldImageUrls = extractImageUrlsFromMarkdown(currentNotification.message);
+      const oldImageUrls = extractImageUrlsFromMarkdown(
+        currentNotification.message
+      );
       const newImageUrls = extractImageUrlsFromMarkdown(updates.message);
-      
+
       // Find images that were removed
-      imagesToDelete = oldImageUrls.filter(url => !newImageUrls.includes(url));
+      imagesToDelete = oldImageUrls.filter(
+        (url) => !newImageUrls.includes(url)
+      );
     }
 
     // Handle scheduled_for updates
@@ -1614,8 +1654,8 @@ export async function PATCH(req: Request) {
 
     // Delete orphaned images (async)
     if (imagesToDelete.length > 0) {
-      deleteImagesFromStorage(imagesToDelete).catch(error => {
-        console.error('Failed to delete orphaned images:', error);
+      deleteImagesFromStorage(imagesToDelete).catch((error) => {
+        console.error("Failed to delete orphaned images:", error);
       });
     }
 
@@ -1636,11 +1676,15 @@ export async function PATCH(req: Request) {
         changedFields,
         previousValues: {
           ...currentNotification,
-          message: currentNotification.message.substring(0, 100) + (currentNotification.message.length > 100 ? '...' : ''),
+          message:
+            currentNotification.message.substring(0, 100) +
+            (currentNotification.message.length > 100 ? "..." : ""),
         },
         newValues: {
           ...updatedNotification,
-          message: updatedNotification.message.substring(0, 100) + (updatedNotification.message.length > 100 ? '...' : ''),
+          message:
+            updatedNotification.message.substring(0, 100) +
+            (updatedNotification.message.length > 100 ? "..." : ""),
         },
         deletedImagesCount: imagesToDelete.length,
         updatedBy: adminUser?.email,
@@ -1716,11 +1760,15 @@ export async function PUT(req: NextRequest) {
     let imagesToDelete: string[] = [];
     if (updates.message && updates.message !== currentNotification.message) {
       // Extract old image URLs
-      const oldImageUrls = extractImageUrlsFromMarkdown(currentNotification.message);
+      const oldImageUrls = extractImageUrlsFromMarkdown(
+        currentNotification.message
+      );
       const newImageUrls = extractImageUrlsFromMarkdown(updates.message);
-      
+
       // Find images that were removed
-      imagesToDelete = oldImageUrls.filter(url => !newImageUrls.includes(url));
+      imagesToDelete = oldImageUrls.filter(
+        (url) => !newImageUrls.includes(url)
+      );
     }
 
     // First update the notification
@@ -1741,8 +1789,8 @@ export async function PUT(req: NextRequest) {
 
     // Delete orphaned images (async)
     if (imagesToDelete.length > 0) {
-      deleteImagesFromStorage(imagesToDelete).catch(error => {
-        console.error('Failed to delete orphaned images:', error);
+      deleteImagesFromStorage(imagesToDelete).catch((error) => {
+        console.error("Failed to delete orphaned images:", error);
       });
     }
 

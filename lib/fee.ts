@@ -5,12 +5,6 @@ export type FeeResult = {
   totalDebit: number;
 };
 
-/**
- * Calculate fees based on payment method
- * - amount: transaction amount
- * - type: "transfer" | "deposit" | "card" 
- * - paymentMethod: "checkout" | "virtual_account" | "bank_transfer"
- */
 export function calculateFees(
   amount: number,
   type: "transfer" | "deposit" | "card",
@@ -35,17 +29,16 @@ export function calculateFees(
     appFee = nombaFee; // Pass through to customer
   } 
   else if (paymentMethod === "bank_transfer") {
-    // Pay by Transfer: Nomba charges 0.5% (₦20 min, ₦100 cap), we charge same
+    // Pay by Transfer: Nomba charges 0.5% (₦20 min, ₦100 cap)
     const nombaPercentage = am * 0.005; // 0.5%
     nombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
-    appFee = nombaFee; // Pass through to customer
-  }
-
-  // For transfers, add additional 0.25% app fee (₦20 min, ₦150 max)
-  if (type === "transfer") {
-    const transferAppFee = am * 0.0025; // 0.25% additional app fee for transfers
-    const transferFee = Math.min(Math.max(transferAppFee, 20), 150); // Min ₦20, Max ₦150
-    appFee += transferFee;
+    
+    // Zidwell charges 0.5% (₦5 min, ₦50 cap) for bank transfers
+    const ourPercentage = am * 0.005; // 0.5%
+    const zidwellFee = Math.min(Math.max(ourPercentage, 5), 50); // Min ₦5, Max ₦50
+    
+    // Customer pays BOTH Nomba fee and Zidwell fee
+    appFee = nombaFee + zidwellFee;
   }
 
   const totalFee = appFee;
@@ -89,26 +82,26 @@ export function calculateWebhookFees(
     console.log(`   - Our VA fee (same): ₦${ourFee}`);
   } 
   else if (channel === "bank_transfer" || txType === "transfer_deposit") {
-    // Pay by Transfer: Nomba charges 0.5% (₦20 min, ₦100 cap), we charge same
+    // Pay by Transfer: Nomba charges 0.5% (₦20 min, ₦100 cap)
     const nombaPercentage = amount * 0.005; // 0.5%
     nombaFee = Math.min(Math.max(nombaPercentage, 20), 100); // Min ₦20, Max ₦100
-    ourFee = nombaFee; // Pass through
+    
+    // Zidwell charges 0.5% (₦5 min, ₦50 cap) for bank transfers
+    const ourPercentage = amount * 0.005; // 0.5%
+    const zidwellFee = Math.min(Math.max(ourPercentage, 5), 50); // Min ₦5, Max ₦50
+    
+    // Customer pays BOTH Nomba fee and Zidwell fee
+    ourFee = nombaFee + zidwellFee;
+    
     console.log(`   - Nomba Transfer fee (0.5%: ₦20 min, ₦100 cap): ₦${nombaFee}`);
-    console.log(`   - Our Transfer fee (same): ₦${ourFee}`);
+    console.log(`   - Zidwell Transfer fee (0.5%: ₦5 min, ₦50 cap): ₦${zidwellFee}`);
+    console.log(`   - Total fee to customer: ₦${ourFee}`);
   } 
   else {
     // Default fallback
     console.log(`   - Unknown channel, using zero fees`);
     nombaFee = 0;
     ourFee = 0;
-  }
-
-  // For transfers, add additional 0.25% app fee (₦20 min, ₦150 max)
-  if (txType.includes("transfer") || txType.includes("withdrawal")) {
-    const transferAppFee = amount * 0.0025; // 0.25% additional app fee for transfers
-    const transferFee = Math.min(Math.max(transferAppFee, 20), 150); // Min ₦20, Max ₦150
-    ourFee += transferFee;
-    console.log(`   - Added transfer fee (0.25%: ₦20 min, ₦150 cap): ₦${transferFee}`);
   }
 
   // Calculate our margin (profit)
@@ -130,3 +123,28 @@ export const formatNaira = (value: number) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value);
+
+// Test function to verify calculations
+export function testFeeCalculations(): void {
+  console.log("Testing Fee Calculations:");
+  console.log("========================");
+  
+  const testAmounts = [100, 500, 1000, 5000, 10000, 20000];
+  
+  testAmounts.forEach(amount => {
+    console.log(`\nFor amount: ₦${amount}`);
+    console.log("-".repeat(30));
+    
+    const result = calculateFees(amount, "transfer", "bank_transfer");
+    console.log(`Nomba Fee (0.5%, ₦20 min, ₦100 cap): ${formatNaira(result.nombaFee)}`);
+    
+    // Calculate Zidwell fee separately for display
+    const ourPercentage = amount * 0.005;
+    const zidwellFee = Math.min(Math.max(ourPercentage, 5), 50);
+    console.log(`Zidwell Fee (0.5%, ₦5 min, ₦50 cap): ${formatNaira(zidwellFee)}`);
+    
+    console.log(`Total Fee (Nomba + Zidwell): ${formatNaira(result.totalFee)}`);
+    console.log(`Total Debit: ${formatNaira(result.totalDebit)}`);
+    console.log(`Zidwell Margin: ${formatNaira(zidwellFee)}`);
+  });
+}

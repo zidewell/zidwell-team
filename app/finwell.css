@@ -1,18 +1,6 @@
-
-/* Font imports */
+/* 
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
 
-/* Reset and base styles */
-/* *, ::before, ::after {
-  box-sizing: border-box;
-  border-width: 0;
-  border-style: solid;
-  border-color: hsl(0 0% 90%);
-}
-
-::before, ::after {
-  --tw-content: '';
-} */
 
 html {
   line-height: 1.5;
@@ -63,7 +51,6 @@ img {
   height: auto;
 }
 
-/* Custom properties */
 :root {
   --background: 0 0% 100%;
   --foreground: 0 0% 8%;
@@ -106,7 +93,7 @@ img {
   --shadow-gold: 0 8px 32px -8px hsl(45 93% 47% / 0.4);
 }
 
-/* Dark mode */
+
 .dark {
   --background: 0 0% 6%;
   --foreground: 0 0% 96%;
@@ -129,7 +116,7 @@ img {
   --ring: 142 60% 45%;
 }
 
-/* Container */
+
 .container {
   width: 100%;
   margin-right: auto;
@@ -144,9 +131,7 @@ img {
   }
 }
 
-/* Utility Classes */
 
-/* Typography */
 .font-display {
   font-family: "Bricolage Grotesque", sans-serif;
 }
@@ -168,7 +153,7 @@ img {
   letter-spacing: -0.025em;
 }
 
-/* Colors */
+
 .bg-background {
   background-color: hsl(var(--background));
 }
@@ -265,7 +250,7 @@ img {
   background-color: hsl(var(--charcoal));
 }
 
-/* Borders */
+
 .border-border {
   border-color: hsl(var(--border));
 }
@@ -286,7 +271,7 @@ img {
   --tw-ring-color: hsl(var(--sidebar-ring));
 }
 
-/* Sidebar */
+
 .bg-sidebar {
   background-color: hsl(var(--sidebar-background));
 }
@@ -311,7 +296,7 @@ img {
   color: hsl(var(--sidebar-accent-foreground));
 }
 
-/* Border Radius */
+
 .rounded-lg {
   border-radius: var(--radius);
 }
@@ -336,7 +321,7 @@ img {
   border-radius: 2rem;
 }
 
-/* Shadows */
+
 .shadow-soft {
   box-shadow: var(--shadow-soft);
 }
@@ -352,9 +337,7 @@ img {
 .shadow-gold {
   box-shadow: var(--shadow-gold);
 }
-/* 
-/* Button Styles */
-/* Base button styles */
+
 button, .btn {
  
   align-items: center;
@@ -371,7 +354,7 @@ button, .btn {
   border: 1px solid transparent;
 }
 
-/* Button sizes */
+
 .btn-sm, button[size="sm"] {
   height: 2rem;
   padding: 0 0.75rem;
@@ -390,7 +373,6 @@ button, .btn {
   font-size: 1rem;
 }
 
-/* Button variants */
 .btn-primary, button.bg-primary {
   background-color: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
@@ -456,7 +438,7 @@ button, .btn {
   color: hsl(var(--primary-dark));
 }
 
-/* Button states */
+
 button:disabled, .btn:disabled {
   pointer-events: none;
   opacity: 0.5;
@@ -467,7 +449,7 @@ button:focus-visible, .btn:focus-visible {
   outline-offset: 2px;
 }
 
-/* Special button styles for your use case */
+
 Button.bg-primary {
   background-color: hsl(var(--primary)) !important;
   color: hsl(var(--primary-foreground)) !important;
@@ -477,12 +459,12 @@ Button.bg-primary:hover, Button.hover\:bg-primary-dark:hover {
   background-color: hsl(var(--primary-dark)) !important;
 }
 
-/* Hover utility classes */
+
 .hover\:bg-primary-dark:hover {
   background-color: hsl(var(--primary-dark));
 }
 
-/* Animations */
+
 @keyframes accordion-down {
   from {
     height: 0;
@@ -555,7 +537,7 @@ Button.bg-primary:hover, Button.hover\:bg-primary-dark:hover {
   50% { transform: translateY(-10px); }
 }
 
-/* Animation classes */
+
 .animate-accordion-down {
   animation: accordion-down 0.2s ease-out;
 }
@@ -588,14 +570,13 @@ Button.bg-primary:hover, Button.hover\:bg-primary-dark:hover {
   animation: float 6s ease-in-out infinite;
 }
 
-/* Animation delays */
 .delay-100 { animation-delay: 100ms; }
 .delay-200 { animation-delay: 200ms; }
 .delay-300 { animation-delay: 300ms; }
 .delay-400 { animation-delay: 400ms; }
 .delay-500 { animation-delay: 500ms; }
 
-/* Component classes */
+
 .text-gradient-gold {
   background-image: linear-gradient(135deg, hsl(45 93% 47%) 0%, hsl(45 93% 60%) 100%);
   -webkit-background-clip: text;
@@ -653,7 +634,7 @@ Button.bg-primary:hover, Button.hover\:bg-primary-dark:hover {
   }
 }
 
-/* Transform utilities */
+
 .-translate-y-1 {
   transform: translateY(-4px);
 }
@@ -668,7 +649,7 @@ Button.bg-primary:hover, Button.hover\:bg-primary-dark:hover {
   transition-duration: 300ms;
 }
 
-/* Padding */
+
 .p-2 {
   padding: 0.5rem;
 }
@@ -692,7 +673,7 @@ Button.bg-primary:hover, Button.hover\:bg-primary-dark:hover {
   padding-bottom: 5rem;
 }
 
-/* Flex utilities */
+
 .flex {
   display: flex;
 }
@@ -705,7 +686,7 @@ Button.bg-primary:hover, Button.hover\:bg-primary-dark:hover {
   justify-content: center;
 }
 
-/* Custom scrollbar */
+
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -758,4 +739,4 @@ Button.bg-primary:hover, Button.hover\:bg-primary-dark:hover {
   }
 } 
 
-
+ */

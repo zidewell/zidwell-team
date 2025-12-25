@@ -3,8 +3,6 @@ import { Button } from "./ui/button";
 import { ArrowRight, Receipt, AlertCircle } from "lucide-react";
 import Image from "next/image";
 
-
-
 export default function ElectricityCustomerCard({
   customerName,
   meterNumber,
@@ -18,49 +16,42 @@ export default function ElectricityCustomerCard({
   errors,
 }: any) {
   const parsedAmount = typeof amount === "string" ? parseFloat(amount) : amount;
-  const total = parsedAmount 
+  const total = parsedAmount;
 
   return (
     <div className="sticky top-6 flex gap-3 flex-col ">
       {/* Customer Info Card */}
 
       {customerName && (
-      <Card className="w-full shadow-md rounded-xl border border-gray-200">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-gray-800">
-            Customer Info
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-gray-700">
-          {customerName && (
-          <div className="flex gap-2">
-            <span className="font-medium">Name:</span>
-            <p className="font-semibold">{customerName}</p>
-          </div>
+        <Card className="w-full shadow-md rounded-xl border border-gray-200">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-gray-800">
+              Customer Info
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-gray-700">
+            {customerName && (
+              <div className="flex gap-2">
+                <span className="font-medium">Name:</span>
+                <p className="font-semibold">{customerName}</p>
+              </div>
+            )}
 
-          )}
+            {meterNumber && (
+              <div className="flex gap-2">
+                <span className="font-medium">Meter Number:</span>
+                <p className="font-semibold">{meterNumber}</p>
+              </div>
+            )}
 
-        
-          {meterNumber && (
-          <div className="flex gap-2">
-            <span className="font-medium">Meter Number:</span>
-            <p className="font-semibold">{meterNumber}</p>
-          </div>
-
-          )}
-
-          {meterType && (
-          <div className="flex gap-2">
-            <span className="font-medium">Meter Type:</span>
-            <p className="font-semibold">{meterType}</p>
-          </div>
-
-          )}
-
-         
-        </CardContent>
-      </Card>
-
+            {meterType && (
+              <div className="flex gap-2">
+                <span className="font-medium">Meter Type:</span>
+                <p className="font-semibold">{meterType}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Payment Summary Card */}
@@ -118,10 +109,10 @@ export default function ElectricityCustomerCard({
           {/* Payment Button */}
           <Button
             onClick={() => {
-                  if (validateForm()) {
-                    setIsOpen(true);
-                  }
-                }}
+              if (validateForm()) {
+                setIsOpen(true);
+              }
+            }}
             disabled={!parsedAmount || loading}
             className="w-full bg-[#C29307] hover:opacity-90 py-3 font-semibold rounded-lg shadow-electric-glow transition-all duration-300"
           >
@@ -134,7 +125,6 @@ export default function ElectricityCustomerCard({
               <div className="flex items-center gap-2">
                 {meterType === "prepaid" ? "Recharge Meter" : "Pay Bill"}
                 <ArrowRight className="w-4 h-4" />
-                
               </div>
             )}
           </Button>

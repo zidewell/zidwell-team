@@ -19,7 +19,6 @@ export default function FundAccountMethods() {
   const [showCurrent, setShowCurrent] = useState(false);
   const { userData, balance, lifetimeBalance } = useUserContextData();
 
-
   const generateVirtualAccountNumber = async () => {
     if (!userData) return null;
     const payload = {
@@ -86,7 +85,7 @@ export default function FundAccountMethods() {
   const handleCopyReferral = async () => {
     if (details) {
       setCopyText(true);
-      await navigator.clipboard.writeText(details?.bank_account_number);
+      await navigator.clipboard.writeText(details?.bank_details.bank_account_number);
       setTimeout(() => setCopyText(false), 3000);
     }
   };
@@ -182,7 +181,7 @@ export default function FundAccountMethods() {
           </CardContent>
         </Card>
 
-        {/* Account Number */}
+  
         <Card className="flex items-center justify-between text-gray-700 bg-white border shadow-md rounded-xl p-4">
           <CardHeader className="p-0">
             <CardTitle className="text-base md:text-lg font-medium">
@@ -196,7 +195,9 @@ export default function FundAccountMethods() {
                   {copyText ? "Copied" : <CopyIcon className="w-4 h-4" />}
                 </button>
               </div>
-              <p className="text-sm text-gray-500">{details?.bank_details.bank_name}</p>
+              <p className="text-sm text-gray-500">
+                {details?.bank_details.bank_name}
+              </p>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">

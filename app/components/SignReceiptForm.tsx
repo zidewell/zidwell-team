@@ -34,7 +34,7 @@ export default function SignReceiptForm({
     if (!trimmedName) {
       setNameError("Please enter your full name.");
       hasError = true;
-    } 
+    }
     // else if (trimmedName.toLowerCase() !== signeeName.toLowerCase()) {
     //   setNameError(`Name does not match the expected signee name `);
     //   hasError = true;
@@ -95,7 +95,9 @@ export default function SignReceiptForm({
   };
 
   if (signed) {
-    return <p className="text-green-600 font-semibold">✅ Thank you for signing.</p>;
+    return (
+      <p className="text-green-600 font-semibold">✅ Thank you for signing.</p>
+    );
   }
 
   return (
@@ -107,7 +109,9 @@ export default function SignReceiptForm({
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className={`border rounded px-3 py-2 w-full mb-1 ${nameError ? "border-red-500" : ""}`}
+        className={`border rounded px-3 py-2 w-full mb-1 ${
+          nameError ? "border-red-500" : ""
+        }`}
         placeholder="Your Full Name"
       />
       {nameError && <p className="text-red-500 text-sm mb-3">{nameError}</p>}
@@ -119,7 +123,9 @@ export default function SignReceiptForm({
         type="text"
         value={verificationCode}
         onChange={(e) => setVerificationCode(e.target.value)}
-        className={`border rounded px-3 py-2 w-full mb-1 ${codeError ? "border-red-500" : ""}`}
+        className={`border rounded px-3 py-2 w-full mb-1 ${
+          codeError ? "border-red-500" : ""
+        }`}
         placeholder="Verification Code"
       />
       {codeError && <p className="text-red-500 text-sm mb-3">{codeError}</p>}

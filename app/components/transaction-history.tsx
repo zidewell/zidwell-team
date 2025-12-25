@@ -104,15 +104,6 @@ export default function TransactionHistory() {
     setTransactions,
   } = useUserContextData();
 
-  // DEBUG: Add logging to see what's happening
-  // useEffect(() => {
-  //   console.log("=== TRANSACTION DEBUG ===");
-  //   console.log("userData:", userData);
-  //   console.log("transactions:", transactions);
-  //   console.log("transactions length:", transactions?.length);
-  //   console.log("loading:", loading);
-  //   console.log("searchTerm:", searchTerm);
-  // }, [transactions, loading, userData, searchTerm]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -393,7 +384,6 @@ export default function TransactionHistory() {
     return null;
   };
 
-  console.log("transaction", transactions)
 
   // Function to handle viewing transaction details
   const handleViewTransaction = (transaction: any) => {

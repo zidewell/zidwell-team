@@ -181,10 +181,20 @@ export default function Transfer() {
     fetchDetails();
   }, [userData?.id]);
 
-  // Bank account lookup
+ 
   useEffect(() => {
     if (transferType !== "other-bank") return;
     if (accountNumber.length !== 10 || !bankCode) return;
+
+    
+    if (accountNumber === userDetails?.bank_details.bank_account_number) {
+      setP2pDetails(null);
+      setErrors((prev) => ({
+        ...prev,
+        recepientAcc: "You cannot transfer to your own account.",
+      }));
+      return;
+    }
 
     const timeout = setTimeout(async () => {
       setLookupLoading(true);
@@ -220,12 +230,12 @@ export default function Transfer() {
     return () => clearTimeout(timeout);
   }, [accountNumber, bankCode, transferType]);
 
-  // P2P lookup
+
   useEffect(() => {
     if (transferType !== "p2p") return;
     if (!recepientAcc || recepientAcc.length < 6) return;
 
-    if (recepientAcc === userData?.walletAccountNumber) {
+    if (recepientAcc === userDetails?.bank_details.bank_account_number) {
       setP2pDetails(null);
       setErrors((prev) => ({
         ...prev,
@@ -279,17 +289,16 @@ export default function Transfer() {
     setBankCode(account.bank_code);
     setBankName(account.bank_name);
     setShowSavedAccounts(false);
-    setSaveAccount(false); // Don't save an already saved account
+    setSaveAccount(false);
   };
 
-  // Reset form when user starts typing new account
+ 
   const handleAccountNumberChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const newValue = e.target.value;
     setAccountNumber(newValue);
 
-    // If user starts typing and a saved account was selected, clear it
     if (
       selectedSavedAccount &&
       newValue !== selectedSavedAccount.account_number
@@ -301,7 +310,7 @@ export default function Transfer() {
     }
   };
 
-  // Save account function
+ 
   const saveAccountToProfile = async () => {
     if (
       !userData?.id ||
@@ -356,7 +365,6 @@ export default function Transfer() {
     }
   };
 
-  // 1. Actual transfer logic
   const performTransfer = async () => {
     setLoading(true);
 
@@ -404,7 +412,7 @@ export default function Transfer() {
       const data = await res.json();
 
       if (res.ok) {
-        // Save account if toggle is enabled and it's a new account
+
         if (
           saveAccount &&
           !selectedSavedAccount &&
@@ -426,7 +434,7 @@ export default function Transfer() {
           timerProgressBar: true,
           background: "#fefefe",
           didOpen: () => {
-            // Additional confetti when the modal opens
+     
             setTimeout(() => {
               confetti({
                 particleCount: 50,
@@ -539,7 +547,7 @@ export default function Transfer() {
       (!bankCode || !accountNumber || !accountName)) ||
     (transferType === "p2p" && (!recepientAcc || !p2pDetails?.id));
 
-  // Determine payment method for FeeDisplay - FIXED TYPE
+    
   const getPaymentMethod = (): PaymentMethod => {
     if (transferType === "my-account" || transferType === "other-bank") {
       return "bank_transfer";
@@ -600,7 +608,7 @@ export default function Transfer() {
                 <SelectContent>
                   <SelectItem value="my-account">My Bank Account</SelectItem>
                   <SelectItem value="other-bank">Other Bank Account</SelectItem>
-                  {/* <SelectItem value="p2p">Zidwell User (P2P)</SelectItem> */}
+                  <SelectItem value="p2p">Zidwell User (P2P)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -625,6 +633,7 @@ export default function Transfer() {
                   }}
                 />
               )}
+              
               {errors.amount && (
                 <p className="text-red-600 text-sm">{errors.amount}</p>
               )}
@@ -916,6 +925,7 @@ export default function Transfer() {
           setIsOpen(true);
         }}
         paymentMethod={getPaymentMethod()}
+         isP2P={transferType === "p2p"}
       />
     </>
   );

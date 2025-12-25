@@ -16,6 +16,7 @@ interface TransactionSummaryProps {
   onBack: () => void;
   onConfirm: () => void;
   paymentMethod?: "checkout" | "virtual_account" | "bank_transfer";
+  isP2P?: boolean; // Add this new prop
 }
 
 export default function TransactionSummary({
@@ -29,7 +30,8 @@ export default function TransactionSummary({
   confirmTransaction,
   onBack,
   onConfirm,
-  paymentMethod = "bank_transfer", // Default to bank transfer for withdrawals
+  paymentMethod = "bank_transfer",
+  isP2P = false, // Default to false
 }: TransactionSummaryProps) {
   return (
     <AnimatePresence>
@@ -61,11 +63,14 @@ export default function TransactionSummary({
                     ? amount.toLocaleString()
                     : amount}
                 </div>
-                <FeeDisplay
-                  type="transfer"
-                  amount={typeof amount === "string" ? Number(amount) : amount}
-                  paymentMethod={paymentMethod}
-                />
+                {/* Only show FeeDisplay for non-P2P transfers */}
+                {!isP2P && (
+                  <FeeDisplay
+                    type="transfer"
+                    amount={typeof amount === "string" ? Number(amount) : amount}
+                    paymentMethod={paymentMethod}
+                  />
+                )}
               </div>
 
               {/* FROM Section */}

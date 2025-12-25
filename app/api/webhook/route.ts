@@ -2362,7 +2362,7 @@ if (isPayoutOrTransfer) {
         transaction_type: "credit",
         reference: refundReference,
         description: `Refund for failed ${
-          isP2PTransfer ? "P2P transfer" : "Tansfer"
+          isP2PTransfer ? "P2P transfer" : "tansfer"
         } of ₦${txAmount}`,
       }
     );
@@ -2425,7 +2425,6 @@ if (isPayoutOrTransfer) {
     { status: 200 }
   );
 }
-
     // If we reach here, event type not handled specifically
     console.log("ℹ️ Event type not matched. Ignoring.");
     return NextResponse.json({ message: "Ignored event" }, { status: 200 });

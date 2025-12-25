@@ -3,7 +3,6 @@ import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 
-
 export async function POST(req: Request) {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
@@ -19,8 +18,8 @@ export async function POST(req: Request) {
       amount,
       accountNumber,
       accountName,
-      bankName,
       bankCode,
+      bankName,
       narration,
       pin,
       fee,
@@ -72,6 +71,29 @@ export async function POST(req: Request) {
       );
     }
 
+    // ✅ Generate unique merchant reference
+    const merchantTxRef = `WD_${Date.now()}`;
+    console.log("🆕 Creating transaction with ref:", merchantTxRef);
+
+    // ✅ Check for duplicate transaction (idempotency)
+    const { data: existingTx } = await supabase
+      .from("transactions")
+      .select("id, status")
+      .eq("merchant_tx_ref", merchantTxRef)
+      .single();
+
+    if (existingTx) {
+      console.log("⚠️ Duplicate transaction found:", existingTx.id);
+      return NextResponse.json(
+        { 
+          message: "Transaction already exists", 
+          transactionId: existingTx.id,
+          status: existingTx.status 
+        },
+        { status: 400 }
+      );
+    }
+
     // ✅ Get Nomba token
     const token = await getNombaToken();
     if (!token) {
@@ -81,10 +103,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const merchantTxRef = `WD_${Date.now()}`;
-
-    // ✅ Insert pending transaction
-    const { data: pendingTx, error: txError } = await supabase
+    // ✅ FIRST: Create transaction with status "processing" directly
+    // (No need for "pending" then "processing" - go straight to "processing")
+    const { data: transaction, error: txError } = await supabase
       .from("transactions")
       .insert({
         user_id: userId,
@@ -102,23 +123,28 @@ export async function POST(req: Request) {
         amount,
         fee,
         total_deduction: totalDeduction,
-        status: "pending",
+        status: "processing", // Start as processing, not pending
+        description: `Transfer of ₦${amount}`,
         narration: narration || "N/A",
         merchant_tx_ref: merchantTxRef,
+        created_at: new Date().toISOString(),
       })
       .select("*")
       .single();
 
-    if (txError || !pendingTx) {
+    if (txError || !transaction) {
+      console.error("❌ Transaction creation failed:", txError);
       return NextResponse.json(
         { error: "Could not create transaction record" },
         { status: 500 }
       );
     }
 
+    console.log("✅ Transaction created with ID:", transaction.id);
+
     // ✅ Deduct wallet balance first
     const { error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
-      user_id: pendingTx.user_id,
+      user_id: transaction.user_id,
       amt: totalDeduction,
       transaction_type: "withdrawal",
       reference: merchantTxRef,
@@ -126,6 +152,17 @@ export async function POST(req: Request) {
     });
 
     if (rpcError) {
+      console.error("❌ Wallet deduction failed:", rpcError);
+      
+      // Update transaction to failed
+      await supabase
+        .from("transactions")
+        .update({
+          status: "failed",
+          external_response: { error: "Wallet deduction failed", details: rpcError },
+        })
+        .eq("id", transaction.id);
+
       return NextResponse.json(
         { error: "Failed to deduct wallet balance" },
         { status: 500 }
@@ -133,6 +170,7 @@ export async function POST(req: Request) {
     }
 
     // ✅ Call Nomba transfer API
+    console.log("📤 Calling Nomba API with ref:", merchantTxRef);
     const res = await fetch(`${process.env.NOMBA_URL}/v1/transfers/bank`, {
       method: "POST",
       headers: {
@@ -151,70 +189,78 @@ export async function POST(req: Request) {
       }),
     });
 
-    const data = await res.json();
-    // console.log("transfer data", data);
+    const nombaResponse = await res.json();
+    console.log("📥 Nomba response:", {
+      code: nombaResponse.code,
+      status: nombaResponse.status,
+      message: nombaResponse.message,
+    });
 
     // ✅ Handle failure immediately
-    if (data.code === "400") {
-      console.log("❌ Nomba transfer failed:", data.description);
+    if (nombaResponse.code === "400" || nombaResponse.status === false) {
+      console.log("❌ Nomba transfer failed:", nombaResponse.description);
 
       // Update transaction to failed
       await supabase
         .from("transactions")
         .update({
           status: "failed",
-          external_response: data,
+          external_response: nombaResponse,
+          updated_at: new Date().toISOString(),
         })
-        .eq("id", pendingTx.id);
+        .eq("id", transaction.id)
+        .eq("merchant_tx_ref", merchantTxRef);
 
-      // Refund wallet balance (reverse previous deduction)
+      // Refund wallet balance
       const refundReference = `refund_${merchantTxRef}`;
       const { error: refundErr } = await supabase.rpc("deduct_wallet_balance", {
         user_id: user.id,
         amt: -totalDeduction,
         transaction_type: "credit",
         reference: refundReference,
-        description: `Refund for failed Transfer of ₦${amount} (fee ₦${fee})`,
+        description: `Refund for failed Transfer of ₦${amount}`,
       });
 
       if (refundErr) {
         console.error("❌ Refund failed:", refundErr);
-
-    
-
         return NextResponse.json(
-          { message: "Transfer failed, refund pending", nombaResponse: data },
+          { 
+            message: "Transfer failed, refund pending", 
+            nombaResponse: nombaResponse 
+          },
           { status: 400 }
         );
       }
 
-     
       return NextResponse.json(
         {
           message: "Transfer failed, funds refunded successfully.",
-          reason: data.description || "Transfer not successful",
+          reason: nombaResponse.description || "Transfer not successful",
           refunded: true,
         },
         { status: 400 }
       );
     }
 
-    // ✅ If success, update transaction to processing
+    // ✅ Success case - update with Nomba response
     await supabase
       .from("transactions")
       .update({
         status: "processing",
-        description: `Transfer of ₦${amount}`,
-        reference: data?.data?.reference || null,
-        external_response: data,
+        reference: nombaResponse?.data?.reference || null,
+        external_response: nombaResponse,
+        updated_at: new Date().toISOString(),
       })
-      .eq("id", pendingTx.id);
+      .eq("id", transaction.id)
+      .eq("merchant_tx_ref", merchantTxRef);
+
+    console.log("✅ Transaction updated to processing:", transaction.id);
 
     return NextResponse.json({
       message: "Transfer initiated successfully.",
-      transactionId: pendingTx.id,
+      transactionId: transaction.id,
       merchantTxRef,
-      nombaResponse: data,
+      nombaResponse: nombaResponse,
     });
   } catch (error: any) {
     console.error("Withdraw API error:", error);

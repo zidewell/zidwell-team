@@ -296,7 +296,7 @@ Zidwell Team
       `💰 Withdrawal email notification sent to ${user.email} for ${status} transaction`
     );
   } catch (emailError) {
-    console.error("Failed to send tansfer email notification:", emailError);
+    console.error("Failed to send withdrawal email notification:", emailError);
   }
 }
 
@@ -2001,7 +2001,7 @@ export async function POST(req: NextRequest) {
           accountNumber,
           accountName,
           senderName,
-          narration
+          narration // Add this parameter
         );
       }
 
@@ -2009,143 +2009,75 @@ export async function POST(req: NextRequest) {
     } // end deposit handling
 
     // ---------- WITHDRAWAL / TRANSFER (OUTGOING) ----------
-if (isPayoutOrTransfer) {
-  console.log("➡️ Handling payout/transfer flow");
+    if (isPayoutOrTransfer) {
+      console.log("➡️ Handling payout/transfer flow");
 
-  // Extract merchantTxRef from the correct location in the payload
-  const merchantTxRef = payload.data?.transaction?.merchantTxRef;
-  const nombaTransactionId = payload.data?.transaction?.transactionId;
+      const refCandidates = [merchantTxRef, nombaTransactionId].filter(Boolean);
 
-  console.log("🔍 Extracted references from webhook:");
-  console.log("   - merchantTxRef:", merchantTxRef);
-  console.log("   - nombaTransactionId:", nombaTransactionId);
+      const orExprParts = refCandidates
+        .map((r) => `merchant_tx_ref.eq.${r}`)
+        .concat(refCandidates.map((r) => `reference.eq.${r}`));
+      const orExpr = orExprParts.join(",");
 
-  // Use ONLY merchantTxRef to search for the transaction
-  if (!merchantTxRef) {
-    console.warn("⚠️ No merchantTxRef found in webhook payload");
-    return NextResponse.json(
-      { message: "No merchantTxRef in webhook" },
-      { status: 200 }
-    );
-  }
+      const { data: pendingTxList, error: pendingErr } = await supabase
+        .from("transactions")
+        .select("*")
+        .or(orExpr)
+        .in("status", ["pending", "processing"])
+        .order("created_at", { ascending: false })
+        .limit(1);
 
-  // First, check if ANY transaction exists with this merchantTxRef (for debugging)
-  console.log("🔍 Searching for transaction with merchantTxRef:", merchantTxRef);
-  
-  const { data: allTxWithRef, error: allTxError } = await supabase
-    .from("transactions")
-    .select("id, merchant_tx_ref, status, type, amount, created_at")
-    .eq("merchant_tx_ref", merchantTxRef);
+      if (pendingErr) {
+        console.error(
+          "❌ DB error while finding pending transaction:",
+          pendingErr
+        );
+        return NextResponse.json({ error: "DB error" }, { status: 500 });
+      }
 
-  console.log("🔍 All transactions with this merchantTxRef:", allTxWithRef);
-  console.log("🔍 Query error:", allTxError);
+      const pendingTx = pendingTxList?.[0];
 
-  if (allTxError) {
-    console.error("❌ DB error while searching transactions:", allTxError);
-    return NextResponse.json({ error: "DB error" }, { status: 500 });
-  }
+      if (!pendingTx) {
+        console.warn(
+          "⚠️ No matching pending withdrawal found for refs:",
+          refCandidates
+        );
+        return NextResponse.json(
+          { message: "No matching withdrawal transaction" },
+          { status: 200 }
+        );
+      }
 
-  // If no transaction found at all, return immediately
-  if (!allTxWithRef || allTxWithRef.length === 0) {
-    console.warn(`❌ No transaction found with merchantTxRef: ${merchantTxRef}`);
-    console.warn("   This means the transaction was never created or the merchantTxRef is wrong");
-    return NextResponse.json(
-      { message: "Transaction not found in database" },
-      { status: 200 }
-    );
-  }
+      // Check if this is a P2P transfer or regular withdrawal
+      const isP2PTransfer = pendingTx.type === "p2p_transfer";
+      const isRegularWithdrawal = pendingTx.type === "withdrawal";
 
-  // Check what statuses exist
-  const statuses = allTxWithRef.map(tx => tx.status);
-  console.log(`🔍 Found ${allTxWithRef.length} transaction(s) with statuses:`, statuses);
+      console.log("   - Is P2P Transfer:", isP2PTransfer);
+      console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
 
-  // Search for pending or processing transaction
-  const { data: pendingTxList, error: pendingErr } = await supabase
-    .from("transactions")
-    .select("*")
-    .eq("merchant_tx_ref", merchantTxRef)
-    .in("status", ["pending", "processing"])
-    .order("created_at", { ascending: false })
-    .limit(1);
+      // Idempotency - check if already processed
+      if (["success", "failed"].includes(pendingTx.status)) {
+        console.log(`⚠️ Transaction already ${pendingTx.status}. Skipping.`);
+        return NextResponse.json(
+          { message: "Already processed" },
+          { status: 200 }
+        );
+      }
 
-  if (pendingErr) {
-    console.error("❌ DB error while finding pending transaction:", pendingErr);
-    return NextResponse.json({ error: "DB error" }, { status: 500 });
-  }
+      const txAmount = Number(pendingTx.amount ?? transactionAmount ?? 0);
 
-  const pendingTx = pendingTxList?.[0];
-  console.log("✅ Found pending/processing transaction:", pendingTx);
+      let appFee = 0;
+      let totalFees = 0;
+     let totalDeduction = Number(pendingTx.total_deduction || txAmount + totalFees);
 
-  if (!pendingTx) {
-    console.warn("⚠️ No pending/processing transaction found with merchantTxRef:", merchantTxRef);
-    
-    // Check if transaction is already completed
-    const { data: completedTx } = await supabase
-      .from("transactions")
-      .select("id, status, type, amount")
-      .eq("merchant_tx_ref", merchantTxRef)
-      .in("status", ["success", "failed"])
-      .single();
-      
-    if (completedTx) {
-      console.log(`ℹ️ Transaction already ${completedTx.status}. Idempotent handling.`);
-      return NextResponse.json(
-        { 
-          message: `Already ${completedTx.status}`,
-          transaction_id: completedTx.id,
-          status: completedTx.status
-        },
-        { status: 200 }
-      );
-    }
-    
-    // If we get here, transaction exists but is in some other state
-    console.error("❌ Transaction exists but is in unexpected state:", allTxWithRef[0].status);
-    console.error("❌ Full transaction data:", allTxWithRef[0]);
-    
-    return NextResponse.json(
-      { 
-        message: "Transaction found but in unexpected state",
-        status: allTxWithRef[0].status,
-        transaction_id: allTxWithRef[0].id
-      },
-      { status: 200 }
-    );
-  }
-
-  // At this point, we have a valid pending/processing transaction
-  console.log("✅ Successfully retrieved transaction:", {
-    id: pendingTx.id,
-    type: pendingTx.type,
-    status: pendingTx.status,
-    amount: pendingTx.amount,
-    fee: pendingTx.fee,
-    merchant_tx_ref: pendingTx.merchant_tx_ref
-  });
-
-  // Check if this is a P2P transfer or regular withdrawal
-  const isP2PTransfer = pendingTx.type === "p2p_transfer";
-  const isRegularWithdrawal = pendingTx.type === "tansfer";
-
-  console.log("   - Is P2P Transfer:", isP2PTransfer);
-  console.log("   - Is Regular Withdrawal:", isRegularWithdrawal);
-
-  // Idempotency - check if already processed
-  if (["success", "failed"].includes(pendingTx.status)) {
-    console.log(`⚠️ Transaction already ${pendingTx.status}. Skipping.`);
-    return NextResponse.json(
-      { message: "Already processed" },
-      { status: 200 }
-    );
-  }
-
-  const txAmount = Number(pendingTx.amount ?? transactionAmount ?? 0);
+      if (isRegularWithdrawal) {
+         
   const nombaFee = Number(payload.data?.transaction?.fee || 0);
 
-  // Use fee directly from transaction record
-  const totalFees = Number(pendingTx.fee || 0);
-  const appFee = Math.max(0, totalFees - nombaFee); // Ensure non-negative
-  const totalDeduction = Number(pendingTx.total_deduction || txAmount + totalFees);
+ 
+  totalFees = Number(pendingTx.fee || 0);
+  appFee = Math.max(0, totalFees - nombaFee);
+  
 
   console.log("💰 Transaction calculations:");
   console.log("   - Transaction amount:", txAmount);
@@ -2154,277 +2086,308 @@ if (isPayoutOrTransfer) {
   console.log("   - App fee (calculated):", appFee);
   console.log("   - Total deduction (from DB):", totalDeduction);
   console.log("   - Is P2P Transfer:", isP2PTransfer);
+      } else if (isP2PTransfer) {
+        // 🔥 P2P transfers have NO FEES
+        appFee = 0;
+        totalFees = 0; // No fees for P2P
+        totalDeduction = txAmount; // Only deduct the transfer amount
 
-  // ✅ SUCCESS CASE
-  if (eventType === "payout_success" || txStatus === "success") {
-    console.log(
-      `✅ ${
-        isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-      } success - marking transaction as success`
-    );
+        console.log("💰 P2P Transfer calculations (NO FEES):");
+        console.log("   - Transfer amount:", txAmount);
+        console.log("   - Nomba fee:", nombaFee); // This might be 0 for internal transfers
+        console.log("   - Our app fee:", appFee);
+        console.log("   - Total fees:", totalFees);
+        console.log("   - Total deduction:", totalDeduction);
+      }
 
-    const reference = nombaTransactionId || crypto.randomUUID();
+      // ✅ SUCCESS CASE
+      if (eventType === "payout_success" || txStatus === "success") {
+        console.log(
+          `✅ ${
+            isP2PTransfer ? "P2P Transfer" : "Withdrawal"
+          } success - marking transaction as success`
+        );
 
-    // Build updated external response with fee info
-    const updatedExternalResponse = {
-      ...payload,
-      fee_breakdown: {
-        transaction_type: isP2PTransfer ? "p2p_transfer" : "tansfer",
-        amount: txAmount,
-        nomba_fee: nombaFee,
-        app_fee: appFee,
-        total_fee: totalFees,
-        total_deduction: totalDeduction,
-      },
-    };
+        const reference = nombaTransactionId || crypto.randomUUID();
 
-    // Update transaction to success
-    const { error: updateErr } = await supabase
-      .from("transactions")
-      .update({
-        status: "success",
-        reference,
-        external_response: updatedExternalResponse,
-      })
-      .eq("id", pendingTx.id);
+        // Build updated external response with fee info
+        const updatedExternalResponse = {
+          ...payload,
+          fee_breakdown: {
+            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+            amount: txAmount,
+            nomba_fee: nombaFee,
+            app_fee: appFee,
+            total_fee: totalFees,
+            total_deduction: totalDeduction,
+          },
+        };
 
-    if (updateErr) {
-      console.error("❌ Failed to update transaction:", updateErr);
-      return NextResponse.json({ error: "Update failed" }, { status: 500 });
-    }
+        // 🟩 No second deduction here — we already deducted at initiation
+        const { error: updateErr } = await supabase
+          .from("transactions")
+          .update({
+            status: "success",
+            reference,
+            external_response: updatedExternalResponse,
+            total_deduction: totalDeduction,
+            fee: totalFees,
+          })
+          .eq("id", pendingTx.id);
 
-    console.log(`✅ Transaction ${pendingTx.id} marked as success`);
+        const withdrawalDetails =
+          pendingTx.external_response?.withdrawal_details || {};
 
-    // Extract recipient details
-    const recipientName =
-      payload.data?.customer?.recipientName ||
-      pendingTx.receiver?.name ||
-      "N/A";
+        const recipientName =
+          payload.data?.customer?.recipientName ||
+          withdrawalDetails.account_name ||
+          "N/A";
 
-    const recipientAccount =
-      payload.data?.customer?.accountNumber ||
-      pendingTx.receiver?.accountNumber ||
-      "N/A";
+        const recipientAccount =
+          payload.data?.customer?.accountNumber ||
+          withdrawalDetails.account_number ||
+          "N/A";
 
-    const bankName =
-      payload.data?.customer?.bankName ||
-      pendingTx.receiver?.bankName ||
-      "N/A";
+        const bankName =
+          payload.data?.customer?.bankName ||
+          withdrawalDetails.bank_name ||
+          "N/A";
 
-    const narration = payload.data?.transaction?.narration || pendingTx.narration;
+        const narration = payload.data?.transaction?.narration;
 
-    // Send email notification
-    await sendWithdrawalEmailNotification(
-      pendingTx.user_id,
-      "success",
-      txAmount,
-      nombaFee,
-      appFee,
-      totalDeduction,
-      recipientName,
-      recipientAccount,
-      bankName,
-      narration,
-      pendingTx.id
-    );
+        // console.log("🏦 Extracted Withdrawal Details:", {
+        //   recipientName,
+        //   recipientAccount,
+        //   bankName,
+        //   narration, // Add narration to logs
+        // });
 
-    // 🔥 NEW: For P2P transfers, also credit the receiver
-    if (isP2PTransfer && pendingTx.receiver) {
-      try {
-        console.log("💰 Processing P2P receiver credit...");
+        await sendWithdrawalEmailNotification(
+          pendingTx.user_id,
+          "success",
+          txAmount,
+          nombaFee,
+          appFee,
+          totalDeduction,
+          recipientName,
+          recipientAccount,
+          bankName,
+          narration,
+          pendingTx.id
+        );
 
-        // Find receiver by wallet_id from the transaction record
-        const { data: receiver, error: receiverError } = await supabase
-          .from("users")
-          .select("id, first_name, last_name")
-          .eq("wallet_id", pendingTx.receiver.wallet_id)
-          .single();
+        if (updateErr) {
+          console.error("❌ Failed to update transaction:", updateErr);
+          return NextResponse.json({ error: "Update failed" }, { status: 500 });
+        }
 
-        if (receiverError || !receiver) {
-          console.error("❌ P2P receiver not found:", pendingTx.receiver);
-        } else {
-          // Credit receiver's wallet
-          const { error: creditError } = await supabase.rpc(
-            "increment_wallet_balance",
-            {
-              user_id: receiver.id,
-              amt: txAmount,
+        // 🔥 NEW: For P2P transfers, also credit the receiver
+        if (isP2PTransfer && pendingTx.receiver) {
+          try {
+            console.log("💰 Processing P2P receiver credit...");
+
+            // Find receiver by wallet_id from the transaction record
+            const { data: receiver, error: receiverError } = await supabase
+              .from("users")
+              .select("id, first_name, last_name")
+              .eq("wallet_id", pendingTx.receiver.wallet_id)
+              .single();
+
+            if (receiverError || !receiver) {
+              console.error("❌ P2P receiver not found:", pendingTx.receiver);
+            } else {
+              // Credit receiver's wallet
+              const { error: creditError } = await supabase.rpc(
+                "increment_wallet_balance",
+                {
+                  user_id: receiver.id,
+                  amt: txAmount,
+                }
+              );
+
+              if (creditError) {
+                console.error(
+                  "❌ Failed to credit receiver wallet:",
+                  creditError
+                );
+              } else {
+                // Create receiver transaction record
+                await supabase.from("transactions").insert({
+                  user_id: receiver.id,
+                  type: "p2p_received",
+                  amount: txAmount,
+                  status: "success",
+                  description: `Received ₦${txAmount} from ${
+                    pendingTx.sender?.name || "User"
+                  }`,
+                  narration: pendingTx.narration || "P2P Received",
+                  reference: reference,
+                  external_response: updatedExternalResponse,
+                  sender: pendingTx.sender,
+                });
+
+                console.log(
+                  `✅ P2P receiver ${receiver.id} credited with ₦${txAmount}`
+                );
+              }
             }
-          );
-
-          if (creditError) {
+          } catch (receiverErr) {
             console.error(
-              "❌ Failed to credit receiver wallet:",
-              creditError
+              "❌ Error processing P2P receiver credit:",
+              receiverErr
             );
-          } else {
-            // Create receiver transaction record
-            await supabase.from("transactions").insert({
-              user_id: receiver.id,
-              type: "p2p_received",
-              amount: txAmount,
-              status: "success",
-              description: `Received ₦${txAmount} from ${
-                pendingTx.sender?.name || "User"
-              }`,
-              narration: pendingTx.narration || "P2P Received",
-              reference: reference,
-              external_response: updatedExternalResponse,
-              sender: pendingTx.sender,
-            });
-
-            console.log(
-              `✅ P2P receiver ${receiver.id} credited with ₦${txAmount}`
-            );
+            // Don't fail the whole webhook - log and continue
           }
         }
-      } catch (receiverErr) {
-        console.error(
-          "❌ Error processing P2P receiver credit:",
-          receiverErr
+
+        return NextResponse.json(
+          {
+            success: true,
+            message: `${
+              isP2PTransfer ? "P2P Transfer" : "Withdrawal"
+            } processed successfully`,
+            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+          },
+          { status: 200 }
         );
-        // Don't fail the whole webhook - log and continue
       }
-    }
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: `${
-          isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-        } processed successfully`,
-        transaction_type: isP2PTransfer ? "p2p_transfer" : "tansfer",
-        transaction_id: pendingTx.id
-      },
-      { status: 200 }
-    );
-  }
+      // ❌ FAILURE CASE — REFUND USER
+      if (eventType === "payout_failed" || txStatus === "failed") {
+        console.log(
+          `❌ ${
+            isP2PTransfer ? "P2P Transfer" : "Withdrawal"
+          } failed - refunding user and marking transaction failed`
+        );
 
-  // ❌ FAILURE CASE — REFUND USER
-  if (eventType === "payout_failed" || txStatus === "failed") {
-    console.log(
-      `❌ ${
-        isP2PTransfer ? "P2P Transfer" : "Withdrawal"
-      } failed - refunding user and marking transaction failed`
-    );
+        // Extract error details from the payload
+        const errorDetail =
+          payload.data?.transaction?.responseMessage ||
+          payload.data?.transaction?.narration ||
+          payload.error?.message ||
+          "Transaction failed";
 
-    // Extract error details from the payload
-    const errorDetail =
-      payload.data?.transaction?.responseMessage ||
-      payload.data?.transaction?.narration ||
-      payload.error?.message ||
-      "Transaction failed";
+        const narration =
+          payload.data?.transaction?.narration ||
+          pendingTx.narration ||
+          "Transfer";
 
-    const narration =
-      payload.data?.transaction?.narration ||
-      pendingTx.narration ||
-      "Transfer";
+        const updatedExternalResponse = {
+          ...payload,
+          fee_breakdown: {
+            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+            nomba_fee: nombaFee,
+            app_fee: appFee,
+            total_fee: totalFees,
+            failed: true,
+          },
+        };
 
-    const updatedExternalResponse = {
-      ...payload,
-      fee_breakdown: {
-        transaction_type: isP2PTransfer ? "p2p_transfer" : "tansfer",
-        nomba_fee: nombaFee,
-        app_fee: appFee,
-        total_fee: totalFees,
-        failed: true,
-      },
-    };
+        // Update transaction to failed
+        const { error: updateError } = await supabase
+          .from("transactions")
+          .update({
+            status: "failed",
+            external_response: updatedExternalResponse,
+            reference: nombaTransactionId || pendingTx.reference,
+          })
+          .eq("id", pendingTx.id);
 
-    // Update transaction to failed
-    const { error: updateError } = await supabase
-      .from("transactions")
-      .update({
-        status: "failed",
-        external_response: updatedExternalResponse,
-        reference: nombaTransactionId || pendingTx.reference,
-      })
-      .eq("id", pendingTx.id);
+        // Extract withdrawal details from the actual webhook payload
+        const withdrawalDetails =
+          pendingTx.external_response?.withdrawal_details || {};
 
-    if (updateError) {
-      console.error("❌ Failed to update transaction status:", updateError);
+        const recipientName =
+          payload.data?.customer?.recipientName ||
+          withdrawalDetails.account_name ||
+          "N/A";
+
+        const recipientAccount =
+          payload.data?.customer?.accountNumber ||
+          withdrawalDetails.account_number ||
+          "N/A";
+
+        const bankName =
+          payload.data?.customer?.bankName ||
+          withdrawalDetails.bank_name ||
+          "N/A";
+
+        console.log("🏦 Extracted Withdrawal Details:", {
+          recipientName,
+          recipientAccount,
+          bankName,
+          narration,
+          errorDetail,
+        });
+
+        if (updateError) {
+          console.error("❌ Failed to update transaction status:", updateError);
+          return NextResponse.json(
+            { error: "Failed to update transaction" },
+            { status: 500 }
+          );
+        }
+
+        // Refund wallet via RPC since we deducted earlier
+        console.log("🔄 Refunding user wallet...");
+        const refundReference = `refund_${
+          nombaTransactionId || crypto.randomUUID()
+        }`;
+        const { error: refundErr } = await supabase.rpc(
+          "deduct_wallet_balance",
+          {
+            user_id: pendingTx.user_id,
+            amt: -totalDeduction, // negative = credit back
+            transaction_type: "credit",
+            reference: refundReference,
+            description: `Refund for failed ${
+              isP2PTransfer ? "P2P transfer" : "withdrawal"
+            } of ₦${txAmount}`,
+          }
+        );
+
+        if (refundErr) {
+          console.error("❌ Refund RPC failed:", refundErr.message);
+          return NextResponse.json(
+            { error: "Failed to refund wallet via RPC" },
+            { status: 500 }
+          );
+        }
+
+        // Send failure email with error details
+        await sendWithdrawalEmailNotification(
+          pendingTx.user_id,
+          "failed",
+          txAmount,
+          nombaFee,
+          appFee,
+          totalDeduction,
+          recipientName,
+          recipientAccount,
+          bankName,
+          narration,
+          pendingTx.id,
+          errorDetail
+        );
+
+        console.log(
+          `✅ Refund completed successfully for user ${pendingTx.user_id}`
+        );
+        return NextResponse.json(
+          {
+            refunded: true,
+            transaction_type: isP2PTransfer ? "p2p_transfer" : "withdrawal",
+          },
+          { status: 200 }
+        );
+      }
+      console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
       return NextResponse.json(
-        { error: "Failed to update transaction" },
-        { status: 500 }
+        { message: "Ignored transfer event" },
+        { status: 200 }
       );
     }
 
-    console.log(`✅ Transaction ${pendingTx.id} marked as failed`);
-
-    // Refund wallet via RPC since we deducted earlier
-    console.log("🔄 Refunding user wallet...");
-    const refundReference = `refund_${nombaTransactionId || crypto.randomUUID()}`;
-    const { error: refundErr } = await supabase.rpc(
-      "deduct_wallet_balance",
-      {
-        user_id: pendingTx.user_id,
-        amt: -totalDeduction, // negative = credit back
-        transaction_type: "credit",
-        reference: refundReference,
-        description: `Refund for failed ${
-          isP2PTransfer ? "P2P transfer" : "tansfer"
-        } of ₦${txAmount}`,
-      }
-    );
-
-    if (refundErr) {
-      console.error("❌ Refund RPC failed:", refundErr.message);
-      return NextResponse.json(
-        { error: "Failed to refund wallet via RPC" },
-        { status: 500 }
-      );
-    }
-
-    console.log(`✅ Refund completed successfully for user ${pendingTx.user_id}`);
-
-    // Extract recipient details for email
-    const recipientName =
-      payload.data?.customer?.recipientName ||
-      pendingTx.receiver?.name ||
-      "N/A";
-
-    const recipientAccount =
-      payload.data?.customer?.accountNumber ||
-      pendingTx.receiver?.accountNumber ||
-      "N/A";
-
-    const bankName =
-      payload.data?.customer?.bankName ||
-      pendingTx.receiver?.bankName ||
-      "N/A";
-
-    // Send failure email with error details
-    await sendWithdrawalEmailNotification(
-      pendingTx.user_id,
-      "failed",
-      txAmount,
-      nombaFee,
-      appFee,
-      totalDeduction,
-      recipientName,
-      recipientAccount,
-      bankName,
-      narration,
-      pendingTx.id,
-      errorDetail
-    );
-
-    return NextResponse.json(
-      {
-        refunded: true,
-        transaction_type: isP2PTransfer ? "p2p_transfer" : "tansfer",
-        transaction_id: pendingTx.id
-      },
-      { status: 200 }
-    );
-  }
-  
-  console.log("ℹ️ Unhandled transfer event/status. Ignoring.");
-  return NextResponse.json(
-    { message: "Ignored transfer event" },
-    { status: 200 }
-  );
-}
     // If we reach here, event type not handled specifically
     console.log("ℹ️ Event type not matched. Ignoring.");
     return NextResponse.json({ message: "Ignored event" }, { status: 200 });

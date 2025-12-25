@@ -174,7 +174,7 @@ ${greeting}
 Your transfer was successful!
 
 💰 Transaction Details:
-• Amount: ₦${(amount - totalFee).toLocaleString()}
+• Amount: ₦${(amount).toLocaleString()}
 • Fee: ₦${totalFee.toLocaleString()}
 • Total Deductin: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
@@ -198,7 +198,7 @@ ${greeting}
 Your transfer failed.
 
 💰 Transaction Details:
-• Amount: ₦${(amount - totalFee).toLocaleString()}
+• Amount: ₦${(amount).toLocaleString()}
 • Fee: ₦${totalFee.toLocaleString()}
 • Total Deduction: ₦${totalDeduction.toLocaleString()}
 • Recipient: ${recipientName}
@@ -242,7 +242,7 @@ Zidwell Team
           <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
             <h4 style="margin-top: 0;">Transaction Details:</h4>
             <p><strong>Amount:</strong> ₦${(
-              amount - totalFee
+              amount
             ).toLocaleString()}</p>
             <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
             <p><strong>Total Deduction:</strong> ₦${totalDeduction.toLocaleString()}</p>

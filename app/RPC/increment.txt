@@ -1,0 +1,7 @@
+BEGIN
+  RAISE NOTICE 'increment_wallet_balance called. user_id=%, amt=%', user_id, amt;
+
+  UPDATE users
+  SET wallet_balance = COALESCE(wallet_balance, 0) + amt
+  WHERE id = user_id;
+END;

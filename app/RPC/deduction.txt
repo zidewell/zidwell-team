@@ -1,0 +1,30 @@
+DECLARE
+    current_balance numeric;
+BEGIN
+    -- Lock row
+    SELECT wallet_balance INTO current_balance
+    FROM users
+    WHERE id = user_id
+    FOR UPDATE;
+
+    IF current_balance IS NULL THEN
+        RAISE EXCEPTION 'User % not found', user_id;
+    END IF;
+
+    IF current_balance < amt THEN
+        RETURN QUERY SELECT NULL::uuid, current_balance, 'INSUFFICIENT_FUNDS';
+        RETURN;
+    END IF;
+
+    -- Deduct balance
+    UPDATE users
+    SET wallet_balance = wallet_balance - amt
+    WHERE id = user_id;
+
+    -- Insert transaction with whatever type is passed
+    INSERT INTO transactions(user_id, type, amount, status, reference, description)
+    VALUES(user_id, transaction_type, amt, 'pending', reference, description)
+    RETURNING id INTO tx_id;
+
+    RETURN QUERY SELECT tx_id, current_balance - amt, 'OK';
+END;

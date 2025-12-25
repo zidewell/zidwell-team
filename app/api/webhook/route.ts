@@ -2069,11 +2069,10 @@ export async function POST(req: NextRequest) {
       let appFee = 0;
       let totalFees = 0;
      let totalDeduction = Number(pendingTx.total_deduction || txAmount + totalFees);
-
+ let nombaFee = Number(payload.data?.transaction?.fee || 0);
       if (isRegularWithdrawal) {
          
-  const nombaFee = Number(payload.data?.transaction?.fee || 0);
-
+  
  
   totalFees = Number(pendingTx.fee || 0);
   appFee = Math.max(0, totalFees - nombaFee);

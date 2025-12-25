@@ -2135,7 +2135,7 @@ export async function POST(req: NextRequest) {
           })
           .eq("id", pendingTx.id);
 
-          
+          console.log("pendingTx", pendingTx )
 
         const withdrawalDetails =
           pendingTx.external_response?.withdrawal_details || {};

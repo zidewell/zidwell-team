@@ -3,6 +3,7 @@ import { getNombaToken } from "@/lib/nomba";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 
+
 export async function POST(req: Request) {
   const supabase = createClient(
     process.env.SUPABASE_URL!,
@@ -23,6 +24,7 @@ export async function POST(req: Request) {
       narration,
       pin,
       fee,
+      totalDebit,
     } = await req.json();
 
     // ✅ Validate inputs
@@ -62,7 +64,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const totalDeduction = amount + fee;
+    const totalDeduction = totalDebit || amount + fee;
     if (user.wallet_balance < totalDeduction) {
       return NextResponse.json(
         { message: "Insufficient wallet balance (including fees)" },
@@ -81,11 +83,12 @@ export async function POST(req: Request) {
 
     const merchantTxRef = `WD_${Date.now()}`;
 
+    // ✅ Insert pending transaction
     const { data: pendingTx, error: txError } = await supabase
       .from("transactions")
       .insert({
         user_id: userId,
-        type: "tansfer",
+        type: "withdrawal",
         sender: {
           name: senderName,
           accountNumber: senderAccountNumber,
@@ -117,7 +120,7 @@ export async function POST(req: Request) {
     const { error: rpcError } = await supabase.rpc("deduct_wallet_balance", {
       user_id: pendingTx.user_id,
       amt: totalDeduction,
-      transaction_type: "tansfer",
+      transaction_type: "withdrawal",
       reference: merchantTxRef,
       description: `Transfer of ₦${amount}`,
     });
@@ -176,12 +179,16 @@ export async function POST(req: Request) {
 
       if (refundErr) {
         console.error("❌ Refund failed:", refundErr);
+
+    
+
         return NextResponse.json(
           { message: "Transfer failed, refund pending", nombaResponse: data },
           { status: 400 }
         );
       }
 
+     
       return NextResponse.json(
         {
           message: "Transfer failed, funds refunded successfully.",
@@ -192,6 +199,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // ✅ If success, update transaction to processing
     await supabase
       .from("transactions")
       .update({
@@ -208,7 +216,7 @@ export async function POST(req: Request) {
       nombaResponse: data,
     });
   } catch (error: any) {
-    console.error("tansfer API error:", error);
+    console.error("Withdraw API error:", error);
     return NextResponse.json(
       { error: "Server error: " + (error.message || error.description) },
       { status: 500 }

@@ -54,7 +54,6 @@ export default function TransactionDetailsPage() {
     }
   }, [params.id, transactions]);
 
-  console.log(transaction, "transaction");
 
   // Function to determine if transaction amount should be negative
   const isOutflow = (transactionType: string) => {

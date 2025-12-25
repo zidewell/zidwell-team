@@ -4,10 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 
 
-
-
-
-
 export async function POST(req: Request) {
   const supabase = createClient(
     process.env.SUPABASE_URL!,

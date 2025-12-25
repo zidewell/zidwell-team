@@ -2068,7 +2068,7 @@ export async function POST(req: NextRequest) {
 
       let appFee = 0;
       let totalFees = 0;
-     let totalDeduction = Number(pendingTx.total_deduction || txAmount + totalFees);
+     let totalDeduction = Number(pendingTx.amount);
     
  let nombaFee = Number(payload.data?.transaction?.fee || 0);
       if (isRegularWithdrawal) {
@@ -2090,7 +2090,7 @@ export async function POST(req: NextRequest) {
         // 🔥 P2P transfers have NO FEES
         appFee = 0;
         totalFees = 0; // No fees for P2P
-        totalDeduction = txAmount; // Only deduct the transfer amount
+        totalDeduction = txAmount; 
 
         console.log("💰 P2P Transfer calculations (NO FEES):");
         console.log("   - Transfer amount:", txAmount);

@@ -256,7 +256,7 @@ const getSafeData = <T,>(data: T | undefined, path: string, defaultValue: any = 
 export default function AdminDashboard() {
   const [page, setPage] = useState<number>(1);
   const PAGE_LIMIT = 50;
-  const [range, setRange] = useState<RangeOption>("total");
+  const [range, setRange] = useState<RangeOption>("today");
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("overview");
 
@@ -567,7 +567,7 @@ export default function AdminDashboard() {
                   <SelectValue placeholder="Select range" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="total">Total</SelectItem>
+                  {/* <SelectItem value="total">Total</SelectItem> */}
                   <SelectItem value="today">Today</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>

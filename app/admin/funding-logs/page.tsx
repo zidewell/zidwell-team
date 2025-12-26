@@ -183,7 +183,7 @@ export default function FundingLogsPage() {
               ? "text-green-600"
               : row.status === "failed"
               ? "text-red-600"
-              : "text-yellow-600"
+              : "text-[#C29307]"
           }">
             ${row.status?.toUpperCase()}
           </div>

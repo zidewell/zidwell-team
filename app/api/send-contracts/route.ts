@@ -12,55 +12,11 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-<<<<<<< HEAD
     console.log("Contract API received payload:", {
       userId: body.userId,
       contractTitle: body.contractTitle || body.contract_title,
       receiverEmail: body.receiverEmail || body.receiver_email || body.signee_email,
       isDraft: body.is_draft || body.isDraft || false
-=======
-    const { userId, initiatorName, receiverEmail, receiverName,signeePhone, contractText, contractTitle, initiatorEmail, status } =
-      body;
-
-    if (
-      !receiverEmail ||
-      !receiverName ||
-      !contractText ||
-      !contractTitle ||
-      !initiatorEmail ||
-      !status ||
-      !initiatorName
-    ) {
-      return new Response(JSON.stringify({ message: "Missing fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const token = uuidv4();
-    const baseUrl =
-      process.env.NODE_ENV === "development"
-        ? process.env.NEXT_PUBLIC_DEV_URL
-        : process.env.NEXT_PUBLIC_BASE_URL;
-    const signingLink = `${baseUrl}/sign-contract/${token}`;
-    const verificationCode = Math.floor(
-      100000 + Math.random() * 900000
-    ).toString();
-
-    // ⬇️ Store in Supabase
-    const { error } = await supabase.from("contracts").insert({
-      token,
-      signee_email: receiverEmail,
-      signee_name: receiverName,
-      signee_phone: signeePhone,
-      initiator_email: initiatorEmail,
-      initiator_name: initiatorName,
-      contract_text: contractText,
-      contract_title: contractTitle,
-      signing_link: signingLink,
-      status,
-      verification_code: verificationCode,
->>>>>>> a0b72e445cae805524ecfbf10c5a51c499e436bc
     });
 
     // Extract data with multiple possible field names
@@ -189,7 +145,6 @@ export async function POST(req: NextRequest) {
       hasSigningLink: !!result.signing_link
     });
 
-<<<<<<< HEAD
     // Send email only if not draft
     if (!isDraft && receiverEmail) {
       const signingLink = `${baseUrl}/sign-contract/${token}`;
@@ -291,17 +246,6 @@ export async function POST(req: NextRequest) {
       signingLink: result.signing_link || null,
       verificationCode: result.verification_code,
       isDraft: isDraft
-=======
-    return new Response(JSON.stringify({ message: "Email sent" }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("Error sending signature request:", error);
-    return new Response(JSON.stringify({ message: "Internal server error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
->>>>>>> a0b72e445cae805524ecfbf10c5a51c499e436bc
     });
 
   } catch (error: any) {

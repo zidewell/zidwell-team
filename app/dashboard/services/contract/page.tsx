@@ -5,7 +5,6 @@ import Features from '@/app/components/smart-contract-components/Features'
 import Pricing from '@/app/components/smart-contract-components/Pricing'
 import SmartContractHero from '@/app/components/smart-contract-components/SmartContractHero'
 import SmartContractStep from '@/app/components/smart-contract-components/SmartContractStep'
-import React from 'react'
 
 const page = () => {
   return (

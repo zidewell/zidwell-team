@@ -6,7 +6,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import AdminLayout from "@/app/components/admin-components/layout";
 import Loader from "@/app/components/Loader";
-import TaxFilingsTable from "@/app/components/admin-components/TaxtFilingsTable"; 
+import TaxFilingsTable from "@/app/components/admin-components/TaxtFilingsTable";
 import {
   Pagination,
   PaginationContent,
@@ -15,7 +15,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/app/components/ui/pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -37,14 +43,23 @@ export default function TaxFilingsPage() {
       range: dateRange,
     });
 
-    if (searchTerm) params.append('search', searchTerm);
-    if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (typeFilter !== 'all') params.append('type', typeFilter);
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    if (searchTerm) params.append("search", searchTerm);
+    if (statusFilter !== "all") params.append("status", statusFilter);
+    if (typeFilter !== "all") params.append("type", typeFilter);
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
 
     return `/api/admin-apis/tax-filings?${params.toString()}`;
-  }, [currentPage, dateRange, searchTerm, statusFilter, typeFilter, startDate, endDate, itemsPerPage]);
+  }, [
+    currentPage,
+    dateRange,
+    searchTerm,
+    statusFilter,
+    typeFilter,
+    startDate,
+    endDate,
+    itemsPerPage,
+  ]);
 
   const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher);
 
@@ -52,14 +67,14 @@ export default function TaxFilingsPage() {
   const statsApiUrl = useMemo(() => {
     const params = new URLSearchParams({
       range: dateRange,
-      limit: '10000', // Get all for stats calculation
+      limit: "10000", // Get all for stats calculation
     });
 
-    if (searchTerm) params.append('search', searchTerm);
-    if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (typeFilter !== 'all') params.append('type', typeFilter);
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    if (searchTerm) params.append("search", searchTerm);
+    if (statusFilter !== "all") params.append("status", statusFilter);
+    if (typeFilter !== "all") params.append("type", typeFilter);
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
 
     return `/api/admin-apis/tax-filings?${params.toString()}`;
   }, [dateRange, searchTerm, statusFilter, typeFilter, startDate, endDate]);
@@ -74,34 +89,59 @@ export default function TaxFilingsPage() {
   // Memoize calculations
   const filings = useMemo(() => data?.filings || [], [data]);
   const totalFilings = useMemo(() => data?.total || 0, [data]);
-  const totalPages = useMemo(() => Math.ceil(totalFilings / itemsPerPage), [totalFilings, itemsPerPage]);
+  const totalPages = useMemo(
+    () => Math.ceil(totalFilings / itemsPerPage),
+    [totalFilings, itemsPerPage]
+  );
 
   // Use statsData for calculations
-  const allFilteredFilings = useMemo(() => statsData?.filings || [], [statsData]);
+  const allFilteredFilings = useMemo(
+    () => statsData?.filings || [],
+    [statsData]
+  );
 
   // Calculate stats
-  const pendingFilings = useMemo(() => 
-    allFilteredFilings.filter((f: any) => f.status === "pending" || f.status === "submitted"), 
+  const pendingFilings = useMemo(
+    () =>
+      allFilteredFilings.filter(
+        (f: any) => f.status === "pending" || f.status === "submitted"
+      ),
     [allFilteredFilings]
   );
 
-  const processingFilings = useMemo(() => 
-    allFilteredFilings.filter((f: any) => f.status === "processing" || f.status === "under_review"), 
+  const processingFilings = useMemo(
+    () =>
+      allFilteredFilings.filter(
+        (f: any) => f.status === "processing" || f.status === "under_review"
+      ),
     [allFilteredFilings]
   );
 
-  const successfulFilings = useMemo(() => 
-    allFilteredFilings.filter((f: any) => f.status === "completed" || f.status === "approved" || f.status === "success"), 
+  const successfulFilings = useMemo(
+    () =>
+      allFilteredFilings.filter(
+        (f: any) =>
+          f.status === "completed" ||
+          f.status === "approved" ||
+          f.status === "success"
+      ),
     [allFilteredFilings]
   );
 
-  const rejectedFilings = useMemo(() => 
-    allFilteredFilings.filter((f: any) => f.status === "rejected" || f.status === "failed"), 
+  const rejectedFilings = useMemo(
+    () =>
+      allFilteredFilings.filter(
+        (f: any) => f.status === "rejected" || f.status === "failed"
+      ),
     [allFilteredFilings]
   );
 
-  const totalRevenue = useMemo(() => 
-    allFilteredFilings.reduce((sum: number, f: any) => sum + Number(f.amount_paid || 0), 0), 
+  const totalRevenue = useMemo(
+    () =>
+      allFilteredFilings.reduce(
+        (sum: number, f: any) => sum + Number(f.amount_paid || 0),
+        0
+      ),
     [allFilteredFilings]
   );
 
@@ -142,11 +182,13 @@ export default function TaxFilingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Total Revenue</h3>
-            <p className="text-2xl font-semibold">₦{totalRevenue.toLocaleString()}</p>
+            <p className="text-2xl font-semibold">
+              ₦{totalRevenue.toLocaleString()}
+            </p>
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="text-2xl font-semibold text-yellow-600">
+            <p className="text-2xl font-semibold text-[#C29307]">
               {pendingFilings.length}
             </p>
           </div>
@@ -179,7 +221,7 @@ export default function TaxFilingsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
+
           <div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -233,8 +275,8 @@ export default function TaxFilingsPage() {
           </div>
 
           <div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full"
               onClick={() => {
                 setSearchTerm("");
@@ -254,7 +296,9 @@ export default function TaxFilingsPage() {
         {dateRange === "custom" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                From Date
+              </label>
               <Input
                 type="date"
                 value={startDate}
@@ -262,7 +306,9 @@ export default function TaxFilingsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                To Date
+              </label>
               <Input
                 type="date"
                 value={endDate}
@@ -276,8 +322,8 @@ export default function TaxFilingsPage() {
         <div className="text-sm text-gray-500">
           Showing {filings.length} of {totalFilings} tax filings
           {searchTerm && ` matching "${searchTerm}"`}
-          {statusFilter !== 'all' && ` | Status: ${statusFilter}`}
-          {typeFilter !== 'all' && ` | Type: ${typeFilter}`}
+          {statusFilter !== "all" && ` | Status: ${statusFilter}`}
+          {typeFilter !== "all" && ` | Type: ${typeFilter}`}
           {dateRange !== "total" && ` | Date: ${dateRange}`}
           {` - Page ${currentPage} of ${totalPages}`}
         </div>
@@ -294,7 +340,9 @@ export default function TaxFilingsPage() {
                   <PaginationPrevious
                     href="#"
                     onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    className={
+                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
                   />
                 </PaginationItem>
 
@@ -326,8 +374,14 @@ export default function TaxFilingsPage() {
                 <PaginationItem>
                   <PaginationNext
                     href="#"
-                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                    className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(p + 1, totalPages))
+                    }
+                    className={
+                      currentPage >= totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
                   />
                 </PaginationItem>
               </PaginationContent>

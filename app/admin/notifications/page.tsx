@@ -829,7 +829,7 @@ export default function NotificationsCenterPage() {
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Scheduled</h3>
-            <p className="text-2xl font-semibold text-yellow-600">
+            <p className="text-2xl font-semibold text-[#C29307]">
               {scheduledNotifications.length}
             </p>
           </div>

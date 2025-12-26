@@ -61,7 +61,7 @@ const Services = () => {
       title: "Buy Power",
       description:
         "Purchase electricity units for your home or office with ease.",
-      color: "from-yellow-500 to-yellow-600",
+      color: "from-yellow-500 to-[#C29307]",
       link: "/platform-services/#electricity",
     },
     {

@@ -238,7 +238,7 @@ export default function InvoiceGen() {
             <CardContent className="p-6">
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-1">Unpaid Invoices</p>
-                <p className="text-2xl font-bold text-yellow-600">
+                <p className="text-2xl font-bold text-[#C29307]">
                   {unpaidInvoice}
                 </p>
               </div>

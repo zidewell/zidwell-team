@@ -1,18 +1,18 @@
 import React from "react";
+import { Button } from "../ui/button";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
-  
 }
 
 const ButtonPrimary = ({ children, className = "", ...props }: ButtonProps) => {
   return (
-    <button
+    <Button
       {...props}
-      className={`bg-yellow-500 hover:bg-yellow-600 text-white font-semibold px-5 py-2 rounded shadow-sm font-inter ${className}`}
+      className={`bg-[#C29307] hover:bg-[#C29307] text-white shadow-sm `}
     >
       {children}
-    </button>
+    </Button>
   );
 };
 

@@ -114,14 +114,14 @@ export default function InvoiceSummary({
                         </>
                       ) : (
                         <>
-                          <span className="text-yellow-600 mr-3 text-2xl">
+                          <span className="text-[#C29307] mr-3 text-2xl">
                             💰
                           </span>
                           <div>
                             <p className="font-semibold text-yellow-800">
                               Invoice Creation Fee
                             </p>
-                            <p className="text-sm text-yellow-600">
+                            <p className="text-sm text-[#C29307]">
                               You've used all 10 free invoices
                             </p>
                           </div>
@@ -133,7 +133,7 @@ export default function InvoiceSummary({
                         className={`text-2xl font-bold ${
                           freeInvoiceInfo.hasFreeInvoices
                             ? "text-green-600"
-                            : "text-yellow-600"
+                            : "text-[#C29307]"
                         }`}
                       >
                         {freeInvoiceInfo.hasFreeInvoices ? "FREE" : "₦100"}
@@ -167,7 +167,7 @@ export default function InvoiceSummary({
                       className={`block mt-1 ${
                         freeInvoiceInfo.hasFreeInvoices
                           ? "text-green-600"
-                          : "text-yellow-600"
+                          : "text-[#C29307]"
                       }`}
                     >
                       {freeInvoiceInfo.hasFreeInvoices

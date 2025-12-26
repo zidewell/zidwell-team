@@ -103,9 +103,15 @@ export async function POST(req: Request) {
     }
 
     const receiverName = `${receiver.first_name} ${receiver.last_name}`;
-
-    const merchantTxRef = `P2P_${Date.now()}`;
     const senderName = `${user.first_name} ${user.last_name}`;
+
+    // Create unique references for sender and receiver transactions
+    const timestamp = Date.now();
+    const senderTxRef = `P2P_SND_${timestamp}_${userId}`;
+    const receiverTxRef = `P2P_RCV_${timestamp}_${receiver.id}`;
+    
+    // Create a linked transaction ID for both records
+    const linkedTransactionId = `P2P_${timestamp}`;
 
     // Create description for sender and receiver
     const senderDescription = `P2P transfer to ${receiverName}`;
@@ -118,7 +124,7 @@ export async function POST(req: Request) {
         user_id: userId,
         amt: amount,
         transaction_type: "p2p_transfer",
-        reference: merchantTxRef,
+        reference: senderTxRef, // Use sender-specific reference
         description: senderDescription,
       }
     );
@@ -191,7 +197,6 @@ export async function POST(req: Request) {
           accountNumber: receiver.bank_account_number,
           bankName: receiver.bank_name,
         },
-
         fee: 0,
         total_deduction: amount,
         narration: narration,
@@ -202,16 +207,18 @@ export async function POST(req: Request) {
           bank_check: "Nombank MFB verified",
           self_transfer_check: "Verified - not self-transfer",
           timestamp: new Date().toISOString(),
+          linked_transaction_id: linkedTransactionId,
+          counterparty_reference: receiverTxRef, // Store receiver's reference
         },
       })
-      .eq("reference", merchantTxRef)
+      .eq("reference", senderTxRef) // Use sender-specific reference
       .eq("user_id", userId);
 
     if (updateError) {
       console.error("Failed to update transaction record:", updateError);
     }
 
-    // ✅ 4. Create a complete transaction record for the receiver
+    // ✅ 4. Create receiver's transaction record
     const { error: receiverTxError } = await supabase
       .from("transactions")
       .insert({
@@ -219,7 +226,7 @@ export async function POST(req: Request) {
         type: "p2p_credit",
         amount: amount,
         status: "success",
-        reference: merchantTxRef,
+        reference: receiverTxRef, // Use unique receiver reference
         narration: narration,
         description: receiverDescription,
         sender: {
@@ -232,7 +239,6 @@ export async function POST(req: Request) {
           accountNumber: receiver.bank_account_number,
           bankName: receiver.bank_name,
         },
-
         fee: 0,
         total_deduction: 0,
         external_response: {
@@ -241,6 +247,8 @@ export async function POST(req: Request) {
           bank_check: "Nombank MFB verified",
           self_transfer_check: "Verified - not self-transfer",
           timestamp: new Date().toISOString(),
+          linked_transaction_id: linkedTransactionId,
+          counterparty_reference: senderTxRef, // Store sender's reference
         },
       });
 
@@ -256,9 +264,10 @@ export async function POST(req: Request) {
         transaction_id: transactionId,
         amount: -amount,
         transaction_type: "debit",
-        reference: merchantTxRef,
+        reference: senderTxRef, // Use sender-specific reference
         description: senderDescription,
         created_at: new Date().toISOString(),
+        linked_transaction_id: linkedTransactionId,
       });
 
       // For receiver
@@ -267,9 +276,10 @@ export async function POST(req: Request) {
         transaction_id: transactionId,
         amount: amount,
         transaction_type: "credit",
-        reference: merchantTxRef,
+        reference: receiverTxRef, // Use receiver-specific reference
         description: receiverDescription,
         created_at: new Date().toISOString(),
+        linked_transaction_id: linkedTransactionId,
       });
     } catch (historyError) {
       console.error("Failed to update wallet history:", historyError);
@@ -278,7 +288,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       message: "P2P transfer completed successfully.",
-      transactionRef: merchantTxRef,
+      transactionRef: linkedTransactionId,
+      senderRef: senderTxRef,
+      receiverRef: receiverTxRef,
       amount,
       receiverName,
       bankVerification: "Nombank MFB verified",

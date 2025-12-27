@@ -1,3 +1,137 @@
+// import { NextResponse } from "next/server";
+// import { createClient } from "@supabase/supabase-js";
+// import bcrypt from "bcryptjs";
+
+// const supabase = createClient(
+//   process.env.SUPABASE_URL!,
+//   process.env.SUPABASE_SERVICE_ROLE_KEY!
+// );
+
+// export async function POST(req: Request) {
+//   try {
+//     const body = await req.json();
+//     let { userId, amount, description, pin } = body;
+
+//     amount = Number(amount);
+
+//     // if (!userId || !amount || amount <= 0 || !pin) {
+//     //   return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
+//     // }
+//     if (!userId || !pin) {
+
+//       return NextResponse.json({ error: "Invalid request data" }, { status: 400 });
+//     }
+
+//     // ✅ Fetch user and verify PIN
+//     const { data: user, error: fetchError } = await supabase
+//       .from("users")
+//       .select("transaction_pin, wallet_balance")
+//       .eq("id", userId)
+//       .single();
+
+//     if (fetchError || !user) {
+//       return NextResponse.json(
+//         { error: fetchError?.message || "User not found" },
+//         { status: 404 }
+//       );
+//     }
+
+//     if (!user.transaction_pin) {
+  
+//       return NextResponse.json(
+//         { error: "Transaction PIN not set" },
+//         { status: 400 }
+//       );
+//     }
+
+//     const plainPin = Array.isArray(pin) ? pin.join("") : pin;
+//     const isValid = await bcrypt.compare(plainPin, user.transaction_pin);
+
+//     if (!isValid) {
+//       return NextResponse.json({ error: "Invalid transaction PIN" }, { status: 401 });
+//     }
+
+//     // ✅ Call RPC `deduct_wallet_balance`
+//     const reference = crypto.randomUUID();
+//     const { data: rpcData, error: rpcError } = await supabase.rpc(
+//       "deduct_wallet_balance",
+//       {
+//         user_id: userId,
+//         amt: amount,
+//         transaction_type: "debit",
+//         reference,
+//         description: description || "Funds deducted",
+//       }
+//     );
+
+//     if (rpcError) {
+//       console.error("❌ RPC deduct_wallet_balance failed:", rpcError.message);
+//       return NextResponse.json(
+//         { error: "Failed to deduct wallet balance via RPC" },
+//         { status: 500 }
+//       );
+//     }
+
+//     // ✅ FIX: RPC returns an ARRAY, extract the first item
+//     const result = Array.isArray(rpcData) && rpcData.length > 0 ? rpcData[0] : rpcData;
+//     console.log("🔍 RPC Result:", result);
+
+//     if (!result || result.status !== "OK") {
+    
+//       return NextResponse.json(
+//         { error: result?.status || "Deduction failed" },
+//         { status: 400 }
+//       );
+//     }
+
+//     const { error: updateError } = await supabase
+//       .from("transactions")
+//       .update({
+//         status: "success"
+//         // removed updated_at since column doesn't exist
+//       })
+//       .eq("id", result.tx_id);
+
+//     if (updateError) {
+//       console.error("❌ Failed to update transaction status:", updateError.message);
+
+//     } else {
+//       console.log("✅ Transaction status updated to success");
+//     }
+
+//     // ✅ FIX: Remove updated_at from users table update too
+//     const { error: balanceUpdateError } = await supabase
+//       .from("users")
+//       .update({
+//         wallet_balance: result.new_balance
+//       })
+//       .eq("id", userId);
+
+//     if (balanceUpdateError) {
+//       console.error("❌ Failed to update user wallet balance:", balanceUpdateError.message);
+//       // Log but don't fail the request
+//     } else {
+//       console.log("✅ User balance updated to:");
+//     }
+
+//     return NextResponse.json({
+//       success: true,
+//       message: "Funds deducted successfully",
+//       reference,
+//       transactionId: result.tx_id,
+//       newWalletBalance: result.new_balance,
+//       status: "success"
+//     });
+//   } catch (err: any) {
+//     console.error("❌ Deduct Funds Error:", err.message);
+//     return NextResponse.json(
+//       { error: err.message || "Unexpected server error" },
+//       { status: 500 }
+//     );
+//   }
+// }
+
+
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
@@ -14,15 +148,7 @@ const INVOICE_PRICE = 100;
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    let { 
-      userId, 
-      amount, 
-      description, 
-      pin, 
-      isInvoiceCreation = false, 
-      service, 
-      include_lawyer_signature = false // Add lawyer signature parameter
-    } = body;
+    let { userId, amount, description, pin, isInvoiceCreation = false , service, include_lawyer_signature} = body;
 
     // Validate required fields
     if (!userId || !pin) {
@@ -112,13 +238,13 @@ export async function POST(req: Request) {
           .insert({
             user_id: userId,
             amount: 0,
-            type: "invoice_creation",
+            transaction_type: "invoice_creation",
             status: "success",
             description:
               description ||
               `Free invoice created (${newTotalCount}/${FREE_INVOICES_LIMIT})`,
             reference: reference,
-            external_response: {
+            metadata: {
               free_invoice: true,
               invoice_count: newTotalCount,
               free_invoices_left: newFreeCount,
@@ -203,41 +329,7 @@ export async function POST(req: Request) {
       description ||
       (isInvoiceCreation
         ? `Paid invoice creation (₦${INVOICE_PRICE})`
-        : service === "contract" 
-          ? (include_lawyer_signature 
-            ? `Contract generation with lawyer signature (₦${amount})`
-            : `Contract generation (₦${amount})`)
-          : "Funds deducted");
-
-    // Prepare external_response data
-    let externalResponseData: any = {};
-
-    // Add invoice-specific data if applicable
-    if (isInvoiceCreation) {
-      externalResponseData = {
-        free_invoice: (user.free_invoices_left || 0) > 0,
-        invoice_count: (user.total_invoices_created || 0) + 1,
-        free_invoices_left: Math.max(0, (user.free_invoices_left || 0) - 1),
-      };
-    }
-
-    // Add lawyer signature data for contracts
-    if (service === "contract") {
-      externalResponseData = {
-        ...externalResponseData,
-        include_lawyer_signature: include_lawyer_signature,
-        lawyer_signature_included: include_lawyer_signature,
-        base_contract_fee: 10,
-        lawyer_fee: include_lawyer_signature ? 11000 : 0,
-        total_amount: amount,
-        service_type: "contract",
-        fee_breakdown: {
-          base_fee: 10,
-          lawyer_fee: include_lawyer_signature ? 11000 : 0,
-          total: amount
-        }
-      };
-    }
+        : "Funds deducted");
 
     const { data: rpcData, error: rpcError } = await supabase.rpc(
       "deduct_wallet_balance",
@@ -269,19 +361,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Update transaction with external_response data
-    const { error: updateTxError } = await supabase
+    // ✅ Update transaction status
+    const { error: updateError } = await supabase
       .from("transactions")
       .update({
-        external_response: externalResponseData,
         status: "success",
       })
       .eq("id", result.tx_id);
 
-    if (updateTxError) {
+    if (updateError) {
       console.error(
-        "❌ Failed to update transaction with external response:",
-        updateTxError.message
+        "❌ Failed to update transaction status:",
+        updateError.message
       );
     }
 
@@ -306,11 +397,7 @@ export async function POST(req: Request) {
       success: true,
       message: isInvoiceCreation
         ? `Paid invoice created successfully (₦${INVOICE_PRICE} deducted)`
-        : service === "contract"
-          ? (include_lawyer_signature
-            ? "Contract with lawyer signature created successfully"
-            : "Contract created successfully")
-          : "Funds deducted successfully",
+        : "Funds deducted successfully",
       reference,
       transactionId: result.tx_id,
       newWalletBalance: result.new_balance,
@@ -319,7 +406,6 @@ export async function POST(req: Request) {
       charged: isInvoiceCreation && (user.free_invoices_left || 0) <= 0,
       amount: amount,
       isInvoiceCreation: isInvoiceCreation,
-      include_lawyer_signature: include_lawyer_signature,
       status: "success",
     });
   } catch (err: any) {

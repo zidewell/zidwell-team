@@ -185,9 +185,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     "commission",
     "service_fee",
     "transaction_fee",
-    "convenience_fee",
     "processing_fee",
-    "platform_fee"
   ];
 
   const totalTransactions = transactions.length;

@@ -5,6 +5,7 @@ import ButtonPrimary from "./ButtonPrimary";
 import ButtonGhost from "./ButtonGhost";
 import IconDoc from "./IconDoc";
 import { useRouter } from "next/navigation";
+import { Button } from "../ui/button";
 
 const SmartContractHero: React.FC = () => {
   const router = useRouter();
@@ -32,7 +33,7 @@ const SmartContractHero: React.FC = () => {
               Create Contract Now
             </ButtonPrimary>
 
-            <ButtonGhost>View Pricing</ButtonGhost>
+            <Button variant="outline">View Pricing</Button>
           </div>
         </div>
       </div>

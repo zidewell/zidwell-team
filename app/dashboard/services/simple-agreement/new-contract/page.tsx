@@ -1,11 +1,6 @@
 "use client";
 import { useState } from "react";
-import {
-  ArrowLeft,
-  Send,
-  Loader2,
-  Eye,
-} from "lucide-react";
+import { ArrowLeft, Send, Loader2, Eye } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import {
   Card,
@@ -23,7 +18,7 @@ import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 import PinPopOver from "@/app/components/PinPopOver";
 import ContractsPreview from "@/app/components/previews/ContractsPreview";
-import ContractSummary from "@/app/components/ContractSummary";
+import ContractSummary from "@/app/components/sign-contract-form-component/ContractSummary";
 
 const Page = () => {
   const inputCount = 4;
@@ -36,11 +31,11 @@ const Page = () => {
   const [loading, setLoading] = useState(false);
   const [contractContent, setContractContent] = useState("");
   const [status, setStatus] = useState("draft");
-  
+
   // New state for toggle buttons
   const [ageAgreement, setAgeAgreement] = useState(false);
   const [termsAgreement, setTermsAgreement] = useState(false);
-  
+
   const [errors, setErrors] = useState({
     contractTitle: "",
     signeeEmail: "",
@@ -50,7 +45,7 @@ const Page = () => {
     ageAgreement: "",
     termsAgreement: "",
   });
-  
+
   const router = useRouter();
   const { userData } = useUserContextData();
 
@@ -89,8 +84,10 @@ const Page = () => {
     if (!contractContent.trim())
       newErrors.contractContent = "Contract content cannot be empty.";
     if (status === "") newErrors.status = "Please select a status.";
-    if (!ageAgreement) newErrors.ageAgreement = "You must confirm you are 18 years or older.";
-    if (!termsAgreement) newErrors.termsAgreement = "You must agree to the contract terms.";
+    if (!ageAgreement)
+      newErrors.ageAgreement = "You must confirm you are 18 years or older.";
+    if (!termsAgreement)
+      newErrors.termsAgreement = "You must agree to the contract terms.";
 
     setErrors(newErrors);
 
@@ -148,7 +145,7 @@ const Page = () => {
   const handleDeduct = async (): Promise<boolean> => {
     return new Promise((resolve) => {
       const pinString = pin.join("");
-      
+
       fetch("/api/pay-app-service", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -162,11 +159,7 @@ const Page = () => {
         .then(async (res) => {
           const data = await res.json();
           if (!res.ok) {
-            Swal.fire(
-              "Error",
-              data.error || "Something went wrong",
-              "error"
-            );
+            Swal.fire("Error", data.error || "Something went wrong", "error");
             resolve(false);
           } else {
             resolve(true);
@@ -208,11 +201,11 @@ const Page = () => {
   // Function to process payment and submit contract
   const processPaymentAndSubmit = async () => {
     setLoading(true);
-    
+
     try {
       // First process payment
       const paymentSuccess = await handleDeduct();
-      
+
       if (paymentSuccess) {
         // If payment successful, send contract
         await handleSubmit();
@@ -247,14 +240,14 @@ const Page = () => {
   };
 
   // Toggle button component - Mobile responsive
-  const ToggleButton = ({ 
-    isActive, 
-    onToggle, 
-    label, 
-    error 
-  }: { 
-    isActive: boolean; 
-    onToggle: (active: boolean) => void; 
+  const ToggleButton = ({
+    isActive,
+    onToggle,
+    label,
+    error,
+  }: {
+    isActive: boolean;
+    onToggle: (active: boolean) => void;
     label: string;
     error: string;
   }) => (
@@ -268,12 +261,12 @@ const Page = () => {
             type="button"
             onClick={() => onToggle(!isActive)}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#C29307] focus:ring-offset-2 ${
-              isActive ? 'bg-[#C29307]' : 'bg-gray-200'
+              isActive ? "bg-[#C29307]" : "bg-gray-200"
             }`}
           >
             <span
               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                isActive ? 'translate-x-6' : 'translate-x-1'
+                isActive ? "translate-x-6" : "translate-x-1"
               }`}
             />
           </button>
@@ -350,8 +343,8 @@ const Page = () => {
 
                 {/* Action Buttons - Hidden on mobile, shown in main content */}
                 <div className="hidden md:flex items-center gap-3">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => setShowPreview(true)}
                     className="flex items-center gap-2"
                   >
@@ -391,11 +384,15 @@ const Page = () => {
               <div className="lg:col-span-1">
                 <Card>
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg sm:text-xl">Contract Details</CardTitle>
+                    <CardTitle className="text-lg sm:text-xl">
+                      Contract Details
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <Label htmlFor="title" className="text-sm sm:text-base">Contract Title</Label>
+                      <Label htmlFor="title" className="text-sm sm:text-base">
+                        Contract Title
+                      </Label>
                       <Input
                         id="title"
                         value={contractTitle}
@@ -411,7 +408,12 @@ const Page = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="signeeEmail" className="text-sm sm:text-base">Client Email</Label>
+                      <Label
+                        htmlFor="signeeEmail"
+                        className="text-sm sm:text-base"
+                      >
+                        Client Email
+                      </Label>
                       <Input
                         id="signeeEmail"
                         value={signeeEmail}
@@ -427,7 +429,9 @@ const Page = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="status" className="text-sm sm:text-base">Status</Label>
+                      <Label htmlFor="status" className="text-sm sm:text-base">
+                        Status
+                      </Label>
                       <select
                         id="status"
                         value={status}
@@ -440,7 +444,9 @@ const Page = () => {
                         </option>
                       </select>
                       {errors.status && (
-                        <p className="text-red-500 text-xs sm:text-sm mt-1">{errors.status}</p>
+                        <p className="text-red-500 text-xs sm:text-sm mt-1">
+                          {errors.status}
+                        </p>
                       )}
                     </div>
 
@@ -454,7 +460,7 @@ const Page = () => {
                           error={errors.ageAgreement}
                         />
                       </div>
-                      
+
                       <div className="space-y-3">
                         <ToggleButton
                           isActive={termsAgreement}
@@ -472,7 +478,9 @@ const Page = () => {
               <div className="lg:col-span-2">
                 <Card className="h-full">
                   <CardHeader className="pb-4">
-                    <CardTitle className="text-lg sm:text-xl">Contract Content</CardTitle>
+                    <CardTitle className="text-lg sm:text-xl">
+                      Contract Content
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Textarea
@@ -492,15 +500,15 @@ const Page = () => {
 
               {/* Mobile Action Buttons - Always visible on mobile */}
               <div className="flex flex-col gap-3 lg:hidden sticky bottom-4 bg-white p-4 rounded-lg shadow-lg border">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setShowPreview(true)}
                   className="flex items-center gap-2 justify-center py-3"
                 >
                   <Eye className="h-4 w-4" />
                   Preview Contract
                 </Button>
-                
+
                 <Button
                   disabled={loading}
                   className={`flex items-center text-white transition justify-center py-3 ${
@@ -528,10 +536,10 @@ const Page = () => {
         </div>
       </div>
 
-      <ContractsPreview 
-        isOpen={showPreview} 
-        contract={form.contract} 
-        onClose={() => setShowPreview(false)} 
+      <ContractsPreview
+        isOpen={showPreview}
+        contract={form.contract}
+        onClose={() => setShowPreview(false)}
       />
     </div>
   );

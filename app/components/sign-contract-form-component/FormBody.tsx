@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import RichTextArea from "./RichTextArea";
-import SignContractFileUpload, { UploadedFile } from "./SignContractFileUpload";
+import SignContractFileUpload from "./SignContractFileUpload";
 import SignContractInput from "./SignContractInput";
 import SignContractSelect from "./SignContractSelect";
 import SignContractToggle from "./SignContractToggle";
-
 import { contractTitles } from "@/app/data/sampleContracts";
 import {
   Select,
@@ -27,8 +26,8 @@ import {
   History,
   ArrowLeft,
   Copy,
-  Link,
-  Paperclip,
+  X,
+  Scale,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import {
@@ -42,8 +41,7 @@ import { useRouter } from "next/navigation";
 import { useUserContextData } from "@/app/context/userData";
 import Swal from "sweetalert2";
 import PinPopOver from "../PinPopOver";
-import ContractsPreview from "../previews/ContractsPreview";
-import ContractSummary from "../ContractSummary";
+import ContractSummary from "./ContractSummary";
 import { Badge } from "../ui/badge";
 import { Label } from "../ui/label";
 
@@ -69,16 +67,38 @@ type ContractDraft = {
   updated_at: string;
   token?: string;
   verification_code?: string | null;
+  attachment_url?: string;
+  attachment_name?: string;
+};
+
+type FormState = {
+  receiverName: string;
+  receiverEmail: string;
+  receiverPhone: string;
+  contractTitle: string;
+  contractContent: string;
+  ageConsent: boolean;
+  termsConsent: boolean;
+  status: "pending" | "draft";
+  contractId: string;
+  contractType: "custom";
+};
+
+type AttachmentFile = {
+  file: File;
+  name: string;
+  size: number;
+  type: string;
+  previewUrl?: string;
 };
 
 const FormBody: React.FC = () => {
   const router = useRouter();
   const { userData } = useUserContextData();
-  const fileUploadRef = useRef<any>(null);
 
   const inputCount = 4;
   const [isOpen, setIsOpen] = useState(false);
-  const [pin, setPin] = useState(Array(inputCount).fill(""));
+  const [pin, setPin] = useState<string[]>(Array(inputCount).fill(""));
   const [loading, setLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
@@ -90,23 +110,28 @@ const FormBody: React.FC = () => {
   const [savedContractId, setSavedContractId] = useState<string>("");
   const [showContractSummary, setShowContractSummary] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
-  // File upload states - Store files in parent component to persist across tabs
-  const [fileUploads, setFileUploads] = useState<{
-    queuedFiles: UploadedFile[];
-    uploadedFiles: UploadedFile[];
-  }>({
-    queuedFiles: [],
-    uploadedFiles: []
-  });
+  // Store uploaded attachments separately
+  const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
 
-  // Keep these for backward compatibility
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
-  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
-  const [queuedFiles, setQueuedFiles] = useState<UploadedFile[]>([]);
+  // Lawyer signature state
+  const [includeLawyerSignature, setIncludeLawyerSignature] = useState(false);
+  const [totalAmount, setTotalAmount] = useState(10); // Start with base contract fee
+  const CONTRACT_FEE = 10;
+  const LAWYER_FEE = 11000;
+
+  // Update total amount when lawyer signature changes
+  useEffect(() => {
+    if (includeLawyerSignature) {
+      setTotalAmount(CONTRACT_FEE + LAWYER_FEE);
+    } else {
+      setTotalAmount(CONTRACT_FEE);
+    }
+  }, [includeLawyerSignature]);
 
   // Form state
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<FormState>({
     receiverName: "",
     receiverEmail: "",
     receiverPhone: "",
@@ -114,9 +139,9 @@ const FormBody: React.FC = () => {
     contractContent: "",
     ageConsent: false,
     termsConsent: false,
-    status: "pending" as "pending" | "draft",
+    status: "pending",
     contractId: "",
-    contractType: "custom" as "custom",
+    contractType: "custom",
   });
 
   const [drafts, setDrafts] = useState<ContractDraft[]>([]);
@@ -133,7 +158,7 @@ const FormBody: React.FC = () => {
   });
 
   // Generate contract ID function
-  const generateContractId = () => {
+  const generateContractId = useCallback(() => {
     const datePart = new Date().getFullYear();
     const randomToken = crypto
       .randomUUID()
@@ -141,13 +166,13 @@ const FormBody: React.FC = () => {
       .substring(0, 12)
       .toUpperCase();
     return `CTR-${datePart}-${randomToken}`;
-  };
+  }, []);
 
   // Initialize contract ID
   useEffect(() => {
     setForm((prev) => ({ ...prev, contractId: generateContractId() }));
     setIsInitialLoad(false);
-  }, []);
+  }, [generateContractId]);
 
   // Track form changes
   useEffect(() => {
@@ -156,11 +181,16 @@ const FormBody: React.FC = () => {
       (form.contractTitle ||
         form.contractContent ||
         form.receiverName ||
-        form.receiverEmail)
+        form.receiverEmail ||
+        form.receiverPhone ||
+        form.ageConsent ||
+        form.termsConsent ||
+        attachments.length > 0)
     ) {
       setHasUnsavedChanges(true);
     }
   }, [
+    isInitialLoad,
     form.contractTitle,
     form.contractContent,
     form.receiverName,
@@ -168,6 +198,7 @@ const FormBody: React.FC = () => {
     form.receiverPhone,
     form.ageConsent,
     form.termsConsent,
+    attachments.length,
   ]);
 
   // Load drafts on component mount - show SweetAlert when drafts exist
@@ -198,7 +229,8 @@ const FormBody: React.FC = () => {
           !form.contractTitle &&
           !form.contractContent &&
           !form.receiverName &&
-          !form.receiverEmail
+          !form.receiverEmail &&
+          attachments.length === 0
         ) {
           setTimeout(() => {
             Swal.fire({
@@ -251,7 +283,7 @@ const FormBody: React.FC = () => {
     console.log("Loading draft into form:", draft);
 
     // Handle all possible field names for each piece of data
-    const formData = {
+    const formData: FormState = {
       receiverName: draft.receiver_name || draft.signee_name || "",
       receiverEmail: draft.receiver_email || draft.signee_email || "",
       receiverPhone: draft.receiver_phone || draft.phone_number || "",
@@ -259,13 +291,24 @@ const FormBody: React.FC = () => {
       contractContent: draft.contract_content || draft.contract_text || "",
       ageConsent: draft.age_consent || false,
       termsConsent: draft.terms_consent || false,
-      status: draft.status as "pending" | "draft",
+      status: (draft.status as "pending" | "draft") || "draft",
       contractId: draft.contract_id || draft.id || generateContractId(),
-      contractType: (draft.contract_type as "custom") || "custom",
+      contractType: "custom",
     };
 
     setForm(formData);
     setHasUnsavedChanges(false);
+
+    // Note: We cannot load actual File objects from draft data
+    // But we can show that there was an attachment
+    if (draft.attachment_url || draft.attachment_name) {
+      Swal.fire({
+        icon: "info",
+        title: "Attachment Notice",
+        text: "This draft had an attachment. You'll need to re-upload the file.",
+        confirmButtonColor: "#C29307",
+      });
+    }
 
     // Show success SweetAlert
     setTimeout(() => {
@@ -305,7 +348,7 @@ const FormBody: React.FC = () => {
     Swal.fire({
       title: "Select a Draft to Load",
       html: `
-    <div style="text-align: left; max-height: 300px; overflow-y: auto; padding-right: 4px;">
+    <div style="text-align: left; max-height: 300px; overflow-y auto; padding-right: 4px;">
       ${draftListHTML}
     </div>
   `,
@@ -338,7 +381,9 @@ const FormBody: React.FC = () => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (
         hasUnsavedChanges &&
-        (form.contractTitle.trim() || form.contractContent.trim())
+        (form.contractTitle.trim() ||
+          form.contractContent.trim() ||
+          attachments.length > 0)
       ) {
         e.preventDefault();
         e.returnValue =
@@ -349,159 +394,12 @@ const FormBody: React.FC = () => {
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasUnsavedChanges, form.contractTitle, form.contractContent]);
-
-  // Handle file changes - Update parent state
-  const handleFilesChange = (files: UploadedFile[]) => {
-    setFileUploads(prev => ({ ...prev, queuedFiles: files }));
-    setQueuedFiles(files); // Keep for backward compatibility
-  };
-
-  // Handle file add in parent component
-  const handleFileAdd = (file: File): UploadedFile => {
-    const fileObj: UploadedFile = {
-      fileName: file.name,
-      originalName: file.name,
-      fileUrl: URL.createObjectURL(file),
-      fileSize: file.size,
-      fileType: file.type,
-      uploadedAt: new Date().toISOString(),
-      storagePath: `pending/${userData?.id}/${form.contractId}/${Date.now()}_${file.name}`,
-      file: file,
-      uploadStatus: "pending" as const,
-      uploadProgress: 0,
-    };
-
-    setFileUploads(prev => ({
-      ...prev,
-      queuedFiles: [...prev.queuedFiles, fileObj]
-    }));
-    setQueuedFiles(prev => [...prev, fileObj]);
-
-    return fileObj;
-  };
-
-  // Handle file remove in parent component
-  const handleFileRemove = (index: number) => {
-    // Revoke the object URL
-    const fileToRemove = fileUploads.queuedFiles[index];
-    if (fileToRemove?.fileUrl?.startsWith("blob:")) {
-      URL.revokeObjectURL(fileToRemove.fileUrl);
-    }
-
-    setFileUploads(prev => ({
-      ...prev,
-      queuedFiles: prev.queuedFiles.filter((_, i) => i !== index)
-    }));
-    setQueuedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  // Handle file update in parent component
-  const handleFileUpdate = (index: number, updates: Partial<UploadedFile>) => {
-    setFileUploads(prev => ({
-      ...prev,
-      queuedFiles: prev.queuedFiles.map((file, i) => 
-        i === index ? { ...file, ...updates } : file
-      )
-    }));
-  };
-
-  // Direct upload function that doesn't rely on ref
-  const uploadFilesDirectly = async (): Promise<{
-    success: boolean;
-    uploadedFiles?: UploadedFile[];
-    error?: string;
-  }> => {
-    if (fileUploads.queuedFiles.length === 0) {
-      return { success: true, uploadedFiles: [] };
-    }
-
-    setIsUploadingFiles(true);
-
-    try {
-      const uploadedResults: UploadedFile[] = [];
-      
-      // Upload each file
-      for (let i = 0; i < fileUploads.queuedFiles.length; i++) {
-        const queuedFile = fileUploads.queuedFiles[i];
-        const file = queuedFile.file;
-        if (!file) continue;
-
-        // Update status to uploading
-        handleFileUpdate(i, { 
-          uploadStatus: "uploading", 
-          uploadProgress: 0 
-        });
-
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("userId", userData?.id || "");
-        formData.append("contractId", form.contractId);
-        formData.append("bucketName", "contracts");
-        formData.append("isSubmitted", "true");
-
-        const response = await fetch(
-          "/api/send-contracts/upload-contract-file",
-          {
-            method: "POST",
-            body: formData,
-          }
-        );
-
-        if (!response.ok) {
-          const result = await response.json();
-          throw new Error(result.error || `Upload failed with status ${response.status}`);
-        }
-
-        const result = await response.json();
-        
-        const uploadedFile: UploadedFile = {
-          fileName: result.data.fileName,
-          originalName: result.data.originalName,
-          fileUrl: result.data.fileUrl,
-          fileSize: result.data.fileSize,
-          fileType: result.data.fileType,
-          uploadedAt: result.data.uploadedAt,
-          storagePath: result.data.storagePath,
-          file: undefined,
-          uploadStatus: "success" as const,
-          uploadProgress: 100,
-        };
-
-        uploadedResults.push(uploadedFile);
-
-        // Update status to success
-        handleFileUpdate(i, { 
-          uploadStatus: "success", 
-          uploadProgress: 100 
-        });
-
-        // Revoke the blob URL
-        if (queuedFile.fileUrl.startsWith("blob:")) {
-          URL.revokeObjectURL(queuedFile.fileUrl);
-        }
-      }
-
-      // Update state
-      setFileUploads({
-        queuedFiles: [],
-        uploadedFiles: [...fileUploads.uploadedFiles, ...uploadedResults]
-      });
-      setUploadedFiles(prev => [...prev, ...uploadedResults]);
-      setQueuedFiles([]);
-
-      return {
-        success: true,
-        uploadedFiles: uploadedResults,
-      };
-
-    } catch (error: any) {
-      console.error("Error uploading files:", error);
-      return { success: false, error: error.message };
-    } finally {
-      setIsUploadingFiles(false);
-    }
-  };
+  }, [
+    hasUnsavedChanges,
+    form.contractTitle,
+    form.contractContent,
+    attachments.length,
+  ]);
 
   const handleSaveDraft = async () => {
     try {
@@ -517,7 +415,11 @@ const FormBody: React.FC = () => {
       }
 
       // Don't save empty drafts
-      if (!form.contractTitle.trim() && !form.contractContent.trim()) {
+      if (
+        !form.contractTitle.trim() &&
+        !form.contractContent.trim() &&
+        attachments.length === 0
+      ) {
         Swal.fire({
           icon: "warning",
           title: "No Content",
@@ -547,6 +449,9 @@ const FormBody: React.FC = () => {
         contract_type: "custom",
         status: "draft",
         is_draft: true,
+        has_attachments: attachments.length > 0,
+        // Note: We cannot save actual files in draft, only metadata
+        attachment_count: attachments.length,
       };
 
       console.log("Saving draft with payload:", payload);
@@ -592,7 +497,7 @@ const FormBody: React.FC = () => {
     }
   };
 
-  const validateInputs = () => {
+  const validateInputs = (): boolean => {
     const newErrors = {
       contractTitle: "",
       receiverName: "",
@@ -646,6 +551,58 @@ const FormBody: React.FC = () => {
     return !hasErrors;
   };
 
+  const uploadAttachmentFiles = async (): Promise<
+    Array<{
+      url: string;
+      path: string;
+      name: string;
+      type: string;
+      size: number;
+    }>
+  > => {
+    if (attachments.length === 0 || !userData?.id) return [];
+
+    const uploadedFiles = [];
+    setUploadingFile(true);
+
+    try {
+      for (const attachment of attachments) {
+        const formData = new FormData();
+        formData.append("file", attachment.file);
+        formData.append("userId", userData.id);
+        formData.append("contractId", form.contractId);
+
+        const res = await fetch("/api/send-contracts/upload-contract-file", {
+          method: "POST",
+          body: formData,
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          throw new Error(
+            result.error || `Failed to upload: ${attachment.name}`
+          );
+        }
+
+        uploadedFiles.push({
+          url: result.fileUrl,
+          path: result.filePath,
+          name: attachment.name,
+          type: attachment.type,
+          size: attachment.size,
+        });
+      }
+
+      return uploadedFiles;
+    } catch (err) {
+      Swal.fire("Upload Failed", (err as Error).message, "error");
+      return [];
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const handleSaveContract = async (
     isDraft: boolean = false
   ): Promise<{
@@ -655,25 +612,20 @@ const FormBody: React.FC = () => {
   }> => {
     try {
       if (!userData?.id) {
-        Swal.fire({
-          icon: "warning",
-          title: "Unauthorized",
-          text: "You must be logged in to send a contract.",
-        });
+        Swal.fire("Unauthorized", "You must be logged in", "warning");
         return { success: false };
       }
 
-      // Generate contract ID
-      const contractId = form.contractId || generateContractId();
+      const attachmentsData = isDraft ? [] : await uploadAttachmentFiles();
 
-      const payload: any = {
+      const payload = {
         userId: userData.id,
         initiator_email: userData.email || "",
         initiator_name:
           userData.firstName && userData.lastName
             ? `${userData.firstName} ${userData.lastName}`
             : userData.email || "",
-        contract_id: contractId,
+        contract_id: form.contractId || generateContractId(),
         contract_title: form.contractTitle,
         contract_content: form.contractContent,
         receiver_name: form.receiverName,
@@ -684,28 +636,19 @@ const FormBody: React.FC = () => {
         contract_type: "custom",
         status: isDraft ? "draft" : "pending",
         is_draft: isDraft,
+        include_lawyer_signature: includeLawyerSignature,
+        metadata: {
+          attachments: attachmentsData,
+          attachment_count: attachments.length,
+          lawyer_signature: includeLawyerSignature,
+          base_fee: CONTRACT_FEE,
+          lawyer_fee: includeLawyerSignature ? LAWYER_FEE : 0,
+          total_fee: totalAmount,
+        },
       };
 
-      // Only include uploaded files metadata if NOT a draft AND files were uploaded
-      if (!isDraft && fileUploads.uploadedFiles.length > 0) {
-        payload.uploadedFiles = fileUploads.uploadedFiles.map(file => ({
-          fileName: file.fileName,
-          originalName: file.originalName,
-          fileUrl: file.fileUrl,
-          fileSize: file.fileSize,
-          fileType: file.fileType,
-          storagePath: file.storagePath,
-          uploadedAt: file.uploadedAt
-        }));
-      }
-
-      console.log("Sending contract payload:", payload);
-
-      const endpoint = "/api/send-contracts";
-      const method = "POST";
-
-      const res = await fetch(endpoint, {
-        method: method,
+      const res = await fetch("/api/send-contracts", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -713,42 +656,23 @@ const FormBody: React.FC = () => {
       const result = await res.json();
 
       if (!res.ok) {
-        console.error("API Error:", result);
-        throw new Error(
-          result.error || result.message || "Failed to save contract"
-        );
-      }
-
-      console.log("Contract saved successfully:", result);
-
-      // Delete the draft after successful submission if it existed
-      if (!isDraft && userData?.id) {
-        const existingDraft = drafts.find(
-          (d) => d.contract_id === form.contractId
-        );
-        if (existingDraft) {
-          await fetch(`/api/contract-drafts?id=${existingDraft.id}`, {
-            method: "DELETE",
-          });
-          setDrafts(drafts.filter((d) => d.id !== existingDraft.id));
-        }
+        throw new Error(result.error || "Failed to save contract");
       }
 
       return {
         success: true,
         signingLink: isDraft ? undefined : result.signingLink,
-        contractId: result.contractId || contractId,
+        contractId: payload.contract_id,
       };
     } catch (err) {
-      console.error("Error in handleSaveContract:", err);
-      if (!isDraft) {
-        await handleRefund();
-      }
-      Swal.fire({
-        icon: "error",
-        title: `Failed to ${isDraft ? "Save Draft" : "Send Contract"}`,
-        text: (err as Error)?.message || "An unexpected error occurred.",
-      });
+      if (!isDraft) await handleRefund();
+
+      Swal.fire(
+        "Error",
+        (err as Error)?.message || "Something went wrong",
+        "error"
+      );
+
       return { success: false };
     }
   };
@@ -763,8 +687,12 @@ const FormBody: React.FC = () => {
         body: JSON.stringify({
           userId: userData?.id,
           pin: pinString,
-          amount: 10,
-          description: "Contract successfully generated",
+          amount: totalAmount, // Use totalAmount instead of hardcoded 10
+          description: includeLawyerSignature 
+            ? "Contract with lawyer signature successfully generated"
+            : "Contract successfully generated",
+          service: "contract",
+          include_lawyer_signature: includeLawyerSignature,
         }),
       })
         .then(async (res) => {
@@ -790,14 +718,18 @@ const FormBody: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData?.id,
-          amount: 10,
-          description: "Refund for failed contract generation",
+          amount: totalAmount, // Use totalAmount
+          description: includeLawyerSignature 
+            ? "Refund for failed contract generation with lawyer signature"
+            : "Refund for failed contract generation",
         }),
       });
       Swal.fire({
         icon: "info",
         title: "Refund Processed",
-        text: "₦10 has been refunded to your wallet due to failed contract sending.",
+        text: includeLawyerSignature 
+          ? `₦${totalAmount.toLocaleString()} has been refunded to your wallet due to failed contract sending.`
+          : "₦10 has been refunded to your wallet due to failed contract sending.",
       });
     } catch (err) {
       console.error("Refund failed:", err);
@@ -813,50 +745,20 @@ const FormBody: React.FC = () => {
     setLoading(true);
 
     try {
-      // STEP 1: Process payment first
       const paymentSuccess = await handleDeduct();
 
       if (paymentSuccess) {
-        // STEP 2: Upload files (only after successful payment)
-        if (fileUploads.queuedFiles.length > 0) {
-          const uploadResult = await uploadFilesDirectly();
-
-          if (!uploadResult.success) {
-            throw new Error(uploadResult.error || "Failed to upload files");
-          }
-        }
-
-        // STEP 3: Save contract with uploaded file metadata
         const result = await handleSaveContract(false);
-
         if (result.success) {
           setGeneratedSigningLink(result.signingLink || "");
           setSavedContractId(result.contractId || "");
           setShowSuccessModal(true);
+          // Reset lawyer signature for next contract
+          setIncludeLawyerSignature(false);
         }
       }
     } catch (error) {
       console.error("Error in process:", error);
-
-      // Show specific error message
-      if (
-        error instanceof Error &&
-        error.message.includes("Failed to upload files")
-      ) {
-        Swal.fire({
-          icon: "error",
-          title: "File Upload Failed",
-          text: "Could not upload attached files. Please try again.",
-          confirmButtonColor: "#C29307",
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Submission Failed",
-          text: (error as Error)?.message || "An error occurred during submission.",
-          confirmButtonColor: "#C29307",
-        });
-      }
     } finally {
       setLoading(false);
       setIsOpen(false);
@@ -864,7 +766,7 @@ const FormBody: React.FC = () => {
     }
   };
 
-  const handleSendForSignature = async () => {
+  const handleSendForSignature = () => {
     if (!validateInputs()) {
       Swal.fire({
         icon: "error",
@@ -876,12 +778,16 @@ const FormBody: React.FC = () => {
     }
 
     setIsSending(true);
-
     setShowContractSummary(true);
   };
 
-  const handleSummaryConfirm = () => {
+  const handleSummaryConfirm = (options?: { includeLawyerSignature: boolean }) => {
     setShowContractSummary(false);
+    if (options?.includeLawyerSignature) {
+      setIncludeLawyerSignature(true);
+    } else {
+      setIncludeLawyerSignature(false);
+    }
     setIsOpen(true);
   };
 
@@ -913,14 +819,14 @@ const FormBody: React.FC = () => {
     }
 
     // For sending the contract
-    await handleSendForSignature();
+    handleSendForSignature();
   };
 
   // Reset form
   const resetForm = () => {
     Swal.fire({
       title: "Clear Form?",
-      text: "This will remove all current form data.",
+      text: "This will remove all current form data, including uploaded attachments.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#C29307",
@@ -941,6 +847,8 @@ const FormBody: React.FC = () => {
           contractId: generateContractId(),
           contractType: "custom",
         });
+        setAttachments([]);
+        setIncludeLawyerSignature(false); 
         setHasUnsavedChanges(false);
         setErrors({
           contractTitle: "",
@@ -951,11 +859,6 @@ const FormBody: React.FC = () => {
           ageConsent: "",
           termsConsent: "",
         });
-
-        // Clear queued files
-        setFileUploads({ queuedFiles: [], uploadedFiles: [] });
-        setQueuedFiles([]);
-        setUploadedFiles([]);
 
         Swal.fire({
           icon: "success",
@@ -969,7 +872,7 @@ const FormBody: React.FC = () => {
     });
   };
 
-  const handleFormChange = (field: keyof typeof form, value: any) => {
+  const handleFormChange = (field: keyof FormState, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     // Clear error for this field if exists
     const errorField = field as keyof typeof errors;
@@ -982,44 +885,58 @@ const FormBody: React.FC = () => {
     handleFormChange("contractTitle", value);
   };
 
-  // Add this helper function at the top of your component
-  const sanitizeHTML = (html: string): string => {
-    // Simple sanitization - allow basic formatting tags
-    const allowedTags = [
-      "div",
-      "p",
-      "span",
-      "br",
-      "strong",
-      "b",
-      "em",
-      "i",
-      "u",
-      "del",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "ul",
-      "ol",
-      "li",
-    ];
+  // Handle file upload
+  const handleFileUpload = (file: File) => {
+    // Create preview URL for images
+    let previewUrl: string | undefined;
+    if (file.type.startsWith("image/")) {
+      previewUrl = URL.createObjectURL(file);
+    }
 
-    const allowedAttributes = ["style", "class"];
+    const newAttachment: AttachmentFile = {
+      file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      previewUrl,
+    };
 
-    // Create a DOM parser
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+    setAttachments((prev) => [...prev, newAttachment]);
+    setHasUnsavedChanges(true);
 
-    // Remove script tags and potentially dangerous elements
-    const scripts = doc.querySelectorAll("script, iframe, object, embed");
-    scripts.forEach((script) => script.remove());
-
-    // Get the sanitized HTML
-    return doc.body.innerHTML;
+    Swal.fire({
+      icon: "success",
+      title: "File Added!",
+      text: `${file.name} has been added as an attachment.`,
+      confirmButtonColor: "#C29307",
+      timer: 1500,
+      showConfirmButton: false,
+    });
   };
+
+  // Handle file removal
+  const handleRemoveAttachment = (index: number) => {
+    const attachmentToRemove = attachments[index];
+
+    // Revoke object URL if it exists
+    if (attachmentToRemove.previewUrl) {
+      URL.revokeObjectURL(attachmentToRemove.previewUrl);
+    }
+
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+    setHasUnsavedChanges(true);
+  };
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      attachments.forEach((attachment) => {
+        if (attachment.previewUrl) {
+          URL.revokeObjectURL(attachment.previewUrl);
+        }
+      });
+    };
+  }, [attachments]);
 
   return (
     <>
@@ -1042,14 +959,14 @@ const FormBody: React.FC = () => {
         receiverName={form.receiverName}
         receiverEmail={form.receiverEmail}
         receiverPhone={form.receiverPhone}
-        amount={10}
+        amount={CONTRACT_FEE} // Pass the base contract fee
         confirmContract={showContractSummary}
         onBack={handleSummaryBack}
         onConfirm={handleSummaryConfirm}
         contractType="Custom Contract"
         dateCreated={new Date().toLocaleDateString()}
+        attachments={attachments}
       />
-
       {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-white/10 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1113,10 +1030,15 @@ const FormBody: React.FC = () => {
               <p className="text-sm text-gray-700 text-center">
                 <strong>Contract ID:</strong> {savedContractId}
               </p>
-              {fileUploads.uploadedFiles.length > 0 && (
-                <p className="text-sm text-gray-700 text-center mt-2">
-                  <strong>Attached Files:</strong> {fileUploads.uploadedFiles.length}{" "}
-                  file(s)
+              {attachments.length > 0 && (
+                <p className="text-sm text-gray-700 text-center mt-1">
+                  <strong>Attachments:</strong> {attachments.length} file(s)
+                  included
+                </p>
+              )}
+              {includeLawyerSignature && (
+                <p className="text-sm text-gray-700 text-center mt-1">
+                  <strong>Lawyer Signature:</strong> Included ✓
                 </p>
               )}
               <p className="text-xs text-gray-500 text-center mt-1">
@@ -1161,19 +1083,66 @@ const FormBody: React.FC = () => {
                   Unsaved changes
                 </Badge>
               )}
-              {(fileUploads.queuedFiles.length > 0 || fileUploads.uploadedFiles.length > 0) && (
+              {attachments.length > 0 && (
                 <Badge
                   variant="outline"
                   className="bg-blue-50 text-blue-700 border-blue-200"
                 >
-                  <Paperclip className="w-3 h-3 mr-1" />
-                  {fileUploads.queuedFiles.length + fileUploads.uploadedFiles.length} file(s)
+                  <FileText className="w-3 h-3 mr-1" />
+                  {attachments.length} attachment(s)
+                </Badge>
+              )}
+              {includeLawyerSignature && (
+                <Badge
+                  variant="outline"
+                  className="bg-purple-50 text-purple-700 border-purple-200"
+                >
+                  <Scale className="w-3 h-3 mr-1" />
+                  Lawyer Signature
                 </Badge>
               )}
             </div>
           </div>
 
           <Card className="p-6 h-fit">
+            {/* Contract ID Display */}
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Show drafts modal
+                    if (drafts.length > 0) {
+                      showDraftsList(drafts);
+                    } else {
+                      Swal.fire({
+                        icon: "info",
+                        title: "No Drafts",
+                        text: "You don't have any saved drafts.",
+                        confirmButtonColor: "#C29307",
+                      });
+                    }
+                  }}
+                  className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                >
+                  <History className="h-4 w-4 mr-2" />
+                  View Drafts ({drafts.length})
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={resetForm}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Clear Form
+                </Button>
+              </div>
+              <div className="text-sm text-gray-500">
+                Contract ID: {form.contractId}
+              </div>
+            </div>
+
             <Tabs
               value={activeTab}
               onValueChange={setActiveTab}
@@ -1190,7 +1159,7 @@ const FormBody: React.FC = () => {
                 </TabsTrigger>
                 <TabsTrigger value="upload" className="gap-2">
                   <Upload className="h-4 w-4" />
-                  Upload Document
+                  Add Attachments
                 </TabsTrigger>
               </TabsList>
 
@@ -1198,6 +1167,15 @@ const FormBody: React.FC = () => {
                 <section className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h4 className="text-lg font-medium">Contract Details</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowPreview(true)}
+                      disabled={!form.contractContent}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview
+                    </Button>
                   </div>
 
                   <div className="flex flex-col gap-3">
@@ -1310,6 +1288,47 @@ const FormBody: React.FC = () => {
                       </p>
                     )}
                   </div>
+
+                  {/* Attachments Section in Create Tab */}
+                  {attachments.length > 0 && (
+                    <div className="mt-6 pt-6 border-t">
+                      <h4 className="text-lg font-medium mb-4">
+                        Attachments ({attachments.length})
+                      </h4>
+                      <div className="space-y-3">
+                        {attachments.map((attachment, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+                          >
+                            <div className="flex items-center">
+                              <FileText className="h-5 w-5 text-gray-500 mr-3" />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {attachment.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {(attachment.size / 1024).toFixed(2)} KB •{" "}
+                                  {attachment.type}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveAttachment(index)}
+                              className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        These files will be attached to your contract submission
+                      </p>
+                    </div>
+                  )}
                 </section>
 
                 <section className="space-y-4">
@@ -1348,7 +1367,6 @@ const FormBody: React.FC = () => {
                       isSending ||
                       loading ||
                       isSavingDraft ||
-                      isUploadingFiles ||
                       (!form.contractTitle.trim() &&
                         !form.contractContent.trim())
                     }
@@ -1369,16 +1387,12 @@ const FormBody: React.FC = () => {
                     onClick={() => handleSubmit(false)}
                     size="lg"
                     className="flex-1 bg-[#C29307] text-white hover:bg-[#b38606]"
-                    disabled={
-                      isSending || loading || isSavingDraft || isUploadingFiles
-                    }
+                    disabled={isSending || loading || isSavingDraft}
                   >
-                    {isSending || isUploadingFiles ? (
+                    {isSending ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {isUploadingFiles
-                          ? "Uploading Files..."
-                          : "Processing..."}
+                        Processing...
                       </>
                     ) : (
                       <>
@@ -1404,13 +1418,43 @@ const FormBody: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     {form.contractContent ? (
-                      <div className="prose prose-sm max-w-none p-6 bg-muted/50 rounded-lg border border-border">
-                        <div
-                          className="whitespace-pre-wrap font-serif leading-relaxed"
-                          dangerouslySetInnerHTML={{
-                            __html: sanitizeHTML(form.contractContent),
-                          }}
-                        />
+                      <div className="space-y-6">
+                        <div className="prose prose-sm max-w-none p-6 bg-muted/50 rounded-lg border border-border">
+                          <div className="whitespace-pre-wrap font-serif leading-relaxed">
+                            {form.contractContent}
+                          </div>
+                        </div>
+
+                        {attachments.length > 0 && (
+                          <div className="mt-6">
+                            <h4 className="text-lg font-medium mb-4">
+                              Attachments ({attachments.length})
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {attachments.map((attachment, index) => (
+                                <div
+                                  key={index}
+                                  className="p-3 border border-gray-200 rounded-lg bg-white"
+                                >
+                                  <div className="flex items-start">
+                                    <FileText className="h-5 w-5 text-gray-500 mr-3 mt-0.5" />
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {attachment.name}
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {(attachment.size / 1024).toFixed(2)} KB
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              These files will be included with your contract
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="text-center py-12 text-muted-foreground">
@@ -1434,57 +1478,83 @@ const FormBody: React.FC = () => {
                   </CardContent>
                 </Card>
               </TabsContent>
+
               <TabsContent value="upload">
                 <Card className="border-border shadow-sm">
                   <CardHeader>
-                    <CardTitle>Upload Document for Notarization</CardTitle>
+                    <CardTitle>Add Attachments</CardTitle>
                     <CardDescription>
-                      Upload a PDF or DOCX file to get it notarized with our
-                      official seal and signature
+                      Upload supporting documents, images, or other files to
+                      attach to your contract
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    {userData?.id && form.contractId ? (
-                      <SignContractFileUpload
-                        ref={fileUploadRef}
-                        userId={userData.id}
-                        contractId={form.contractId}
-                        onUploadSuccess={(data) => {
-                          console.log("File added to queue:", data);
-                          // No SweetAlert - show status in UI instead
-                        }}
-                        onUploadError={(error) => {
-                          console.error("Upload error:", error);
-                          // No SweetAlert - show status in UI instead
-                        }}
-                        onFilesChange={handleFilesChange}
-                        // Pass queued files from parent to persist across tabs
-                        queuedFiles={fileUploads.queuedFiles}
-                        onFileAdd={handleFileAdd}
-                        onFileRemove={handleFileRemove}
-                        onFileUpdate={handleFileUpdate}
-                        disabled={
-                          isSending ||
-                          loading ||
-                          isSavingDraft ||
-                          isUploadingFiles
-                        }
-                      />
-                    ) : (
-                      <div className="text-center py-8 text-gray-500">
-                        <p>
-                          Please create a contract first or ensure you're logged
-                          in.
-                        </p>
-                        <Button
-                          variant="outline"
-                          className="mt-4"
-                          onClick={() => setActiveTab("create")}
-                        >
-                          Create Contract First
-                        </Button>
-                      </div>
-                    )}
+                    <div className="space-y-6">
+                      <SignContractFileUpload onFileSelect={handleFileUpload} />
+
+                      {attachments.length > 0 && (
+                        <div className="mt-6">
+                          <h4 className="text-lg font-medium mb-4">
+                            Current Attachments ({attachments.length})
+                          </h4>
+                          <div className="space-y-3">
+                            {attachments.map((attachment, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
+                              >
+                                <div className="flex items-center">
+                                  {attachment.previewUrl ? (
+                                    <div className="relative h-10 w-10 mr-3">
+                                      <img
+                                        src={attachment.previewUrl}
+                                        alt={attachment.name}
+                                        className="h-10 w-10 object-cover rounded border"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <FileText className="h-5 w-5 text-gray-500 mr-3" />
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {attachment.name}
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                      {(attachment.size / 1024).toFixed(2)} KB •{" "}
+                                      {attachment.type}
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRemoveAttachment(index)}
+                                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-4 flex gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => setActiveTab("create")}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Continue Writing Contract
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => setActiveTab("preview")}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Preview Contract
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </TabsContent>

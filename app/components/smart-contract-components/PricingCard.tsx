@@ -30,14 +30,14 @@ const PricingCard: React.FC<{
           </li>
         ))}
       </ul>
-
+{/* 
       <div className="mt-6">
         {selected ? (
           <ButtonPrimary className='w-[300px] '>Get Started</ButtonPrimary>
         ) : (
           <ButtonGhost>Get Started</ButtonGhost>
         )}
-      </div>
+      </div> */}
 
       <div
         className="mt-4 cursor-pointer"

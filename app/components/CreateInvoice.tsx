@@ -1431,6 +1431,7 @@ function CreateInvoice({ onInvoiceCreated }: CreateInvoiceProps) {
           amount: 0,
           description: "Invoice successfully generated",
           isInvoiceCreation: true,
+          service: "invoice",
         }),
       })
         .then(async (res) => {

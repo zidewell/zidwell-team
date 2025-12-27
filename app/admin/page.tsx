@@ -662,7 +662,7 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Total App Revenue"
-                value={formatCurrency(mainWalletBalance - nombaBalanceRaw)}
+                value={formatCurrency(nombaBalanceRaw - mainWalletBalance)}
                 growth={<GrowthIndicator value={appRevenueGrowth} />}
                 icon={<DollarSign className="w-5 h-5 text-amber-600" />}
                 className="border-l-4 border-l-[#C29307] bg-gradient-to-r from-amber-50 to-white"

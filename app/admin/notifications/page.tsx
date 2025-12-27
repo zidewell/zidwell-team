@@ -56,7 +56,7 @@ const parseMarkdown = (text: string) => {
       )
       .replace(
         /<img /g,
-        '<img class="my-4 max-w-full h-auto rounded-lg shadow-md border border-gray-200" '
+        '<img class="my-4 w-64 rounded-lg shadow-md border border-gray-200" '
       );
   }
 
@@ -1489,7 +1489,7 @@ export default function NotificationsCenterPage() {
                       </div>
                     </div>
 
-                    {/* Pending Images Warning */}
+                    {/* Pending mn s Warning */}
                     {pendingNotificationImages.length > 0 && (
                       <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
                         <div className="flex items-center">

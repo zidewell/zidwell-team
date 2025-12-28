@@ -182,7 +182,7 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/fund-account/transfer-page"}
             />
 
-               <NavItem
+            <NavItem
               item={{
                 name: "My Transaction",
                 href: "/dashboard/transactions",
@@ -191,7 +191,7 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/transactions"}
             />
 
-             <NavItem
+            <NavItem
               item={{
                 name: "Airtime",
                 href: "/dashboard/services/buy-airtime",
@@ -226,9 +226,14 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/services/buy-cable-tv"}
             />
 
-   
-        
-        
+            <NavItem
+              item={{
+                name: "Create Invoice",
+                href: "/dashboard/services/create-invoice",
+                icon: FileSpreadsheet,
+              }}
+              isActive={pathname === "/dashboard/services/create-invoice"}
+            />
 
             <NavItem
               item={{
@@ -239,7 +244,7 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/services/create-receipt"}
             />
 
-              <NavItem
+            <NavItem
               item={{
                 name: "Create Agreement",
                 href: "/dashboard/services/simple-agreement",
@@ -248,7 +253,7 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/services/simple-agreement"}
             />
 
-               <NavItem
+            <NavItem
               item={{
                 name: "Tax Manager",
                 href: "/dashboard/services/tax-filing",
@@ -256,8 +261,6 @@ export default function DashboardSidebar() {
               }}
               isActive={pathname === "/dashboard/services/tax-filing"}
             />
-
-           
           </div>
 
           {/* Preferences */}

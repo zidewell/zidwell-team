@@ -47,7 +47,7 @@ const services: any = [
 
   {
     id: 4,
-    title: "Airtime Top up",
+    title: "Airtime",
     description: "Buy Airtime",
     icon: Smartphone,
     color: "bg-green-50 text-green-600",
@@ -65,7 +65,7 @@ const services: any = [
   },
   {
     id: 6,
-    title: "Electricity Payment",
+    title: "Buy Light",
     description: "Pay Electricity",
     icon: Lightbulb,
     color: "bg-yellow-50 text-yellow-600",
@@ -74,7 +74,7 @@ const services: any = [
   },
   {
     id: 7,
-    title: "Pay Cable/TV",
+    title: "Cable TV",
     description: "Pay TV Subscription",
     icon: Tv,
     color: "bg-purple-50 text-purple-600",

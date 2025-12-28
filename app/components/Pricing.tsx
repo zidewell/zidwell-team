@@ -10,13 +10,24 @@ const plans = [
       "Best for: solo hustlers and side businesses who want to pay as they grow.",
     features: [
       "Free corporate account with your business name",
-      "Bill Payments: Airtime, Data, Electricity, Cable",
-      "10 free invoices/receipts monthly",
+      "Bill Payments: Airtime, Data, Electricity, Cable (Government stamp duty fees apply)",
+      "Invoices/payment links: 10 free monthly then ₦100/1 + 2% per paid invoice (the payee pays this not you) capped at N2000",
+      "Receipts: 10 free monthly then ₦100/1",
       "Simple Contracts: ₦1,000 each",
-      "Lawyer-signed Contracts: ₦11,000 each",
-      "Tax Filing Support: 3% of monthly revenue",
-      "Cashback: ₦20 per ₦2,500 spent",
-      "Referral Rewards: ₦20 per signup",
+      "Simple Contracts with a lawyer's signature: ₦11,000 each (binding with or without a lawyer)",
+      "Tax Filing Support:",
+      "  • Annual returns ₦80k or Zidwell elite plan",
+      "  • Monthly Routine tax filing ₦50k or Zidwell premium plan",
+      "  • Tax advisory Session - ₦50k/hr",
+      "  • Comprehensive Tax Audit - ₦500k+",
+      "  Note: cost includes basic accounting/bookkeeping, financial statement, filing tax + tax receipt",
+      "Wallet Charges:",
+      "  • Free virtual bank account creation",
+      "  • Deposit fee: 0.50% capped at ₦100",
+      "  • Transfer fee: 1% capped at ₦150",
+      "Cashback: ₦20 back for every ₦2,500 spent on data, airtime, cable and electricity bill payment",
+      "Referral Rewards: ₦20 for signups done with your referral code",
+      "Referral Transaction Rewards: ₦20 for every ₦10,000 spent by the person you referred",
     ],
     cta: "Get Started Free",
     highlight: false,
@@ -27,18 +38,19 @@ const plans = [
     period: "/month",
     yearlyPrice: "₦200,000/year (save ₦40k)",
     description:
-      "Best for: growing businesses that want structure without stress.",
+      "Best for: growing businesses that want structure without stress. Everything you need to run your business finances properly.",
     features: [
-      "Everything in Free, plus:",
-      "Unlimited invoices, receipts & contracts",
-      "Business SOP templates",
-      "Business growth templates",
-      "Brand & marketing templates",
-      "Monthly Financial Wellness Workshops",
-      "Monthly Financial Wellness Clinic",
+      "Includes everything in Free, plus:",
+      "Zero transaction fees",
+      "Unlimited invoices & receipts",
+      "Invoice payment reminders",
+      "Add 1 User assistant",
+      "Free Monthly Financial Wellness Clinic (included)",
       "Active WhatsApp business community",
       "Business tools dashboard",
       "Priority support",
+      "",
+      "Ideal if: you want clarity, compliance, and consistency in your business finances.",
     ],
     cta: "Start Growth Plan",
     highlight: false,
@@ -49,18 +61,18 @@ const plans = [
     period: "/month",
     yearlyPrice: "₦500,000/year (save ₦100k)",
     description:
-      "Best for: founders and CEOs who want both business performance and personal wellness.",
+      "Best for: founders and CEOs who want to move the burden of financial management to someone else.",
     features: [
-      "Everything in Growth, plus:",
-      "Zero transaction fees",
-      "Monthly accounting & bookkeeping support",
+      "Includes everything in Growth, plus:",
+      "Accounting & bookkeeping support (monthly)",
       "Tax management support (filing assistance)",
-      "Monthly mental health & group therapy",
-      "Quarterly business/finance consultant",
-      "Personal growth coaching sessions",
-      "CEO Wellness Wave program",
+      "Business SOP templates",
+      "Unlimited contract creation",
       "24/7 business support access",
       "Deeper financial insights & reporting",
+      "Priority access to all Zidwell events",
+      "",
+      "Ideal if: you're scaling and need support beyond tools — real guidance.",
     ],
     cta: "Start Premium",
     highlight: true,
@@ -71,14 +83,16 @@ const plans = [
     period: "/month",
     yearlyPrice: "Customized pricing available",
     description:
-      "Best for: established businesses, founders, and teams that want hands-on support.",
+      "Best for: established businesses, founders, and teams that want hands-on support. This is not software. This is a finance and business partner.",
     features: [
-      "Everything in Premium, plus:",
+      "Includes everything in Premium, plus:",
+      "Quarterly business/finance analyst consultation",
       "Dedicated bookkeeping review",
       "Advanced tax planning & advisory",
       "Dedicated account manager",
       "Full accounting & bookkeeping management",
       "End-to-end tax handling",
+      "Business management support",
       "One-on-one consulting sessions",
       "Custom SOPs & operational frameworks",
       "Strategic financial planning",
@@ -178,20 +192,32 @@ const Pricing = () => {
                 </p>
               </div>
 
-              <ul className="space-y-3 mb-8 flex-grow">
+              <ul className="space-y-2 mb-8 flex-grow">
                 {plan.features.map((feature, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm">
-                    <Check
-                      className={`w-4 h-4 shrink-0 mt-0.5 ${
-                        plan.highlight ? "text-gray-900" : "text-[#C29307]"
-                      }`}
-                    />
+                    {feature.startsWith("  •") || feature.startsWith("Note:") || feature.startsWith("Ideal if:") ? (
+                      <span className="w-4 shrink-0"></span>
+                    ) : feature.startsWith("Tax Filing Support:") || 
+                       feature.startsWith("Wallet Charges:") || 
+                       feature.startsWith("Includes everything") ? (
+                      <Check
+                        className={`w-4 h-4 shrink-0 mt-0.5 ${
+                          plan.highlight ? "text-gray-900" : "text-[#C29307]"
+                        }`}
+                      />
+                    ) : (
+                      <Check
+                        className={`w-4 h-4 shrink-0 mt-0.5 ${
+                          plan.highlight ? "text-gray-900" : "text-[#C29307]"
+                        }`}
+                      />
+                    )}
                     <span
-                      className={
+                      className={`${feature.startsWith("  •") || feature.startsWith("Note:") || feature.startsWith("Ideal if:") ? "pl-4 text-xs" : ""} ${
                         plan.highlight
                           ? "text-gray-900"
                           : "text-gray-900 dark:text-gray-50"
-                      }
+                      } ${feature === "" ? "h-2" : ""}`}
                     >
                       {feature}
                     </span>

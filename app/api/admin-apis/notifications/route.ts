@@ -620,7 +620,7 @@ export async function POST(req: NextRequest) {
     const adminUser = await requireAdmin(req);
     if (adminUser instanceof NextResponse) return adminUser;
 
-    const allowedRoles = ["super_admin", "operations_admin"];
+    const allowedRoles = ["super_admin", "operations_admin", "support_admin"];
     if (!allowedRoles.includes(adminUser?.admin_role)) {
       return NextResponse.json(
         { error: "Insufficient permissions" },

@@ -124,12 +124,11 @@ export async function POST(req: Request) {
         user_id: userId,
         amt: amount,
         transaction_type: "p2p_transfer",
-        reference: senderTxRef, // Use sender-specific reference
+        reference: senderTxRef, 
         description: senderDescription,
       }
     );
 
-    console.log("deductionResult", deductionResult);
 
     if (deductionError) {
       return NextResponse.json(
@@ -208,10 +207,10 @@ export async function POST(req: Request) {
           self_transfer_check: "Verified - not self-transfer",
           timestamp: new Date().toISOString(),
           linked_transaction_id: linkedTransactionId,
-          counterparty_reference: receiverTxRef, // Store receiver's reference
+          counterparty_reference: receiverTxRef,
         },
       })
-      .eq("reference", senderTxRef) // Use sender-specific reference
+      .eq("reference", senderTxRef) 
       .eq("user_id", userId);
 
     if (updateError) {
@@ -256,15 +255,14 @@ export async function POST(req: Request) {
       console.error("Failed to create receiver transaction:", receiverTxError);
     }
 
-    // ✅ 5. Also update wallet_history for both users if you have that table
     try {
-      // For sender
+   
       await supabase.from("wallet_history").insert({
         user_id: userId,
         transaction_id: transactionId,
         amount: -amount,
         transaction_type: "debit",
-        reference: senderTxRef, // Use sender-specific reference
+        reference: senderTxRef, 
         description: senderDescription,
         created_at: new Date().toISOString(),
         linked_transaction_id: linkedTransactionId,

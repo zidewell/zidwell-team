@@ -2,7 +2,7 @@ import React from 'react'
 import Step from './Step'
 
 const SmartContractStep: React.FC = () => (
- <section className="py-12 bg-white">
+ <section className="py-12">
     <div className="container mx-auto px-6 md:px-12 lg:px-20 text-center">
       <h3 className="text-xl lg:text-4xl font-semibold mb-4 ">Simple Process, Professional Results</h3>
       <p className="text-lg text-gray-500 mb-8 ">Get your contracts signed in three easy steps</p>

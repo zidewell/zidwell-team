@@ -20,7 +20,9 @@ const page = () => {
                   <Features/>
                   <SmartContractStep/>
                   <Pricing/>
+
                 </div>
+                  <div className="text-sm text-center">Additional services: Contract edits ₦500 | Document notarization ₦10,000</div>
               </main>
             </div>
           </div>

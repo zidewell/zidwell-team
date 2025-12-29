@@ -15,10 +15,10 @@ const PricingCard: React.FC<{
 
   return (
     <div className={`p-6 rounded-lg shadow ${featured ? 'border-2 border-[#C29307]  bg-yellow-50' : 'bg-white border'} `}>
-      <h4 className="font-bold text-2xl ">{title}</h4>
-      <p className="font-normal text-lg ">{desc}</p>
+      <h4 className=" text-2xl ">{title}</h4>
+      <p className="text-gray-600">{desc}</p>
 
-      <div className="mt-4 text-4xl font-extrabold ">
+      <div className="mt-4 text-4xl">
         {price}
         <span className="text-sm font-normal ">/contracts</span>
       </div>
@@ -43,7 +43,7 @@ const PricingCard: React.FC<{
         className="mt-4 cursor-pointer"
         onClick={() => setSelected(!selected)}
       >
-        {/* Clickable overlay or area */}
+      
       </div>
     </div>
   );

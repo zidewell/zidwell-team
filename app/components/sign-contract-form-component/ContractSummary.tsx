@@ -9,7 +9,7 @@ import {
   AlertCircle,
   Scale,
   Gavel,
-  SpellCheck ,
+  SpellCheck,
   Star,
 } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -42,6 +42,7 @@ interface ContractSummaryProps {
   dateCreated?: string;
   status?: string;
   attachments?: AttachmentFile[];
+  currentLawyerSignature?: boolean; 
 }
 
 export default function ContractSummary({
@@ -60,10 +61,16 @@ export default function ContractSummary({
   dateCreated = new Date().toLocaleDateString(),
   status = "pending",
   attachments = [],
+  currentLawyerSignature = false, // Default to false
 }: ContractSummaryProps) {
-  const [includeLawyerSignature, setIncludeLawyerSignature] = useState(false);
+  const [includeLawyerSignature, setIncludeLawyerSignature] = useState(currentLawyerSignature);
   const [totalAmount, setTotalAmount] = useState(amount);
-  const LAWYER_FEE = 11000; // ₦11,000 for lawyer signature
+  const LAWYER_FEE = 10000;
+
+  // Sync with parent component state
+  useEffect(() => {
+    setIncludeLawyerSignature(currentLawyerSignature);
+  }, [currentLawyerSignature]);
 
   // Truncate contract content for preview
   const truncatedContent =
@@ -90,6 +97,11 @@ export default function ContractSummary({
     });
   };
 
+  const handleBack = () => {
+ 
+    onBack();
+  };
+
   return (
     <AnimatePresence>
       {confirmContract && (
@@ -100,7 +112,7 @@ export default function ContractSummary({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onBack}
+            onClick={handleBack}
           />
 
           {/* 📄 Modal Container */}
@@ -123,8 +135,8 @@ export default function ContractSummary({
                 </div>
               </div>
 
-              {/* Lawyer Signature Toggle - Simple */}
-              <div className={`border rounded-lg p-4 ${includeLawyerSignature ? 'border-[#C29307] bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
+              {/* Lawyer Signature Toggle */}
+              <div className={`border rounded-lg p-4 ${includeLawyerSignature ? 'border-[#C29307] bg-[#C29307]/5' : 'border-gray-200 bg-gray-50'}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded ${includeLawyerSignature ? 'bg-[#C29307]' : 'bg-gray-300'}`}>
@@ -136,45 +148,47 @@ export default function ContractSummary({
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">₦11,000</div>
+                    <div className="text-lg font-bold text-gray-900">₦10,000</div>
                     <div className="text-xs text-gray-500">additional</div>
                   </div>
                 </div>
                 
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="lawyer-toggle" className="text-sm font-medium text-gray-700">
+                    <div className="flex-1">
+                      <Label htmlFor="lawyer-toggle" className="text-sm font-medium text-gray-700 mb-2 block">
                         {includeLawyerSignature ? 'Enabled' : 'Enable Lawyer Signature'}
                       </Label>
                       {includeLawyerSignature && (
-                        <div className="mt-1 space-y-1">
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <SpellCheck  className="h-3 w-3 text-[#C29307]" />
+                        <div className="mt-2 space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-[#C29307]">
+                            <div className="h-2 w-2 rounded-full bg-[#C29307]"></div>
                             <span>Official lawyer signature & seal</span>
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <Star className="h-3 w-3 text-[#C29307]" />
+                          <div className="flex items-center gap-2 text-xs text-[#C29307]">
+                            <div className="h-2 w-2 rounded-full bg-[#C29307]"></div>
                             <span>Enhanced legal standing</span>
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-600">
-                            <Gavel className="h-3 w-3 text-[#C29307]" />
+                          <div className="flex items-center gap-2 text-xs text-[#C29307]">
+                            <div className="h-2 w-2 rounded-full bg-[#C29307]"></div>
                             <span>Professional notarization</span>
                           </div>
                         </div>
                       )}
                     </div>
-                    <Switch
-                      id="lawyer-toggle"
-                      checked={includeLawyerSignature}
-                      onCheckedChange={handleToggleLawyerSignature}
-                      className={`${includeLawyerSignature ? 'bg-[#C29307]' : 'bg-gray-300'}`}
-                    />
+                    <div className="flex-shrink-0 ml-4">
+                      <Switch
+                        id="lawyer-toggle"
+                        checked={includeLawyerSignature}
+                        onCheckedChange={handleToggleLawyerSignature}
+                        className={`${includeLawyerSignature ? '!bg-[#C29307]' : ''} data-[state=checked]:bg-[#C29307]`}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Contract Details - Simplified */}
+              {/* Contract Details */}
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -216,10 +230,13 @@ export default function ContractSummary({
                           <div key={index} className="flex items-center text-sm">
                             <FileText className="h-4 w-4 text-gray-500 mr-2" />
                             <span className="truncate flex-1">{attachment.name}</span>
+                            <span className="text-xs text-gray-500 ml-2">
+                              {(attachment.size / 1024).toFixed(0)}KB
+                            </span>
                           </div>
                         ))}
                         {attachments.length > 3 && (
-                          <div className="text-xs text-gray-500 text-center">
+                          <div className="text-xs text-gray-500 text-center pt-1">
                             +{attachments.length - 3} more files
                           </div>
                         )}
@@ -227,47 +244,9 @@ export default function ContractSummary({
                     </div>
                   </div>
                 )}
-
-                {/* Contract Preview */}
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-sm font-medium text-gray-700">Contract Preview</h4>
-                    <span className="text-xs text-gray-500">{contractContent.length} chars</span>
-                  </div>
-                  <div className="bg-gray-50 rounded p-3 max-h-32 overflow-y-auto">
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-                      {truncatedContent}
-                    </pre>
-                  </div>
-                </div>
               </div>
 
-              {/* Security Features - Simplified */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Security Features</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-green-100 rounded">
-                      <Shield className="h-3.5 w-3.5 text-green-600" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium">Digital Signature</div>
-                      <div className="text-xs text-gray-500">Legally binding</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-blue-100 rounded">
-                      <Lock className="h-3.5 w-3.5 text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium">Secure Delivery</div>
-                      <div className="text-xs text-gray-500">Encrypted</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Summary - Simple */}
+              {/* Payment Summary */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Payment Summary</h4>
                 <div className="space-y-2">
@@ -282,9 +261,14 @@ export default function ContractSummary({
                     </div>
                   )}
                   <Separator className="my-2" />
-                  <div className="flex justify-between font-bold">
-                    <span className="text-gray-900">Total</span>
+                  <div className="flex justify-between font-bold text-base">
+                    <span className="text-gray-900">Total Amount</span>
                     <span className="text-gray-900">₦{totalAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 text-center pt-2">
+                    {includeLawyerSignature 
+                      ? "Includes lawyer signature fee" 
+                      : "Base contract fee only"}
                   </div>
                 </div>
               </div>
@@ -292,40 +276,67 @@ export default function ContractSummary({
               {/* Important Note */}
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-medium text-amber-800">Important</p>
-                    <ul className="text-xs text-amber-700 mt-1 space-y-1">
-                      <li>• Contract cannot be edited after sending</li>
-                      <li>• You'll receive signing notifications</li>
-                      <li>• Secure storage with audit trail</li>
+                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs">
+                    <p className="font-medium text-amber-800 mb-1">Important Note</p>
+                    <ul className="text-amber-700 space-y-1">
+                      <li className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>Contract cannot be edited after sending</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>You'll receive signing notifications via email</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="mr-2">•</span>
+                        <span>All contracts are securely stored with audit trail</span>
+                      </li>
+                      {includeLawyerSignature && (
+                        <li className="flex items-start">
+                          <span className="mr-2">•</span>
+                          <span>Lawyer signature adds legal validity and professional verification</span>
+                        </li>
+                      )}
                     </ul>
                   </div>
                 </div>
               </div>
 
-              {/* Buttons */}
+              {/* Action Buttons */}
               <div className="flex gap-3 pt-4 border-t">
                 <Button
                   variant="outline"
-                  onClick={onBack}
-                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100"
+                  onClick={handleBack}
+                  className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                 >
                   Back to Edit
                 </Button>
                 <Button
                   onClick={handleConfirm}
-                  className="flex-1 bg-[#C29307] hover:bg-[#b38606] text-white"
+                  className={`flex-1 ${includeLawyerSignature ? 'bg-[#C29307] hover:bg-[#b38606]' : 'bg-[#C29307] hover:bg-[#b38606]'} text-white`}
                 >
                   {includeLawyerSignature ? (
-                    <>
+                    <div className="flex items-center justify-center">
                       <Scale className="h-4 w-4 mr-2" />
-                      Send with Lawyer
-                    </>
+                      Send with Lawyer Signature
+                    </div>
                   ) : (
-                    'Send Contract'
+                    'Send for Signature'
                   )}
                 </Button>
+              </div>
+
+              {/* Status Indicator */}
+              <div className="text-center text-xs text-gray-500 pt-2">
+                <div className="flex items-center justify-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${includeLawyerSignature ? 'bg-[#C29307]' : 'bg-gray-300'}`}></div>
+                  <span>
+                    {includeLawyerSignature 
+                      ? 'Lawyer signature included' 
+                      : 'Standard contract (no lawyer signature)'}
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>

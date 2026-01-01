@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     // Transform the data to match the form structure
     const drafts = contracts?.map(contract => ({
       id: contract.id,
-      contract_id: contract.id, // Use id as contract_id
+      contract_id: contract.metadata?.contract_id || contract.id, // Get from metadata first
       contract_title: contract.contract_title,
       contract_content: contract.contract_text,
       contract_text: contract.contract_text,
@@ -48,7 +48,12 @@ export async function GET(req: NextRequest) {
       token: contract.token,
       verification_code: contract.verification_code,
       created_at: contract.created_at,
-      updated_at: contract.updated_at
+      updated_at: contract.updated_at,
+      is_draft: contract.is_draft || false,
+      include_lawyer_signature: contract.include_lawyer_signature || false,
+      creator_name: contract.creator_name || '',
+      creator_signature: contract.creator_signature || '',
+      metadata: contract.metadata || {}
     })) || [];
 
     return NextResponse.json({ 
@@ -73,8 +78,18 @@ async function createNewContractDraft(body: any) {
   
   const token = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
-  // Prepare the contract data - NO contract_id field
+  // Generate contract_id if not provided
+  const contractId = body.contract_id || body.contractId || `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Prepare metadata with contract_id
+  const metadata: any = {
+    contract_id: contractId,
+    created_via: 'draft_api',
+  };
+
+  // Prepare the contract data
   const contractData = {
+    id: contractId, // Use contract_id as the actual ID
     user_id: body.userId,
     token: token,
     contract_title: body.contractTitle || body.contract_title || 'Untitled Contract',
@@ -91,14 +106,20 @@ async function createNewContractDraft(body: any) {
     verification_code: null, 
     signing_link: null,
     is_draft: true,
+    include_lawyer_signature: body.include_lawyer_signature || body.includeLawyerSignature || false,
+    creator_name: body.creator_name || body.creatorName || '',
+    creator_signature: body.creator_signature || body.creatorSignature || '',
+    metadata: metadata,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   };
 
   console.log('Inserting contract with data:', {
+    id: contractData.id,
     title: contractData.contract_title,
     hasContent: contractData.contract_text.length > 0,
-    hasRecipientEmail: !!contractData.signee_email
+    hasRecipientEmail: !!contractData.signee_email,
+    contract_id: metadata.contract_id
   });
 
   // Insert the contract
@@ -123,7 +144,8 @@ export async function POST(req: NextRequest) {
     console.log('Contract draft POST payload received:', {
       userId: body.userId,
       contractTitle: body.contractTitle || body.contract_title,
-      receiverEmail: body.receiverEmail || body.receiver_email || body.signee_email
+      receiverEmail: body.receiverEmail || body.receiver_email || body.signee_email,
+      contractId: body.contract_id || body.contractId
     });
 
     // Validation
@@ -143,8 +165,54 @@ export async function POST(req: NextRequest) {
     }
 
     const receiverEmail = body.receiverEmail || body.receiver_email || body.signee_email || '';
+    const contractIdFromBody = body.contract_id || body.contractId;
     
-    // Check if a draft with same title and recipient already exists
+    // Check if a draft with same contract_id already exists (in metadata)
+    if (contractIdFromBody) {
+      const { data: existingDraft } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('user_id', body.userId)
+        .eq('is_draft', true)
+        .contains('metadata', { contract_id: contractIdFromBody })
+        .single();
+
+      if (existingDraft) {
+        console.log('Found existing draft by contract_id, updating...');
+        
+        // Update existing draft
+        const updateData: any = {
+          contract_text: body.contractContent || body.contract_content || '',
+          age_consent: body.ageConsent || body.age_consent || false,
+          terms_consent: body.termsConsent || body.terms_consent || false,
+          signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
+          phone_number: body.receiverPhone || body.receiver_phone || body.phone_number || existingDraft.phone_number || null,
+          include_lawyer_signature: body.include_lawyer_signature || body.includeLawyerSignature || false,
+          creator_name: body.creator_name || body.creatorName || '',
+          creator_signature: body.creator_signature || body.creatorSignature || '',
+          updated_at: new Date().toISOString()
+        };
+
+        const { data: updatedContract, error: updateError } = await supabase
+          .from('contracts')
+          .update(updateData)
+          .eq('id', existingDraft.id)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+
+        return NextResponse.json({ 
+          success: true, 
+          contractId: updatedContract.id,
+          draftId: updatedContract.token,
+          message: 'Draft updated successfully',
+          isUpdate: true
+        });
+      }
+    }
+
+    // Check if a draft with same title and recipient already exists (fallback)
     if (receiverEmail) {
       const { data: existingDraft } = await supabase
         .from('contracts')
@@ -156,19 +224,33 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (existingDraft) {
-        console.log('Found existing draft, updating...');
+        console.log('Found existing draft by title/email, updating...');
         
         // Update existing draft
+        const updateData: any = {
+          contract_text: body.contractContent || body.contract_content || '',
+          age_consent: body.ageConsent || body.age_consent || false,
+          terms_consent: body.termsConsent || body.terms_consent || false,
+          signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
+          phone_number: body.receiverPhone || body.receiver_phone || body.phone_number || existingDraft.phone_number || null,
+          include_lawyer_signature: body.include_lawyer_signature || body.includeLawyerSignature || false,
+          creator_name: body.creator_name || body.creatorName || '',
+          creator_signature: body.creator_signature || body.creatorSignature || '',
+          updated_at: new Date().toISOString()
+        };
+
+        // Update metadata with contract_id if provided
+        if (contractIdFromBody) {
+          const existingMetadata = existingDraft.metadata || {};
+          updateData.metadata = {
+            ...existingMetadata,
+            contract_id: contractIdFromBody
+          };
+        }
+
         const { data: updatedContract, error: updateError } = await supabase
           .from('contracts')
-          .update({
-            contract_text: body.contractContent || body.contract_content || '',
-            age_consent: body.ageConsent || body.age_consent || false,
-            terms_consent: body.termsConsent || body.terms_consent || false,
-            signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
-            phone_number: body.receiverPhone || body.receiver_phone || body.phone_number || existingDraft.phone_number || null,
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', existingDraft.id)
           .select()
           .single();
@@ -215,7 +297,8 @@ export async function PUT(req: NextRequest) {
     console.log('Contract draft PUT payload received:', { 
       userId: body.userId,
       contractTitle: body.contractTitle || body.contract_title,
-      receiverEmail: body.receiverEmail || body.receiver_email || body.signee_email
+      receiverEmail: body.receiverEmail || body.receiver_email || body.signee_email,
+      contractId: body.contract_id || body.contractId
     });
 
     // Validation
@@ -233,11 +316,26 @@ export async function PUT(req: NextRequest) {
     }
 
     const receiverEmail = body.receiverEmail || body.receiver_email || body.signee_email || '';
+    const contractIdFromBody = body.contract_id || body.contractId;
     
-    // Check for existing draft with same title and recipient
+    // Check for existing draft - first by contract_id, then by title/email
     let existingDraft = null;
     
-    if (receiverEmail) {
+    // First, try to find by contract_id in metadata
+    if (contractIdFromBody) {
+      const { data } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('user_id', body.userId)
+        .eq('is_draft', true)
+        .contains('metadata', { contract_id: contractIdFromBody })
+        .single();
+      
+      existingDraft = data;
+    }
+    
+    // If not found by contract_id, try by title and email
+    if (!existingDraft && receiverEmail) {
       const { data } = await supabase
         .from('contracts')
         .select('*')
@@ -245,19 +343,6 @@ export async function PUT(req: NextRequest) {
         .eq('contract_title', contractTitle)
         .eq('signee_email', receiverEmail)
         .eq('is_draft', true)
-        .single();
-      
-      existingDraft = data;
-    } else {
-      // Check for drafts without recipient (just by title)
-      const { data } = await supabase
-        .from('contracts')
-        .select('*')
-        .eq('user_id', body.userId)
-        .eq('contract_title', contractTitle)
-        .eq('is_draft', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
         .single();
       
       existingDraft = data;
@@ -273,8 +358,20 @@ export async function PUT(req: NextRequest) {
         terms_consent: body.termsConsent || body.terms_consent || false,
         signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
         phone_number: body.receiverPhone || body.receiver_phone || body.phone_number || existingDraft.phone_number || null,
+        include_lawyer_signature: body.include_lawyer_signature || body.includeLawyerSignature || false,
+        creator_name: body.creator_name || body.creatorName || '',
+        creator_signature: body.creator_signature || body.creatorSignature || '',
         updated_at: new Date().toISOString()
       };
+
+      // Update metadata with contract_id if provided
+      if (contractIdFromBody) {
+        const existingMetadata = existingDraft.metadata || {};
+        updateData.metadata = {
+          ...existingMetadata,
+          contract_id: contractIdFromBody
+        };
+      }
 
       const { error: updateError } = await supabase
         .from('contracts')

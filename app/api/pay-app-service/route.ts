@@ -228,12 +228,12 @@ export async function POST(req: Request) {
         include_lawyer_signature: include_lawyer_signature,
         lawyer_signature_included: include_lawyer_signature,
         base_contract_fee: 10,
-        lawyer_fee: include_lawyer_signature ? 11000 : 0,
+        lawyer_fee: include_lawyer_signature ? 10000 : 0,
         total_amount: amount,
         service_type: "contract",
         fee_breakdown: {
           base_fee: 10,
-          lawyer_fee: include_lawyer_signature ? 11000 : 0,
+          lawyer_fee: include_lawyer_signature ? 10000 : 0,
           total: amount
         }
       };

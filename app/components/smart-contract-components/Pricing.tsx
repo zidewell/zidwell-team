@@ -9,7 +9,7 @@ const Pricing: React.FC = () => (
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
         <PricingCard title="Standard Contract" desc="Perfect for most business agreements" price="₦1,000" features={["Unlimited contract templates", "Email delivery to signees", "NIN identity verification","Digital signatures","PDF download"]} />
-        <PricingCard title="With Lawyer Signature" desc="Add legal witness for maximum authenticity" price="₦11,000" features={["Everything in Standard", "Official lawyer signature & seal", "Enhanced legal standing","Professional notarization"]} featured />
+        <PricingCard title="With Lawyer Signature" desc="Add legal witness for maximum authenticity" price="₦10,000" features={["Everything in Standard", "Official lawyer signature & seal", "Enhanced legal standing","Professional notarization"]} featured />
       </div>
     </div>
   </section>

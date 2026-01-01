@@ -13,7 +13,7 @@ const plans = [
       "Bill Payments: Airtime, Data, Electricity, Cable",
       "10 free invoices/receipts monthly",
       "Simple Contracts: ₦1,000 each",
-      "Lawyer-signed Contracts: ₦11,000 each",
+      "Lawyer-signed Contracts: ₦10,000 each",
       "Tax Filing Support: 3% of monthly revenue",
       "Cashback: ₦20 per ₦2,500 spent",
       "Referral Rewards: ₦20 per signup",

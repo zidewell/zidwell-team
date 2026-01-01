@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
-import SignContractForm from "@/app/components/SignContractForm";
 import { createClient } from "@supabase/supabase-js";
-import { Textarea } from "@/app/components/ui/textarea";
+import ContractSigningPage from "@/app/components/sign-contract-form-component/ContractSigningPage"; 
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -11,7 +10,7 @@ const supabase = createClient(
 export default async function page({
   params,
 }: {
-  params: Promise<{ token: any }>;
+  params: Promise<{ token: string }>;
 }) {
   const token = (await params).token;
 
@@ -21,43 +20,29 @@ export default async function page({
     .select("*")
     .eq("token", token)
     .single();
-  // console.log(contractData, error)
+
   if (error || !contractData) return notFound();
 
-  return (
-    <div className="p-4 max-w-2xl mx-auto">
-      <div className="">
-        <h1 className="text-2xl font-bold text-foreground flex gap-3 items-center mb-3">
-          {contractData.contract_title}
-          <button
-            disabled
-            className="pointer-events-none text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded-md"
-          >
-            {contractData.initiator_name}
-          </button>
-        </h1>
-      </div>
+  // Format contract data for the component
+  const contract = {
+    id: contractData.id,
+    token: contractData.token,
+    title: contractData.contract_title || "Untitled Contract",
+    content: contractData.contract_text || "",
+    status: contractData.status || "pending",
+    initiatorName: contractData.initiator_name || "Contract Creator",
+    initiatorEmail: contractData.initiator_email || "",
+    signeeName: contractData.signee_name || "",
+    signeeEmail: contractData.signee_email || "",
+    signeePhone: contractData.phone_number || "",
+    hasLawyerSignature: contractData.include_lawyer_signature || false,
+    creatorName: contractData.creator_name || contractData.initiator_name || "",
+    creatorSignature: contractData.creator_signature || null,
+    createdAt: contractData.created_at,
+    verificationCode: contractData.verification_code,
+    signeeSignature: contractData.signee_signature_image || null,
+    metadata: contractData.metadata || {},
+  };
 
-      {contractData.status === "signed" && (
-        <div className="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-800 rounded">
-          ⚠️ Warning: This contract has already been signed and cannot be
-          modified.
-        </div>
-      )}
-
-      <Textarea
-        value={contractData.contract_text}
-        className="min-h-[600px] font-mono text-sm"
-        readOnly
-      />
-
-      {/* Optionally disable or hide SignForm if signed */}
-      {contractData.status !== "signed" && (
-        <SignContractForm
-          token={token}
-          signeeEmail={contractData.signee_email}
-        />
-      )}
-    </div>
-  );
+  return <ContractSigningPage contract={contract} />;
 }

@@ -1,5 +1,4 @@
 "use client";
-
 import DashboardHeader from '@/app/components/dashboard-hearder'
 import DashboardSidebar from '@/app/components/dashboard-sidebar'
 import ContractGen from '@/app/components/sign-contract-form-component/ContractGen'

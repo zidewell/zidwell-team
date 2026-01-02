@@ -46,6 +46,8 @@ import PinPopOver from "../PinPopOver";
 import ContractSummary from "./ContractSummary";
 import { Badge } from "../ui/badge";
 import { Label } from "../ui/label";
+import { Switch } from "../ui/switch";
+import { Input } from "../ui/input";
 
 type ContractDraft = {
   id: string;
@@ -73,6 +75,7 @@ type ContractDraft = {
   include_lawyer_signature?: boolean;
   creator_name?: string;
   creator_signature?: string;
+  contract_date?: string;
   metadata?: Record<string, any>;
 };
 
@@ -82,11 +85,13 @@ type FormState = {
   receiverPhone: string;
   contractTitle: string;
   contractContent: string;
+  paymentTerms: string;
   ageConsent: boolean;
   termsConsent: boolean;
   status: "pending" | "draft";
   contractId: string;
   contractType: "custom";
+  contractDate: string;
 };
 
 type AttachmentFile = {
@@ -97,7 +102,6 @@ type AttachmentFile = {
   previewUrl?: string;
 };
 
-// Add these interfaces for response data
 interface DraftsResponse {
   success: boolean;
   drafts: ContractDraft[];
@@ -137,7 +141,6 @@ const FormBody: React.FC = () => {
   const [savedContractId, setSavedContractId] = useState<string>("");
   const [showContractSummary, setShowContractSummary] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
-
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [includeLawyerSignature, setIncludeLawyerSignature] = useState(false);
   const [totalAmount, setTotalAmount] = useState(10);
@@ -150,6 +153,7 @@ const FormBody: React.FC = () => {
       : ""
   );
   const [creatorSignature, setCreatorSignature] = useState<string | null>(null);
+  const [localCreatorName, setLocalCreatorName] = useState(creatorName);
 
   useEffect(() => {
     if (includeLawyerSignature) {
@@ -165,11 +169,13 @@ const FormBody: React.FC = () => {
     receiverPhone: "",
     contractTitle: "",
     contractContent: "",
+    paymentTerms: "",
     ageConsent: false,
     termsConsent: false,
     status: "pending",
     contractId: "",
     contractType: "custom",
+    contractDate: new Date().toISOString().split('T')[0], // Set default to today
   });
 
   const [drafts, setDrafts] = useState<ContractDraft[]>([]);
@@ -180,48 +186,47 @@ const FormBody: React.FC = () => {
     receiverName: "",
     receiverEmail: "",
     contractContent: "",
+    contractDate: "",
     pin: "",
     ageConsent: "",
     termsConsent: "",
   });
 
-const triggerContractConfetti = () => {
-  // Main burst
-  confetti({
-    particleCount: 150,
-    spread: 70,
-    origin: { y: 0.6 },
-    colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
-  });
+  const triggerContractConfetti = () => {
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
+    });
 
-  // Side bursts
-  setTimeout(() => {
-    confetti({
-      particleCount: 80,
-      angle: 60,
-      spread: 55,
-      origin: { x: 0 },
-      colors: ["#C29307", "#ffd700", "#ffed4e"],
-    });
-    confetti({
-      particleCount: 80,
-      angle: 120,
-      spread: 55,
-      origin: { x: 1 },
-      colors: ["#C29307", "#ffd700", "#ffed4e"],
-    });
-  }, 150);
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ["#C29307", "#ffd700", "#ffed4e"],
+      });
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ["#C29307", "#ffd700", "#ffed4e"],
+      });
+    }, 150);
 
-  // Additional bursts for more celebration
-  setTimeout(() => {
-    confetti({
-      particleCount: 100,
-      spread: 100,
-      origin: { y: 0.8 },
-      colors: ["#C29307", "#ffd700", "#ffed4e"],
-    });
-  }, 300);
-};
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 100,
+        origin: { y: 0.8 },
+        colors: ["#C29307", "#ffd700", "#ffed4e"],
+      });
+    }, 300);
+  };
+
   const generateContractId = useCallback(() => {
     const datePart = new Date().getFullYear();
     const randomToken = crypto
@@ -233,7 +238,10 @@ const triggerContractConfetti = () => {
   }, []);
 
   useEffect(() => {
-    setForm((prev) => ({ ...prev, contractId: generateContractId() }));
+    setForm((prev) => ({
+      ...prev,
+      contractId: generateContractId(),
+    }));
     setIsInitialLoad(false);
   }, [generateContractId]);
 
@@ -242,11 +250,13 @@ const triggerContractConfetti = () => {
       !isInitialLoad &&
       (form.contractTitle ||
         form.contractContent ||
+        form.paymentTerms ||
         form.receiverName ||
         form.receiverEmail ||
         form.receiverPhone ||
         form.ageConsent ||
         form.termsConsent ||
+        form.contractDate ||
         attachments.length > 0)
     ) {
       setHasUnsavedChanges(true);
@@ -255,11 +265,13 @@ const triggerContractConfetti = () => {
     isInitialLoad,
     form.contractTitle,
     form.contractContent,
+    form.paymentTerms,
     form.receiverName,
     form.receiverEmail,
     form.receiverPhone,
     form.ageConsent,
     form.termsConsent,
+    form.contractDate,
     attachments.length,
   ]);
 
@@ -277,12 +289,14 @@ const triggerContractConfetti = () => {
       }
 
       setIsLoadingDrafts(true);
-      const res = await fetch(`/api/contract/contract-drafts?userId=${userData.id}`);
-      
+      const res = await fetch(
+        `/api/contract/contract-drafts?userId=${userData.id}`
+      );
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const result: DraftsResponse = await res.json();
 
       if (result.success && result.drafts && result.drafts.length > 0) {
@@ -291,8 +305,10 @@ const triggerContractConfetti = () => {
         if (
           !form.contractTitle &&
           !form.contractContent &&
+          !form.paymentTerms &&
           !form.receiverName &&
           !form.receiverEmail &&
+          !form.contractDate &&
           attachments.length === 0
         ) {
           setTimeout(() => {
@@ -345,19 +361,29 @@ const triggerContractConfetti = () => {
     console.log("Loading draft into form:", draft);
 
     // Get contract_id from metadata if available
-    const draftContractId = draft.metadata?.contract_id || draft.contract_id || draft.id || generateContractId();
+    const draftContractId =
+      draft.metadata?.contract_id ||
+      draft.contract_id ||
+      draft.id ||
+      generateContractId();
+
+    // Parse payment terms from metadata or content if available
+    const paymentTerms = draft.metadata?.payment_terms || "";
 
     const formData: FormState = {
       receiverName: draft.receiver_name || draft.signee_name || "",
       receiverEmail: draft.receiver_email || draft.signee_email || "",
-      receiverPhone: draft.receiver_phone || draft.phone_number?.toString() || "",
+      receiverPhone:
+        draft.receiver_phone || draft.phone_number?.toString() || "",
       contractTitle: draft.contract_title || "",
       contractContent: draft.contract_content || draft.contract_text || "",
+      paymentTerms: paymentTerms,
       ageConsent: draft.age_consent || false,
       termsConsent: draft.terms_consent || false,
       status: (draft.status as "pending" | "draft") || "draft",
-      contractId: draftContractId, // Use the contract_id from metadata
+      contractId: draftContractId,
       contractType: "custom",
+      contractDate: draft.contract_date || new Date().toISOString().split('T')[0],
     };
 
     setForm(formData);
@@ -366,6 +392,7 @@ const triggerContractConfetti = () => {
     // Also set creator name and signature if available
     if (draft.creator_name) {
       setCreatorName(draft.creator_name);
+      setLocalCreatorName(draft.creator_name);
     }
     if (draft.creator_signature) {
       setCreatorSignature(draft.creator_signature);
@@ -454,6 +481,8 @@ const triggerContractConfetti = () => {
         hasUnsavedChanges &&
         (form.contractTitle.trim() ||
           form.contractContent.trim() ||
+          form.paymentTerms.trim() ||
+          form.contractDate ||
           attachments.length > 0)
       ) {
         e.preventDefault();
@@ -469,6 +498,8 @@ const triggerContractConfetti = () => {
     hasUnsavedChanges,
     form.contractTitle,
     form.contractContent,
+    form.paymentTerms,
+    form.contractDate,
     attachments.length,
   ]);
 
@@ -488,6 +519,7 @@ const triggerContractConfetti = () => {
       if (
         !form.contractTitle.trim() &&
         !form.contractContent.trim() &&
+        !form.paymentTerms.trim() &&
         attachments.length === 0
       ) {
         Swal.fire({
@@ -510,11 +542,13 @@ const triggerContractConfetti = () => {
         contract_id: draftContractId,
         contractTitle: form.contractTitle || "Untitled Contract",
         contractContent: form.contractContent,
+        paymentTerms: form.paymentTerms,
         receiverName: form.receiverName,
         receiverEmail: form.receiverEmail,
         receiverPhone: form.receiverPhone,
         ageConsent: form.ageConsent,
         termsConsent: form.termsConsent,
+        contract_date: form.contractDate,
         contract_type: "custom",
         status: "draft",
         is_draft: true,
@@ -522,9 +556,12 @@ const triggerContractConfetti = () => {
         attachment_count: attachments.length,
         creator_name: creatorName,
         creator_signature: creatorSignature,
+        include_lawyer_signature: includeLawyerSignature,
+        metadata: {
+          payment_terms: form.paymentTerms,
+          contract_date: form.contractDate,
+        },
       };
-
-      console.log("Saving draft with payload:", payload);
 
       const res = await fetch("/api/contract/contract-drafts", {
         method: "PUT",
@@ -566,122 +603,129 @@ const triggerContractConfetti = () => {
     }
   };
 
-const validateFormFields = (): boolean => {
-  const newErrors = {
-    contractTitle: "",
-    receiverName: "",
-    receiverEmail: "",
-    contractContent: "",
-    pin: "",
-    ageConsent: "",
-    termsConsent: "",
+  const validateFormFields = (): boolean => {
+    const newErrors = {
+      contractTitle: "",
+      receiverName: "",
+      receiverEmail: "",
+      contractContent: "",
+      contractDate: "",
+      pin: "",
+      ageConsent: "",
+      termsConsent: "",
+    };
+
+    let hasErrors = false;
+
+    if (!form.contractTitle.trim()) {
+      newErrors.contractTitle = "Contract title is required.";
+      hasErrors = true;
+    }
+
+    if (!form.receiverName.trim()) {
+      newErrors.receiverName = "Signer full name is required.";
+      hasErrors = true;
+    }
+
+    if (!form.receiverEmail.trim()) {
+      newErrors.receiverEmail = "Signee email is required.";
+      hasErrors = true;
+    } else if (form.receiverEmail.trim() === userData?.email) {
+      newErrors.receiverEmail =
+        "Sorry, the signee email address cannot be the same as the initiator's email address.";
+      hasErrors = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.receiverEmail)) {
+      newErrors.receiverEmail = "Invalid email format.";
+      hasErrors = true;
+    }
+
+    if (!form.contractContent.trim()) {
+      newErrors.contractContent = "Contract content cannot be empty.";
+      hasErrors = true;
+    }
+
+    if (!form.ageConsent) {
+      newErrors.ageConsent = "You must confirm you are 18 years or older.";
+      hasErrors = true;
+    }
+
+    if (!form.termsConsent) {
+      newErrors.termsConsent = "You must agree to the contract terms.";
+      hasErrors = true;
+    }
+
+    if (!form.contractDate) {
+      newErrors.contractDate = "Contract date is required.";
+      hasErrors = true;
+    }
+
+    setErrors(newErrors);
+    return !hasErrors;
   };
 
-  let hasErrors = false;
-
-  if (!form.contractTitle.trim()) {
-    newErrors.contractTitle = "Contract title is required.";
-    hasErrors = true;
-  }
-
-  if (!form.receiverName.trim()) {
-    newErrors.receiverName = "Signer full name is required.";
-    hasErrors = true;
-  }
-
-  if (!form.receiverEmail.trim()) {
-    newErrors.receiverEmail = "Signee email is required.";
-    hasErrors = true;
-  } else if (form.receiverEmail.trim() === userData?.email) {
-    newErrors.receiverEmail =
-      "Sorry, the signee email address cannot be the same as the initiator's email address.";
-    hasErrors = true;
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.receiverEmail)) {
-    newErrors.receiverEmail = "Invalid email format.";
-    hasErrors = true;
-  }
-
-  if (!form.contractContent.trim()) {
-    newErrors.contractContent = "Contract content cannot be empty.";
-    hasErrors = true;
-  }
-
-  if (!form.ageConsent) {
-    newErrors.ageConsent = "You must confirm you are 18 years or older.";
-    hasErrors = true;
-  }
-
-  if (!form.termsConsent) {
-    newErrors.termsConsent = "You must agree to the contract terms.";
-    hasErrors = true;
-  }
-
-  setErrors(newErrors);
-  return !hasErrors;
-};
-
-const validateSignature = (): boolean => {
-  if (!creatorSignature) {
-    Swal.fire({
-      icon: "warning",
-      title: "Signature Required",
-      html: `Please add your signature in the <strong>Preview tab</strong> before submitting.`,
-      confirmButtonColor: "#C29307",
-      showCancelButton: true,
-      cancelButtonText: "Cancel",
-      confirmButtonText: "Go to Preview",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        setActiveTab("preview");
-      }
-    });
-    return false;
-  }
-
-  if (!creatorName.trim()) {
-    Swal.fire({
-      icon: "warning",
-      title: "Name Required",
-      text: "Please enter your full legal name in the Preview tab signature section.",
-      confirmButtonColor: "#C29307",
-    }).then(() => {
-      setActiveTab("preview");
-    });
-    return false;
-  }
-
-  return true;
-};
-
-const validateInputs = (): boolean => {
-  // First validate form fields
-  const formValid = validateFormFields();
-  
-  if (!formValid) {
-    // Show form field errors in SweetAlert
-    const errorMessages = [];
-    if (errors.contractTitle) errorMessages.push(errors.contractTitle);
-    if (errors.receiverName) errorMessages.push(errors.receiverName);
-    if (errors.receiverEmail) errorMessages.push(errors.receiverEmail);
-    if (errors.contractContent) errorMessages.push(errors.contractContent);
-    if (errors.ageConsent) errorMessages.push(errors.ageConsent);
-    if (errors.termsConsent) errorMessages.push(errors.termsConsent);
-
-    if (errorMessages.length > 0) {
+  const validateSignature = (): boolean => {
+    if (!creatorSignature) {
       Swal.fire({
-        icon: "error",
-        title: "Please fix the following errors:",
-        html: errorMessages.map(msg => `• ${msg}`).join('<br>'),
+        icon: "warning",
+        title: "Signature Required",
+        html: `Please add your signature in the <strong>Preview tab</strong> before submitting.`,
         confirmButtonColor: "#C29307",
+        showCancelButton: true,
+        cancelButtonText: "Cancel",
+        confirmButtonText: "Go to Preview",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          setActiveTab("preview");
+        }
       });
+      return false;
     }
-    
-    return false;
-  }
 
-  // Then validate signature
-  return validateSignature();
-};
+    if (!creatorName.trim()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Name Required",
+        text: "Please enter your full legal name in the Preview tab signature section.",
+        confirmButtonColor: "#C29307",
+      }).then(() => {
+        setActiveTab("preview");
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  const validateInputs = (): boolean => {
+    // First validate form fields
+    const formValid = validateFormFields();
+
+    if (!formValid) {
+      // Show form field errors in SweetAlert
+      const errorMessages = [];
+      if (errors.contractTitle) errorMessages.push(errors.contractTitle);
+      if (errors.receiverName) errorMessages.push(errors.receiverName);
+      if (errors.receiverEmail) errorMessages.push(errors.receiverEmail);
+      if (errors.contractContent) errorMessages.push(errors.contractContent);
+      if (errors.contractDate) errorMessages.push(errors.contractDate);
+      if (errors.ageConsent) errorMessages.push(errors.ageConsent);
+      if (errors.termsConsent) errorMessages.push(errors.termsConsent);
+
+      if (errorMessages.length > 0) {
+        Swal.fire({
+          icon: "error",
+          title: "Please fix the following errors:",
+          html: errorMessages.map((msg) => `• ${msg}`).join("<br>"),
+          confirmButtonColor: "#C29307",
+        });
+      }
+
+      return false;
+    }
+
+    // Then validate signature
+    return validateSignature();
+  };
 
   const uploadAttachmentFiles = async (): Promise<
     Array<{
@@ -704,10 +748,13 @@ const validateInputs = (): boolean => {
         formData.append("userId", userData.id);
         formData.append("contractId", form.contractId);
 
-        const res = await fetch("/api/contract/send-contracts/upload-contract-file", {
-          method: "POST",
-          body: formData,
-        });
+        const res = await fetch(
+          "/api/contract/send-contracts/upload-contract-file",
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
 
         const result = await res.json();
 
@@ -756,14 +803,16 @@ const validateInputs = (): boolean => {
           userData.firstName && userData.lastName
             ? `${userData.firstName} ${userData.lastName}`
             : userData.email || "",
-        contract_id: contractIdToUse, 
+        contract_id: contractIdToUse,
         contract_title: form.contractTitle,
         contract_content: form.contractContent,
+        payment_terms: form.paymentTerms,
         receiver_name: form.receiverName,
         receiver_email: form.receiverEmail,
         receiver_phone: form.receiverPhone,
         age_consent: form.ageConsent,
         terms_consent: form.termsConsent,
+        contract_date: form.contractDate,
         contract_type: "custom",
         status: isDraft ? "draft" : "pending",
         is_draft: isDraft,
@@ -779,6 +828,8 @@ const validateInputs = (): boolean => {
           total_fee: totalAmount,
           creator_name: creatorName,
           creator_signature: creatorSignature,
+          payment_terms: form.paymentTerms,
+          contract_date: form.contractDate,
         },
       };
 
@@ -795,7 +846,7 @@ const validateInputs = (): boolean => {
       }
 
       if (!isDraft && result.isUpdate) {
-        await loadUserDrafts(); 
+        await loadUserDrafts();
       }
 
       return {
@@ -865,7 +916,7 @@ const validateInputs = (): boolean => {
       });
 
       const data: PaymentResponse = await res.json();
-      
+
       if (res.ok) {
         Swal.fire({
           icon: "info",
@@ -887,73 +938,82 @@ const validateInputs = (): boolean => {
     }
   };
 
-const processPaymentAndSubmit = async () => {
-  setLoading(true);
-  setIsOpen(false);
+  const processPaymentAndSubmit = async () => {
+    setLoading(true);
+    setIsOpen(false);
 
-  try {
-    const paymentSuccess = await handleDeduct();
+    try {
+      const paymentSuccess = await handleDeduct();
 
-    if (paymentSuccess) {
-      const result = await handleSaveContract(false);
-      if (result.success) {
-        setGeneratedSigningLink(result.signingLink || "");
-        setSavedContractId(result.contractId || "");
-        
-        // Trigger confetti when showing success modal
-        triggerContractConfetti();
-        
-        // Add a small delay for better UX
-        setTimeout(() => {
-          setShowSuccessModal(true);
-        }, 300);
-        
-        setIncludeLawyerSignature(false);
-        setCreatorSignature(null);
+      if (paymentSuccess) {
+        const result = await handleSaveContract(false);
+        if (result.success) {
+          setGeneratedSigningLink(result.signingLink || "");
+          setSavedContractId(result.contractId || "");
 
-        // Reset form
-        setForm({
-          receiverName: "",
-          receiverEmail: "",
-          receiverPhone: "",
-          contractTitle: "",
-          contractContent: "",
-          ageConsent: false,
-          termsConsent: false,
-          status: "pending",
-          contractId: generateContractId(),
-          contractType: "custom",
-        });
-        setAttachments([]);
-        setHasUnsavedChanges(false);
-      } else {
-        await handleRefund();
+          // Trigger confetti when showing success modal
+          triggerContractConfetti();
+
+          // Add a small delay for better UX
+          setTimeout(() => {
+            setShowSuccessModal(true);
+          }, 300);
+
+          setIncludeLawyerSignature(false);
+          setCreatorSignature(null);
+
+          // Reset form
+          setForm({
+            receiverName: "",
+            receiverEmail: "",
+            receiverPhone: "",
+            contractTitle: "",
+            contractContent: "",
+            paymentTerms: "",
+            ageConsent: false,
+            termsConsent: false,
+            status: "pending",
+            contractId: generateContractId(),
+            contractType: "custom",
+            contractDate: new Date().toISOString().split('T')[0],
+          });
+          setAttachments([]);
+          setHasUnsavedChanges(false);
+        } else {
+          await handleRefund();
+        }
       }
+    } catch (error) {
+      console.error("Error in process:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Processing Failed",
+        text: "Failed to process payment. Please try again.",
+        confirmButtonColor: "#C29307",
+      });
+    } finally {
+      setLoading(false);
+      setIsSending(false);
+      // Reset PIN
+      setPin(Array(inputCount).fill(""));
     }
-  } catch (error) {
-    console.error("Error in process:", error);
-    Swal.fire({
-      icon: "error",
-      title: "Processing Failed",
-      text: "Failed to process payment. Please try again.",
-      confirmButtonColor: "#C29307",
-    });
-  } finally {
-    setLoading(false);
-    setIsSending(false);
-    // Reset PIN
-    setPin(Array(inputCount).fill(""));
-  }
-};
+  };
+
+  const handleCreatorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const name = e.target.value;
+    setLocalCreatorName(name);
+    setCreatorName(name);
+  };
 
   const handleSendForSignature = () => {
-  if (!validateInputs()) {
-    return;
-  }
+    if (!validateInputs()) {
+      return;
+    }
 
-  setIsSending(true);
-  setShowContractSummary(true);
-};
+    setIsSending(true);
+    setShowContractSummary(true);
+  };
+
   const handleSummaryConfirm = (options?: {
     includeLawyerSignature: boolean;
   }) => {
@@ -1013,21 +1073,34 @@ const processPaymentAndSubmit = async () => {
           receiverPhone: "",
           contractTitle: "",
           contractContent: "",
+          paymentTerms: "",
           ageConsent: false,
           termsConsent: false,
           status: "pending",
           contractId: generateContractId(),
           contractType: "custom",
+          contractDate: new Date().toISOString().split('T')[0],
         });
         setAttachments([]);
         setIncludeLawyerSignature(false);
         setCreatorSignature(null);
+        setCreatorName(
+          userData?.firstName && userData?.lastName
+            ? `${userData.firstName} ${userData.lastName}`
+            : ""
+        );
+        setLocalCreatorName(
+          userData?.firstName && userData?.lastName
+            ? `${userData.firstName} ${userData.lastName}`
+            : ""
+        );
         setHasUnsavedChanges(false);
         setErrors({
           contractTitle: "",
           receiverName: "",
           receiverEmail: "",
           contractContent: "",
+          contractDate: "",
           pin: "",
           ageConsent: "",
           termsConsent: "",
@@ -1095,6 +1168,10 @@ const processPaymentAndSubmit = async () => {
     setHasUnsavedChanges(true);
   };
 
+  const handleLawyerToggle = useCallback((checked: boolean) => {
+    setIncludeLawyerSignature(checked);
+  }, []);
+
   useEffect(() => {
     return () => {
       attachments.forEach((attachment) => {
@@ -1122,7 +1199,7 @@ const processPaymentAndSubmit = async () => {
           inputCount={inputCount}
           onConfirm={() => {
             const pinString = pin.join("");
-            processPaymentAndSubmit(); // This already handles the PIN internally
+            processPaymentAndSubmit();
           }}
         />
       )}
@@ -1130,6 +1207,7 @@ const processPaymentAndSubmit = async () => {
       <ContractSummary
         contractTitle={form.contractTitle}
         contractContent={form.contractContent}
+        contractDate={form.contractDate}
         initiatorName={`${userData?.firstName || ""} ${
           userData?.lastName || ""
         }`}
@@ -1142,95 +1220,98 @@ const processPaymentAndSubmit = async () => {
         onBack={handleSummaryBack}
         onConfirm={handleSummaryConfirm}
         contractType="Custom Contract"
-        dateCreated={new Date().toLocaleDateString()}
+        dateCreated={new Date(form.contractDate).toLocaleDateString()}
         attachments={attachments}
         currentLawyerSignature={includeLawyerSignature}
       />
 
-     {showSuccessModal && (
-  <div className="fixed inset-0 bg-white/10 backdrop-blur-sm flex items-center justify-center z-50">
-    <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg max-h-[90vh] overflow-y-auto">
-      <div className="text-center mb-6">
-        {/* Animated confetti icon */}
-        <div className="w-16 h-16 bg-gradient-to-br from-[#F9F4E5] to-[#ffed4e] rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-          <svg
-            className="w-8 h-8 text-[#C29307]"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-        </div>
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-white/10 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg max-h-[90vh] overflow-y-auto">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#F9F4E5] to-[#ffed4e] rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <svg
+                  className="w-8 h-8 text-[#C29307]"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </div>
 
-        <h3 className="text-xl font-bold text-gray-900 mb-2">
-          Contract Created Successfully! 🎉
-        </h3>
-        <p className="text-gray-600">
-          Your contract has been generated and is ready to share.
-        </p>
-      </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                Contract Created Successfully! 🎉
+              </h3>
+              <p className="text-gray-600">
+                Your contract has been generated and is ready to share.
+              </p>
+            </div>
 
-      <div className="space-y-3">
-        {generatedSigningLink && (
-          <div className="space-y-2">
-            <Button
-              onClick={handleCopySigningLink}
-              variant="outline"
-              className="w-full border-[#C29307] text-[#C29307] hover:bg-[#C29307] hover:text-white transition-all duration-200 hover:scale-[1.02]"
-            >
-              <Copy className="w-4 h-4 mr-2" />
-              Copy Contract Link
-            </Button>
-            <div className="text-xs text-gray-500 text-center">
-              Share this contract link with the recipient to sign
+            <div className="space-y-3">
+              {generatedSigningLink && (
+                <div className="space-y-2">
+                  <Button
+                    onClick={handleCopySigningLink}
+                    variant="outline"
+                    className="w-full border-[#C29307] text-[#C29307] hover:bg-[#C29307] hover:text-white transition-all duration-200 hover:scale-[1.02]"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy Contract Link
+                  </Button>
+                  <div className="text-xs text-gray-500 text-center">
+                    Share this contract link with the recipient to sign
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  window.location.reload();
+                }}
+                variant="outline"
+                className="w-full hover:bg-gray-50 transition-colors duration-200"
+              >
+                Create New Contract
+              </Button>
+            </div>
+
+            <div className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-[#F9F4E5]/30 rounded-lg border border-gray-100">
+              <p className="text-sm text-gray-700 text-center">
+                <strong>Contract ID:</strong> {savedContractId}
+              </p>
+              <p className="text-sm text-gray-700 text-center mt-1">
+                <strong>Contract Date:</strong> {new Date(form.contractDate).toLocaleDateString()}
+              </p>
+              {attachments.length > 0 && (
+                <p className="text-sm text-gray-700 text-center mt-1">
+                  <strong>Attachments:</strong> {attachments.length} file(s)
+                  included
+                </p>
+              )}
+              {includeLawyerSignature && (
+                <p className="text-sm text-gray-700 text-center mt-1">
+                  <strong>Lawyer Signature:</strong> Included ✓
+                </p>
+              )}
+              {creatorSignature && (
+                <p className="text-sm text-gray-700 text-center mt-1">
+                  <strong>Your Signature:</strong> Applied ✓
+                </p>
+              )}
+              <p className="text-xs text-gray-500 text-center mt-1">
+                You can find this contract in your dashboard
+              </p>
             </div>
           </div>
-        )}
-
-        <Button
-          onClick={() => {
-            setShowSuccessModal(false);
-            window.location.reload();
-          }}
-          variant="outline"
-          className="w-full hover:bg-gray-50 transition-colors duration-200"
-        >
-          Create New Contract
-        </Button>
-      </div>
-
-      <div className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-[#F9F4E5]/30 rounded-lg border border-gray-100">
-        <p className="text-sm text-gray-700 text-center">
-          <strong>Contract ID:</strong> {savedContractId}
-        </p>
-        {attachments.length > 0 && (
-          <p className="text-sm text-gray-700 text-center mt-1">
-            <strong>Attachments:</strong> {attachments.length} file(s) included
-          </p>
-        )}
-        {includeLawyerSignature && (
-          <p className="text-sm text-gray-700 text-center mt-1">
-            <strong>Lawyer Signature:</strong> Included ✓
-          </p>
-        )}
-        {creatorSignature && (
-          <p className="text-sm text-gray-700 text-center mt-1">
-            <strong>Your Signature:</strong> Applied ✓
-          </p>
-        )}
-        <p className="text-xs text-gray-500 text-center mt-1">
-          You can find this contract in your dashboard
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+        </div>
+      )}
 
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8 px-4">
@@ -1345,10 +1426,6 @@ const processPaymentAndSubmit = async () => {
                   <Eye className="h-4 w-4" />
                   Preview
                 </TabsTrigger>
-                {/* <TabsTrigger value="upload" className="gap-2">
-                  <Upload className="h-4 w-4" />
-                  Add Attachments
-                </TabsTrigger> */}
               </TabsList>
 
               <TabsContent value="create" className="space-y-6">
@@ -1366,65 +1443,88 @@ const processPaymentAndSubmit = async () => {
                     </Button>
                   </div>
 
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-end">
-                      <div className="w-full">
-                        <Label className="block text-xs font-medium text-gray-600 mb-2">
-                          Template <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={form.contractTitle}
-                          onValueChange={handleSelectChange}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select or type a contract title" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contractTitles.map((title) => (
-                              <SelectItem key={title} value={title}>
-                                {title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.contractTitle && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.contractTitle}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="block text-xs font-medium text-gray-600 mb-2">
-                        Contract Title <span className="text-red-500">*</span>
-                      </Label>
-                      <SignContractSelect
-                        setContractTitle={(value) =>
-                          handleFormChange("contractTitle", value)
-                        }
-                        setContractContent={(value) =>
-                          handleFormChange("contractContent", value)
-                        }
-                      />
-                    </div>
+                  <div className="w-full">
+                    <Label className="block text-xs font-medium text-gray-600 mb-2">
+                      Contract Title <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      value={form.contractTitle}
+                      onChange={(e: any) =>
+                        handleFormChange("contractTitle", e.target.value)
+                      }
+                      placeholder="Enter contract title"
+                    />
+                    {errors.contractTitle && (
+                      <p className="text-xs text-red-500 mt-1">
+                        {errors.contractTitle}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <SignContractInput
-                        label="Signer Full Name*"
-                        placeholder="John Doe"
-                        id={"receiver-name"}
+                  <div className="flex md:flex-row flex-col gap-3">
+                    <div className="space-y-2 w-full">
+                      <Label
+                        htmlFor="creator-name"
+                        className="text-gray-700 font-medium"
+                      >
+                        PARTY A (Creator) *
+                      </Label>
+                      <Input
+                        id="creator-name"
+                        value={localCreatorName}
+                        onChange={handleCreatorNameChange}
+                        placeholder="Enter your full legal name as it should appear on the contract"
+                      />
+                    </div>
+
+                    <div className="space-y-2 w-full">
+                      <Label
+                        htmlFor="receiver-name"
+                        className="text-gray-700 font-medium"
+                      >
+                        PARTY B (Signee) *
+                      </Label>
+                      <Input
+                        id="receiver-name"
                         value={form.receiverName}
-                        onchange={(e) =>
+                        onChange={(e) =>
                           handleFormChange("receiverName", e.target.value)
                         }
+                        placeholder="John Doe"
                       />
                       {errors.receiverName && (
                         <p className="text-xs text-red-500 mt-1">
                           {errors.receiverName}
                         </p>
                       )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="contract-date"
+                          className="text-xs font-medium text-gray-600"
+                        >
+                          Contract Date*
+                        </Label>
+                        <Input
+                          id="contract-date"
+                          type="date"
+                          value={form.contractDate}
+                          onChange={(e) =>
+                            handleFormChange("contractDate", e.target.value)
+                          }
+                          className="w-full"
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                        {errors.contractDate && (
+                          <p className="text-xs text-red-500 mt-1">
+                            {errors.contractDate}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <SignContractInput
@@ -1477,45 +1577,32 @@ const processPaymentAndSubmit = async () => {
                     )}
                   </div>
 
-                  {attachments.length > 0 && (
-                    <div className="mt-6 pt-6 border-t">
-                      <h4 className="text-lg font-medium mb-4">
-                        Attachments ({attachments.length})
-                      </h4>
-                      <div className="space-y-3">
-                        {attachments.map((attachment, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-                          >
-                            <div className="flex items-center">
-                              <FileText className="h-5 w-5 text-gray-500 mr-3" />
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {attachment.name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  {(attachment.size / 1024).toFixed(2)} KB •{" "}
-                                  {attachment.type}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveAttachment(index)}
-                              className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-2">
-                        These files will be attached to your contract submission
-                      </p>
+                  {/* PAYMENT TERMS TEXT AREA */}
+                  <div className="mt-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <Label className="block text-xs font-medium text-gray-600">
+                        PAYMENT TERMS (if any)
+                      </Label>
+                      <span className="text-xs text-gray-500">
+                        {form.paymentTerms.length} characters
+                      </span>
                     </div>
-                  )}
+                    <div className="">
+                      <textarea
+                        value={form.paymentTerms}
+                        onChange={(e) =>
+                          handleFormChange("paymentTerms", e.target.value)
+                        }
+                        placeholder="Specify payment terms, schedules, amounts, methods, and deadlines if applicable..."
+                        className="w-full h-20 p-4 text-sm resize-none border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#C29307] focus:border-transparent"
+                        rows={6}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Optional: Include payment amounts, schedules, methods, and
+                      deadlines
+                    </p>
+                  </div>
                 </section>
 
                 <section className="space-y-4">
@@ -1541,6 +1628,34 @@ const processPaymentAndSubmit = async () => {
                         {errors.termsConsent}
                       </p>
                     )}
+                  </div>
+
+                  {/* Lawyer Toggle */}
+                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-[#FCF9F2] w-full">
+                    <div className="space-y-1">
+                      <div className="flex items-center">
+                        <Label
+                          htmlFor="lawyer-toggle"
+                          className="cursor-pointer text-gray-700"
+                        >
+                          Would you like to add a lawyer's signature to this
+                          contract for an additional fee of ₦10,000, making the
+                          total cost ₦11,000?
+                        </Label>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        <strong>PLEASE NOTE:</strong> An agreement between two
+                        people is legally binding EVEN WITHOUT A LAWYER'S
+                        SIGNATURE, adding a lawyer's signature just makes it
+                        more official and more weighty.
+                      </p>
+                    </div>
+                    <Switch
+                      id="lawyer-toggle"
+                      checked={includeLawyerSignature}
+                      onCheckedChange={handleLawyerToggle}
+                      className="data-[state=checked]:bg-[#C29307] flex-shrink-0"
+                    />
                   </div>
                 </section>
 
@@ -1595,6 +1710,7 @@ const processPaymentAndSubmit = async () => {
                 <PreviewTab
                   contractTitle={form.contractTitle}
                   contractContent={form.contractContent}
+                  contractDate={form.contractDate}
                   receiverName={form.receiverName}
                   receiverEmail={form.receiverEmail}
                   receiverPhone={form.receiverPhone}
@@ -1606,88 +1722,10 @@ const processPaymentAndSubmit = async () => {
                   onCreatorNameChange={setCreatorName}
                   creatorSignature={creatorSignature}
                   onSignatureChange={setCreatorSignature}
+                  localCreatorName={localCreatorName}
+                  setLocalCreatorName={setLocalCreatorName}
                 />
               </TabsContent>
-
-              {/* <TabsContent value="upload">
-                <Card className="border-border shadow-sm">
-                  <CardHeader>
-                    <CardTitle>Add Attachments</CardTitle>
-                    <CardDescription>
-                      Upload supporting documents, images, or other files to
-                      attach to your contract
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      <SignContractFileUpload onFileSelect={handleFileUpload} />
-
-                      {attachments.length > 0 && (
-                        <div className="mt-6">
-                          <h4 className="text-lg font-medium mb-4">
-                            Current Attachments ({attachments.length})
-                          </h4>
-                          <div className="space-y-3">
-                            {attachments.map((attachment, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50"
-                              >
-                                <div className="flex items-center">
-                                  {attachment.previewUrl ? (
-                                    <div className="relative h-10 w-10 mr-3">
-                                      <img
-                                        src={attachment.previewUrl}
-                                        alt={attachment.name}
-                                        className="h-10 w-10 object-cover rounded border"
-                                      />
-                                    </div>
-                                  ) : (
-                                    <FileText className="h-5 w-5 text-gray-500 mr-3" />
-                                  )}
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-900">
-                                      {attachment.name}
-                                    </p>
-                                    <p className="text-xs text-gray-500">
-                                      {(attachment.size / 1024).toFixed(2)} KB •{" "}
-                                      {attachment.type}
-                                    </p>
-                                  </div>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleRemoveAttachment(index)}
-                                  className="text-red-600 hover:text-red-800 hover:bg-red-50"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="mt-4 flex gap-2">
-                            <Button
-                              variant="outline"
-                              onClick={() => setActiveTab("create")}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Continue Writing Contract
-                            </Button>
-                            <Button
-                              variant="outline"
-                              onClick={() => setActiveTab("preview")}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Preview Contract
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent> */}
             </Tabs>
           </Card>
         </div>

@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       id: contract.id,
       contract_id: contract.metadata?.contract_id || contract.id, // Get from metadata first
       contract_title: contract.contract_title,
-      contract_content: contract.contract_text,
+      contract_content: contract.contract_text, // Store as plain text
       contract_text: contract.contract_text,
       contract_type: contract.contract_type || 'custom',
       receiver_name: contract.signee_name || '',
@@ -81,11 +81,24 @@ async function createNewContractDraft(body: any) {
   // Generate contract_id if not provided
   const contractId = body.contract_id || body.contractId || `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
-  // Prepare metadata with contract_id
+  // Prepare metadata with contract_id and payment_terms
   const metadata: any = {
     contract_id: contractId,
     created_via: 'draft_api',
+    payment_terms: body.paymentTerms || body.payment_terms || '',
   };
+
+  // Convert HTML to plain text for storage
+  const contractContent = body.contractContent || body.contract_content || '';
+  const plainTextContent = contractContent
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+    .replace(/&amp;/g, '&') // Replace &amp; with &
+    .replace(/&lt;/g, '<') // Replace &lt; with <
+    .replace(/&gt;/g, '>') // Replace &gt; with >
+    .replace(/&quot;/g, '"') // Replace &quot; with "
+    .replace(/&#39;/g, "'") // Replace &#39; with '
+    .trim();
 
   // Prepare the contract data
   const contractData = {
@@ -93,7 +106,7 @@ async function createNewContractDraft(body: any) {
     user_id: body.userId,
     token: token,
     contract_title: body.contractTitle || body.contract_title || 'Untitled Contract',
-    contract_text: body.contractContent || body.contract_content || '',
+    contract_text: plainTextContent, // Store as plain text
     initiator_email: body.initiator_email || body.initiatorEmail || '',
     initiator_name: body.initiator_name || body.initiatorName || '',
     signee_email: body.receiverEmail || body.receiver_email || body.signee_email || '',
@@ -117,9 +130,10 @@ async function createNewContractDraft(body: any) {
   console.log('Inserting contract with data:', {
     id: contractData.id,
     title: contractData.contract_title,
-    hasContent: contractData.contract_text.length > 0,
+    contentLength: contractData.contract_text.length,
     hasRecipientEmail: !!contractData.signee_email,
-    contract_id: metadata.contract_id
+    contract_id: metadata.contract_id,
+    hasPaymentTerms: !!metadata.payment_terms
   });
 
   // Insert the contract
@@ -145,7 +159,8 @@ export async function POST(req: NextRequest) {
       userId: body.userId,
       contractTitle: body.contractTitle || body.contract_title,
       receiverEmail: body.receiverEmail || body.receiver_email || body.signee_email,
-      contractId: body.contract_id || body.contractId
+      contractId: body.contract_id || body.contractId,
+      hasPaymentTerms: !!(body.paymentTerms || body.payment_terms)
     });
 
     // Validation
@@ -166,6 +181,19 @@ export async function POST(req: NextRequest) {
 
     const receiverEmail = body.receiverEmail || body.receiver_email || body.signee_email || '';
     const contractIdFromBody = body.contract_id || body.contractId;
+    const paymentTerms = body.paymentTerms || body.payment_terms || '';
+    
+    // Convert HTML to plain text for storage
+    const contractContent = body.contractContent || body.contract_content || '';
+    const plainTextContent = contractContent
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
     
     // Check if a draft with same contract_id already exists (in metadata)
     if (contractIdFromBody) {
@@ -182,7 +210,7 @@ export async function POST(req: NextRequest) {
         
         // Update existing draft
         const updateData: any = {
-          contract_text: body.contractContent || body.contract_content || '',
+          contract_text: plainTextContent,
           age_consent: body.ageConsent || body.age_consent || false,
           terms_consent: body.termsConsent || body.terms_consent || false,
           signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
@@ -191,6 +219,14 @@ export async function POST(req: NextRequest) {
           creator_name: body.creator_name || body.creatorName || '',
           creator_signature: body.creator_signature || body.creatorSignature || '',
           updated_at: new Date().toISOString()
+        };
+
+        // Update metadata with payment_terms if provided
+        const existingMetadata = existingDraft.metadata || {};
+        updateData.metadata = {
+          ...existingMetadata,
+          contract_id: contractIdFromBody,
+          payment_terms: paymentTerms || existingMetadata.payment_terms || ''
         };
 
         const { data: updatedContract, error: updateError } = await supabase
@@ -228,7 +264,7 @@ export async function POST(req: NextRequest) {
         
         // Update existing draft
         const updateData: any = {
-          contract_text: body.contractContent || body.contract_content || '',
+          contract_text: plainTextContent,
           age_consent: body.ageConsent || body.age_consent || false,
           terms_consent: body.termsConsent || body.terms_consent || false,
           signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
@@ -239,13 +275,15 @@ export async function POST(req: NextRequest) {
           updated_at: new Date().toISOString()
         };
 
-        // Update metadata with contract_id if provided
+        // Update metadata with contract_id and payment_terms if provided
+        const existingMetadata = existingDraft.metadata || {};
+        updateData.metadata = {
+          ...existingMetadata,
+          payment_terms: paymentTerms || existingMetadata.payment_terms || ''
+        };
+        
         if (contractIdFromBody) {
-          const existingMetadata = existingDraft.metadata || {};
-          updateData.metadata = {
-            ...existingMetadata,
-            contract_id: contractIdFromBody
-          };
+          updateData.metadata.contract_id = contractIdFromBody;
         }
 
         const { data: updatedContract, error: updateError } = await supabase
@@ -298,7 +336,8 @@ export async function PUT(req: NextRequest) {
       userId: body.userId,
       contractTitle: body.contractTitle || body.contract_title,
       receiverEmail: body.receiverEmail || body.receiver_email || body.signee_email,
-      contractId: body.contract_id || body.contractId
+      contractId: body.contract_id || body.contractId,
+      hasPaymentTerms: !!(body.paymentTerms || body.payment_terms)
     });
 
     // Validation
@@ -317,6 +356,19 @@ export async function PUT(req: NextRequest) {
 
     const receiverEmail = body.receiverEmail || body.receiver_email || body.signee_email || '';
     const contractIdFromBody = body.contract_id || body.contractId;
+    const paymentTerms = body.paymentTerms || body.payment_terms || '';
+    
+    // Convert HTML to plain text for storage
+    const contractContent = body.contractContent || body.contract_content || '';
+    const plainTextContent = contractContent
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
     
     // Check for existing draft - first by contract_id, then by title/email
     let existingDraft = null;
@@ -353,7 +405,7 @@ export async function PUT(req: NextRequest) {
       
       // Update existing draft
       const updateData: any = {
-        contract_text: body.contractContent || body.contract_content || '',
+        contract_text: plainTextContent,
         age_consent: body.ageConsent || body.age_consent || false,
         terms_consent: body.termsConsent || body.terms_consent || false,
         signee_name: body.receiverName || body.receiver_name || body.signee_name || existingDraft.signee_name || '',
@@ -364,13 +416,15 @@ export async function PUT(req: NextRequest) {
         updated_at: new Date().toISOString()
       };
 
-      // Update metadata with contract_id if provided
+      // Update metadata with contract_id and payment_terms if provided
+      const existingMetadata = existingDraft.metadata || {};
+      updateData.metadata = {
+        ...existingMetadata,
+        payment_terms: paymentTerms || existingMetadata.payment_terms || ''
+      };
+      
       if (contractIdFromBody) {
-        const existingMetadata = existingDraft.metadata || {};
-        updateData.metadata = {
-          ...existingMetadata,
-          contract_id: contractIdFromBody
-        };
+        updateData.metadata.contract_id = contractIdFromBody;
       }
 
       const { error: updateError } = await supabase
@@ -391,7 +445,7 @@ export async function PUT(req: NextRequest) {
       });
     } else {
       // Create new draft only if there's enough content
-      const hasContent = (body.contractContent || body.contract_content || '').trim().length > 0;
+      const hasContent = plainTextContent.trim().length > 0;
       const hasTitle = contractTitle.trim().length > 0;
       
       if (hasTitle && hasContent) {

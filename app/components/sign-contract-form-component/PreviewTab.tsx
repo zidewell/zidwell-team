@@ -31,6 +31,7 @@ interface AttachmentFile {
 
 interface PreviewTabProps {
   contractTitle: string;
+  contractDate?: string;
   contractContent: string;
   receiverName: string;
   receiverEmail: string;
@@ -41,12 +42,15 @@ interface PreviewTabProps {
   onIncludeLawyerChange?: (include: boolean) => void;
   creatorName?: string;
   onCreatorNameChange?: (name: string) => void;
+  localCreatorName: string;
+  setLocalCreatorName: (name: string) => void;
   creatorSignature?: string | null;
   onSignatureChange?: (signature: string | null) => void;
 }
 
 const PreviewTab: React.FC<PreviewTabProps> = ({
   contractTitle,
+  contractDate,
   contractContent,
   receiverName,
   receiverEmail,
@@ -59,11 +63,12 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
   onCreatorNameChange,
   creatorSignature = null,
   onSignatureChange,
+  localCreatorName,
+  setLocalCreatorName,
 }) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [localCreatorName, setLocalCreatorName] = useState(creatorName);
   const [localSignature, setLocalSignature] = useState(creatorSignature);
   const [canvasSize, setCanvasSize] = useState({ width: 400, height: 150 });
 
@@ -204,27 +209,6 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
     onSignatureChange?.(null);
   }, [onSignatureChange]);
 
-  const handleCreatorNameChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const name = e.target.value;
-      setLocalCreatorName(name);
-      onCreatorNameChange?.(name);
-    },
-    [onCreatorNameChange]
-  );
-
-  // REMOVED: No longer need local state for lawyer toggle
-  // Use the prop directly and call the parent handler
-  const handleLawyerToggle = useCallback(
-    (checked: boolean) => {
-      // Call parent handler directly
-      onIncludeLawyerChange?.(checked);
-    },
-    [onIncludeLawyerChange]
-  );
-
-
-
   return (
     <Card className="border-border shadow-sm">
       <CardHeader>
@@ -273,14 +257,18 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                     Document ID: ZW-{Date.now().toString(36).toUpperCase()}
                   </p>
                   <p className="text-gray-600 mt-1">
-                    Created:{" "}
-                    {new Date().toLocaleDateString("en-NG", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    Date:{" "}
+                    {contractDate
+                      ? new Date(contractDate).toLocaleDateString("en-NG", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : new Date().toLocaleDateString("en-NG", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
                   </p>
                 </div>
 
@@ -540,22 +528,6 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
               </div>
 
               <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="creator-name"
-                    className="text-gray-700 font-medium"
-                  >
-                    Your Full Legal Name *
-                  </Label>
-                  <Input
-                    id="creator-name"
-                    value={localCreatorName}
-                    onChange={handleCreatorNameChange}
-                    placeholder="Enter your full legal name as it should appear on the contract"
-                    className="max-w-md"
-                  />
-                </div>
-
                 <div className="space-y-3">
                   <Label className="text-gray-700 font-medium">
                     Draw Your Signature *
@@ -591,32 +563,6 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                     </p>
                   </div>
                 </div>
-
-                {/* Lawyer Toggle */}
-                {/* <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white max-w-md">
-                  <div className="space-y-1">
-                    <div className="flex items-center">
-                      <Label
-                        htmlFor="lawyer-toggle"
-                        className="cursor-pointer text-gray-700 font-medium"
-                      >
-                        Add Lawyer's Signature
-                      </Label>
-                      <span className="ml-2 text-xs px-2 py-0.5 bg-[#C29307]/10 text-[#C29307] rounded-full">
-                        +₦10,000
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Includes professional legal witness for added validity
-                    </p>
-                  </div>
-                  <Switch
-                    id="lawyer-toggle"
-                    checked={includeLawyerSignature} // Use prop directly
-                    onCheckedChange={handleLawyerToggle}
-                    className="data-[state=checked]:bg-[#C29307] flex-shrink-0"
-                  />
-                </div> */}
               </div>
             </div>
 
@@ -640,7 +586,6 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                   Manage Attachments
                 </Button> */}
               </div>
-             
             </div>
           </div>
         ) : (

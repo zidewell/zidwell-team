@@ -8,6 +8,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Helper function to convert HTML to plain text
+function htmlToPlainText(html: string): string {
+  if (!html) return "";
+  
+  return html
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+    .replace(/&amp;/g, '&') // Replace &amp; with &
+    .replace(/&lt;/g, '<') // Replace &lt; with <
+    .replace(/&gt;/g, '>') // Replace &gt; with >
+    .replace(/&quot;/g, '"') // Replace &quot; with "
+    .replace(/&#39;/g, "'") // Replace &#39; with '
+    .replace(/&#x27;/g, "'") // Replace &#x27; with '
+    .replace(/&#x2F;/g, '/') // Replace &#x2F; with /
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .trim();
+}
+
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -24,8 +42,11 @@ export async function POST(req: NextRequest) {
     const userId = body.userId;
     const contractTitle =
       body.contract_title || body.contractTitle || "Untitled Contract";
-    const contractText =
-      body.contract_content || body.contractContent || body.contract_text || "";
+    
+    // Get contract content and convert to plain text
+    const contractContent = body.contract_content || body.contractContent || body.contract_text || "";
+    const contractText = htmlToPlainText(contractContent);
+    
     const receiverEmail =
       body.receiver_email || body.receiverEmail || body.signee_email || "";
     const receiverName =
@@ -41,6 +62,10 @@ export async function POST(req: NextRequest) {
     const ageConsent = body.age_consent || body.ageConsent || false;
     const termsConsent = body.terms_consent || body.termsConsent || false;
     const contractIdFromBody = body.contract_id || body.contractId || "";
+     const contractDate = body.contract_date || body.contractDate || new Date().toISOString().split('T')[0];
+  
+    const paymentTermsContent = body.payment_terms || body.paymentTerms || "";
+    const paymentTerms = htmlToPlainText(paymentTermsContent);
 
     if (!userId) {
       return NextResponse.json(
@@ -58,7 +83,6 @@ export async function POST(req: NextRequest) {
         ? process.env.NEXT_PUBLIC_DEV_URL
         : process.env.NEXT_PUBLIC_BASE_URL;
 
-   
     const signingLink = !isDraft ? `${baseUrl}/sign-contract/${token}` : null;
 
     // Prepare metadata
@@ -72,12 +96,25 @@ export async function POST(req: NextRequest) {
       age_consent: ageConsent,
       terms_consent: termsConsent,
       contract_id: contractIdFromBody,
+       contract_date: contractDate,
+      payment_terms: paymentTerms,
     };
 
     // Add attachments to metadata if they exist
     if (body.metadata?.attachments) {
       metadata.attachments = body.metadata.attachments;
       metadata.attachment_count = body.metadata.attachment_count || 0;
+    }
+
+    // Also add base fee and lawyer fee from metadata if provided
+    if (body.metadata?.base_fee) {
+      metadata.base_fee = body.metadata.base_fee;
+    }
+    if (body.metadata?.lawyer_fee) {
+      metadata.lawyer_fee = body.metadata.lawyer_fee;
+    }
+    if (body.metadata?.total_fee) {
+      metadata.total_fee = body.metadata.total_fee;
     }
 
     let existingDraft = null;
@@ -138,11 +175,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const now = new Date().toISOString();
+
     // If we found an existing draft and we're sending (not saving as draft)
     if (existingDraft && !isDraft) {
       console.log("Converting draft to final contract:", existingDraft.id);
       console.log("Draft ID:", existingDraft.id);
       console.log("New contract_id:", contractIdFromBody);
+      console.log("Contract text length:", contractText.length);
+      console.log("Payment terms length:", paymentTerms.length);
 
       const updateData: any = {
         contract_title: contractTitle,
@@ -152,15 +193,15 @@ export async function POST(req: NextRequest) {
         phone_number: receiverPhone,
         status: "pending",
         signing_link: signingLink,
-        is_draft: false, // CRITICAL: Change from draft to final
+        is_draft: false, 
         metadata: metadata,
         age_consent: ageConsent,
         terms_consent: termsConsent,
         include_lawyer_signature: includeLawyerSignature,
         creator_name: creatorName,
         creator_signature: creatorSignature,
-        updated_at: new Date().toISOString(),
-        sent_at: new Date().toISOString(), // Add sent timestamp
+        updated_at: now,
+        sent_at: now
       };
 
       // Update token if needed
@@ -185,6 +226,8 @@ export async function POST(req: NextRequest) {
     } else {
       // CREATE NEW CONTRACT (either new contract or new draft)
       console.log("Creating new contract (isDraft:", isDraft, ")");
+      console.log("Contract text length:", contractText.length);
+      console.log("Payment terms length:", paymentTerms.length);
 
       const contractData: any = {
         user_id: userId,
@@ -206,13 +249,13 @@ export async function POST(req: NextRequest) {
         include_lawyer_signature: includeLawyerSignature,
         creator_name: creatorName,
         creator_signature: creatorSignature,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
       };
 
       // Only add sent_at for non-drafts
       if (!isDraft) {
-        contractData.sent_at = new Date().toISOString();
+        contractData.sent_at = now;
       }
 
       // Insert contract
@@ -557,7 +600,7 @@ export async function POST(req: NextRequest) {
       signingLink: result.signing_link,
       verificationCode: result.verification_code,
       isDraft,
-      isUpdate: !!existingDraft, // Return whether this was an update
+      isUpdate: !!existingDraft, 
     });
   } catch (error: any) {
     console.error("Error processing contract:", error);
@@ -637,7 +680,7 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-    // Transform data to match frontend expectations
+
     const contracts =
       data?.map((contract) => ({
         id: contract.id,

@@ -633,9 +633,7 @@ export const SignaturePanel = ({
             <Shield className="h-5 w-5 text-[#C29307]" />
             Secure Signature Panel
           </DialogTitle>
-          <DialogDescription>
-            Sign "{contractId.substring(0, 8)}..." as {signeeName}
-          </DialogDescription>
+         
         </DialogHeader>
 
         {/* Verification Step */}
@@ -784,13 +782,14 @@ export const SignaturePanel = ({
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="typedName">Full Legal Name *</Label>
+                <Label htmlFor="typedName">Contract Creator Name *</Label>
                 <Input
                   id="typedName"
                   value={typedName}
                   onChange={(e) => setTypedName(e.target.value)}
                   placeholder="Enter your full name as it should appear on the contract"
                   className="text-lg"
+                  disabled
                 />
               </div>
 
@@ -870,25 +869,7 @@ export const SignaturePanel = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-gray-600" />
-                    <span className="font-medium">Digital Certificate</span>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Your signature will be timestamped and cryptographically
-                    secured
-                  </p>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="bg-green-50 text-green-700"
-                >
-                  <Clock className="h-3 w-3 mr-1" />
-                  Timestamped
-                </Badge>
-              </div>
+            
 
               <div className="flex gap-3 pt-4">
                 <Button
@@ -974,10 +955,7 @@ export const SignaturePanel = ({
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <Shield className="h-4 w-4" />
-                      <span>Digitally secured with timestamp</span>
-                    </div>
+                   
                   </div>
                 </div>
               </div>

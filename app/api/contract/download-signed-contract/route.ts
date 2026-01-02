@@ -15,109 +15,78 @@ function generateContractHTML(
   creatorSignatureImage?: string
 ): string {
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleDateString("en-US", { month: "long" });
-    const year = date.getFullYear();
+    if (!dateString) return "Date not specified";
+    
+    try {
+      const date = new Date(dateString);
+      const day = date.getDate();
+      const month = date.toLocaleDateString("en-US", { month: "long" });
+      const year = date.getFullYear();
 
-    // Add ordinal suffix
-    const getOrdinalSuffix = (n: number) => {
-      if (n > 3 && n < 21) return "th";
-      switch (n % 10) {
-        case 1:
-          return "st";
-        case 2:
-          return "nd";
-        case 3:
-          return "rd";
-        default:
-          return "th";
-      }
-    };
+      // Add ordinal suffix
+      const getOrdinalSuffix = (n: number) => {
+        if (n > 3 && n < 21) return "th";
+        switch (n % 10) {
+          case 1:
+            return "st";
+          case 2:
+            return "nd";
+          case 3:
+            return "rd";
+          default:
+            return "th";
+        }
+      };
 
-    return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
+      return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
+    } catch (e) {
+      return dateString;
+    }
   };
 
-  const createdDate = formatDate(contract.created_at);
-  const signedDate = contract.signed_at ? formatDate(contract.signed_at) : createdDate;
-
-  // Parse contract content to extract parties
-  const parsePartiesFromContent = () => {
-    if (!contract.contract_text) return [];
+  // Get contract date from metadata or created_at
+  const getContractDate = () => {
+    let metadataObj = contract.metadata;
     
-    const lines = contract.contract_text.split("\n").map((line: string) => line.trim());
-    const parties = [];
-    let currentSection = "";
-
-    for (const line of lines) {
-      if (line.includes("PARTY A:") || line.includes("PARTY B:")) {
-        currentSection = "parties";
-      } else if (line.includes("THE TERMS OF AGREEMENT ARE AS FOLLOWS")) {
-        break;
-      }
-
-      if (currentSection === "parties" && line) {
-        if (line.includes("PARTY A:")) {
-          parties.push({
-            type: "PARTY A",
-            name: line.replace("PARTY A:", "").trim(),
-          });
-        } else if (line.includes("PARTY B:")) {
-          parties.push({
-            type: "PARTY B",
-            name: line.replace("PARTY B:", "").trim(),
-          });
-        } else if (line.includes("DATE:")) {
-          parties.push({
-            type: "DATE",
-            name: line.replace("DATE:", "").trim(),
-          });
-        }
+    if (typeof contract.metadata === 'string') {
+      try {
+        metadataObj = JSON.parse(contract.metadata);
+      } catch (e) {
+        console.error('Failed to parse metadata:', e);
+        return formatDate(contract.created_at);
       }
     }
-
-    return parties;
+    
+    // Check for contract_date in metadata first, then fall back
+    return metadataObj?.contract_date 
+      ? formatDate(metadataObj.contract_date)
+      : formatDate(contract.created_at);
   };
 
-  const parties = parsePartiesFromContent();
+  const contractDate = getContractDate();
 
-  // Parse terms
-  const parseTerms = () => {
-    if (!contract.contract_text) return [];
+  // Get payment terms from metadata
+  const getPaymentTerms = () => {
+    if (!contract.metadata) return null;
     
-    const lines = contract.contract_text.split("\n").map((line: string) => line.trim());
-    const terms = [];
-    let inTermsSection = false;
-
-    for (const line of lines) {
-      if (line.includes("THE TERMS OF AGREEMENT ARE AS FOLLOWS")) {
-        inTermsSection = true;
-        continue;
-      }
-      
-      if (line.includes("PAYMENT TERMS") || line.includes("SIGNATURES")) {
-        break;
-      }
-
-      if (inTermsSection && line) {
-        if (line.match(/^\d+\./)) {
-          terms.push(line);
-        } else if (terms.length > 0) {
-          // Append to last term if not numbered
-          terms[terms.length - 1] += " " + line;
-        }
+    let metadataObj = contract.metadata;
+    if (typeof contract.metadata === 'string') {
+      try {
+        metadataObj = JSON.parse(contract.metadata);
+      } catch (e) {
+        console.error('Failed to parse metadata:', e);
+        return null;
       }
     }
-
-    return terms;
+    
+    return metadataObj?.payment_terms || null;
   };
 
-  const terms = parseTerms();
+  const paymentTerms = getPaymentTerms();
 
-  // If no parties parsed, use default
-  const partyA = parties.find(p => p.type === "PARTY A")?.name || contract.initiator_name || "Contract Creator";
-  const partyB = parties.find(p => p.type === "PARTY B")?.name || signeeName || "Signee";
-  const contractDate = parties.find(p => p.type === "DATE")?.name || createdDate;
+  // Get parties from contract data
+  const partyA = contract.initiator_name || "Contract Creator";
+  const partyB = signeeName || contract.signee_name || "Signee";
 
   // Generate signature cells
   const partyASignatureHTML = creatorSignatureImage
@@ -129,7 +98,18 @@ function generateContractHTML(
     : `<span style="color: #9ca3af; font-size: 14px;">Signature</span>`;
 
   // Check if contract has lawyer signature
-  const hasLawyerSignature = contract.include_lawyer_signature || contract.has_lawyer_signature;
+  const hasLawyerSignature = contract.include_lawyer_signature || 
+    (typeof contract.metadata === 'object' && contract.metadata?.lawyer_signature) ||
+    (typeof contract.metadata === 'string' && JSON.parse(contract.metadata || '{}')?.lawyer_signature);
+
+  // Parse terms from contract_text
+  const parseTerms = () => {
+    if (!contract.contract_text) return null;
+    
+    return contract.contract_text;
+  };
+
+  const contractContent = parseTerms();
 
   return `
 <!DOCTYPE html>
@@ -179,11 +159,7 @@ function generateContractHTML(
         }
         
         /* Party Information */
-        .party-info {
-            max-width: 500px;
-            margin: 0 auto;
-        }
-        
+     
         .party-row {
             display: flex;
             align-items: flex-start;
@@ -222,9 +198,9 @@ function generateContractHTML(
         
         .divider-line {
             flex: 1;
-            height: 2px;
+            height: 1px;
             background-color: #C29307;
-            border-radius: 4px;
+            border-radius: 2px;
         }
         
         .section-title {
@@ -248,11 +224,26 @@ function generateContractHTML(
             text-align: justify;
         }
         
+        /* Payment Terms Section */
+        .payment-terms-section {
+            margin-bottom: 40px;
+            page-break-inside: avoid;
+        }
+        
+        .payment-term-item {
+            font-size: 14px;
+            line-height: 1.7;
+            margin-bottom: 8px;
+            color: #4b5563;
+            text-align: justify;
+        }
+        
         /* Signature Section */
         .signatures-section {
             margin-top: 40px;
             padding-top: 32px;
             border-top: 1px solid #e5e7eb;
+            page-break-inside: avoid;
         }
         
         .signatures-table {
@@ -278,7 +269,7 @@ function generateContractHTML(
         }
         
         .signature-cell {
-            min-height: 100px;
+            min-height: 120px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -296,6 +287,7 @@ function generateContractHTML(
             height: 45px;
             border-bottom: 2px dotted black;
             margin-bottom: 12px;
+           overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -308,6 +300,7 @@ function generateContractHTML(
             background-color: #f9f9f9;
             border-radius: 8px;
             border: 1px solid #e5e7eb;
+            page-break-inside: avoid;
         }
         
         .lawyer-header {
@@ -414,11 +407,6 @@ function generateContractHTML(
             color: #c2410c;
         }
         
-        /* Page break controls */
-        .contract-content {
-            min-height: 0;
-        }
-        
         /* Print-specific styles */
         @media print {
             body {
@@ -428,7 +416,7 @@ function generateContractHTML(
                 line-height: 1.5;
             }
             
-            /* Allow natural page breaks in content */
+            /* Allow natural page breaks */
             .terms-section {
                 page-break-inside: auto;
                 margin-bottom: 20px;
@@ -436,7 +424,6 @@ function generateContractHTML(
             
             .term-item {
                 page-break-inside: auto;
-                page-break-after: auto;
                 orphans: 3;
                 widows: 3;
                 margin-bottom: 8px;
@@ -444,24 +431,19 @@ function generateContractHTML(
                 font-size: 11pt;
             }
             
-            /* Keep signature rows together */
-            .signatures-table {
+            .payment-terms-section {
                 page-break-inside: avoid;
-                break-inside: avoid;
+                margin-bottom: 20px;
             }
             
-            .signatures-table tr {
-                page-break-inside: avoid;
-                break-inside: avoid;
-            }
-            
-            /* Compact signatures for print */
+            /* Keep signature section together */
             .signatures-section {
-                page-break-inside: auto;
+                page-break-inside: avoid;
                 margin-top: 20px;
                 padding-top: 20px;
             }
             
+            /* Compact signatures for print */
             .signature-cell {
                 min-height: 80px !important;
                 padding: 4px 0 !important;
@@ -511,12 +493,6 @@ function generateContractHTML(
                 page-break-after: avoid;
             }
             
-            /* Keep paragraphs together when possible */
-            p {
-                page-break-inside: avoid;
-                page-break-after: auto;
-            }
-            
             /* Footer adjustments */
             .contract-footer {
                 margin-top: 20px;
@@ -533,17 +509,11 @@ function generateContractHTML(
             
             .lawyer-signature-line {
                 height: 60px;
-             
             }
             
             .lawyer-full-name {
                 font-size: 14px;
             }
-        }
-        
-        /* Content flow helper */
-        .content-flow {
-            min-height: 0;
         }
     </style>
 </head>
@@ -551,7 +521,9 @@ function generateContractHTML(
     <div class="content-flow">
         <!-- Header -->
         <div class="header">
-            <div class="contract-title">${contract.contract_title || "Service Contract"}</div>
+            <div class="contract-title">${
+              contract.contract_title || "Service Contract"
+            }</div>
             <p class="contract-intro">
                 This is a service agreement entered into between:
             </p>
@@ -581,11 +553,27 @@ function generateContractHTML(
         </div>
         
         <div class="terms-section">
-            ${terms.length > 0 
-              ? terms.map(term => `<div class="term-item">${term}</div>`).join('')
-              : `<div class="term-item" style="white-space: pre-wrap;">${contract.contract_text || "No contract terms specified."}</div>`
-            }
+            <div class="term-item" style="white-space: pre-wrap; text-align: justify; line-height: 1.6;">
+                ${contractContent || "No contract terms specified."}
+            </div>
         </div>
+        
+        <!-- PAYMENT TERMS Section -->
+        ${paymentTerms ? `
+        <div class="payment-terms-section">
+            <div class="section-divider">
+                <div class="divider-line"></div>
+                <div class="section-title">PAYMENT TERMS</div>
+                <div class="divider-line"></div>
+            </div>
+            
+            <div class="terms-section">
+                <div class="payment-term-item" style="white-space: pre-wrap; text-align: justify; line-height: 1.6;">
+                    ${paymentTerms}
+                </div>
+            </div>
+        </div>
+        ` : ''}
         
         <!-- Signature Section -->
         <div class="signatures-section">
@@ -599,6 +587,7 @@ function generateContractHTML(
                 <thead>
                     <tr>
                         <th>PARTY A</th>
+                        ${hasLawyerSignature ? '<th>LEGAL WITNESS</th>' : ''}
                         <th>PARTY B</th>
                     </tr>
                 </thead>
@@ -611,9 +600,35 @@ function generateContractHTML(
                                 <div class="signature-line">
                                     ${partyASignatureHTML}
                                 </div>
-                                ${contract.status === 'signed' ? '<div class="status-badge status-signed">✓ Signed</div>' : '<div class="status-badge status-pending">Pending</div>'}
+                                ${
+                                  contract.status === "signed"
+                                    ? '<div class="status-badge status-signed">✓ Signed</div>'
+                                    : '<div class="status-badge status-pending">Pending</div>'
+                                }
                             </div>
                         </td>
+                        
+                        <!-- Lawyer Witness Signature -->
+                        ${hasLawyerSignature ? `
+                        <td>
+                            <div class="signature-cell">
+                                <div class="signature-name">Barr. Adewale Johnson</div>
+                                <div class="signature-line">
+                                    <span style="color: #6b7280; font-style: italic; font-family: Georgia, serif; font-size: 16px;">
+                                        Barr. Adewale Johnson
+                                    </span>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    <span style="font-size: 12px; color: #6b7280;">Legal Counsel</span>
+                                </div>
+                                <div style="margin-top: 4px;">
+                                    <span style="font-size: 11px; padding: 2px 8px; background-color: rgba(194, 147, 7, 0.1); color: #C29307; border-radius: 12px;">
+                                        Verified Lawyer
+                                    </span>
+                                </div>
+                            </div>
+                        </td>
+                        ` : ''}
                         
                         <!-- Party B Signature -->
                         <td>
@@ -622,15 +637,21 @@ function generateContractHTML(
                                 <div class="signature-line">
                                     ${partyBSignatureHTML}
                                 </div>
-                                ${contract.status === 'signed' ? '<div class="status-badge status-signed">✓ Signed</div>' : '<div class="status-badge status-pending">Pending</div>'}
+                                ${
+                                  contract.status === "signed"
+                                    ? '<div class="status-badge status-signed">✓ Signed</div>'
+                                    : '<div class="status-badge status-pending">Pending</div>'
+                                }
                             </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
             
-            <!-- Lawyer Signature Section (Below the table) -->
-            ${hasLawyerSignature ? `
+            ${
+              hasLawyerSignature
+                ? `
+            <!-- Lawyer Signature Details -->
             <div class="lawyer-signature">
                 <div class="lawyer-header">
                     <div class="lawyer-check">
@@ -649,7 +670,9 @@ function generateContractHTML(
                     <span class="lawyer-badge">Verified Lawyer</span>
                 </div>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
         </div>
         
         <!-- Footer -->
@@ -657,20 +680,25 @@ function generateContractHTML(
             THIS CONTRACT WAS CREATED AND SIGNED ON ZIDWELL.COM
             <br />
             Contract ID: ${contract.token.substring(0, 8).toUpperCase()}
-            ${hasLawyerSignature ? '<br />⚖️ Includes Verified Legal Witness Signature' : ''}
-            ${contract.verification_status === 'verified' 
-              ? '<br />✓ Identity Verified' 
-              : contract.verification_status === 'pending' 
-                ? '<br />⚠ Identity Verification Pending' 
-                : '<br />⛔ Identity Not Verified'
+            ${
+              hasLawyerSignature
+                ? "<br />⚖️ Includes Verified Legal Witness Signature"
+                : ""
+            }
+            ${
+              contract.verification_status === "verified"
+                ? "<br />✓ Identity Verified"
+                : contract.verification_status === "pending"
+                ? "<br />⚠ Identity Verification Pending"
+                : "<br />⛔ Identity Not Verified"
             }
             <br />
-            Generated on: ${new Date().toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
+            Generated on: ${new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
             })}
         </div>
     </div>
@@ -784,7 +812,7 @@ async function generatePdfBuffer(
         bottom: "10mm",
         left: "10mm",
       },
-      preferCSSPageSize: true, // Use CSS @page size
+      preferCSSPageSize: true,
       scale: scale,
     });
 
@@ -803,7 +831,7 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
     
-    // If we have a contract token, fetch the full contract from database
+  
     let contract = data;
     
     if (data.contract_token) {

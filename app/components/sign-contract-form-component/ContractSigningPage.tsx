@@ -35,6 +35,7 @@ interface Contract {
   createdAt: string;
   verificationCode: string | null;
   metadata: any;
+  contractDate: string;
 }
 
 interface ContractSigningPageProps {
@@ -72,6 +73,8 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
   // Format date like "31st December 2025"
   const formatDate = (dateString: string) => {
+    if (!dateString) return "Date not specified";
+    
     const date = new Date(dateString);
     const day = date.getDate();
     const month = date.toLocaleDateString("en-US", { month: "long" });
@@ -95,61 +98,25 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
     return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
   };
 
-  // Parse contract content into structured format
-  const parseContractContent = () => {
-    if (!contract.content) return { parties: [], terms: [], paymentTerms: [] };
-
-    const lines = contract.content.split("\n").map((line) => line.trim());
-    const parties = [];
-    const terms = [];
-    const paymentTerms = [];
-
-    let currentSection = "";
-
-    for (const line of lines) {
-      if (line.includes("PARTY A:") || line.includes("PARTY B:")) {
-        currentSection = "parties";
-      } else if (line.includes("THE TERMS OF AGREEMENT ARE AS FOLLOWS")) {
-        currentSection = "terms";
-        continue;
-      } else if (line.includes("PAYMENT TERMS")) {
-        currentSection = "payment";
-        continue;
-      } else if (line.includes("SIGNATURES")) {
-        currentSection = "signatures";
-        continue;
-      }
-
-      if (currentSection === "parties" && line) {
-        if (line.includes("PARTY A:")) {
-          parties.push({
-            type: "PARTY A",
-            name: line.replace("PARTY A:", "").trim(),
-          });
-        } else if (line.includes("PARTY B:")) {
-          parties.push({
-            type: "PARTY B",
-            name: line.replace("PARTY B:", "").trim(),
-          });
-        } else if (line.includes("DATE:")) {
-          parties.push({
-            type: "DATE",
-            name: line.replace("DATE:", "").trim(),
-          });
-        }
-      } else if (currentSection === "terms" && line) {
-        if (line.match(/^\d+\./)) {
-          terms.push(line);
-        }
-      } else if (currentSection === "payment" && line) {
-        paymentTerms.push(line);
+  // Get payment terms from metadata
+  const getPaymentTerms = () => {
+    if (!contract.metadata) return null;
+    
+    // Try to parse metadata if it's a string
+    let metadataObj = contract.metadata;
+    if (typeof contract.metadata === 'string') {
+      try {
+        metadataObj = JSON.parse(contract.metadata);
+      } catch (e) {
+        console.error('Failed to parse metadata:', e);
+        return null;
       }
     }
-
-    return { parties, terms, paymentTerms };
+    
+    return metadataObj?.payment_terms || null;
   };
 
-  const { parties, terms, paymentTerms } = parseContractContent();
+  const paymentTerms = getPaymentTerms();
 
   return (
     <div className="min-h-screen bg-white">
@@ -157,45 +124,32 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         {/* Header - matches image design */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-[#C29307] bg-[#073b2a] uppercase mb-2 py-2">
-            SERVICE CONTRACT
+            {contract.title || "SERVICE CONTRACT"}
           </h1>
           <p className="text-base text-gray-700 mb-8">
             This is a service agreement entered into between:
           </p>
 
           {/* Party Information */}
-          <div className="space-y-4 mb-8 text-left max-w-md mx-auto">
-            {parties.length > 0 ? (
-              parties.map((party, index) => (
-                <div key={index} className="flex items-start">
-                  <span className="font-bold min-w-24">{party.type}</span>
-                  <span className="ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-black">
-                    {party.name}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <>
-                <div className="flex items-start">
-                  <span className="font-bold min-w-24">PARTY A:</span>
-                  <span className="ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-black">
-                    {contract.initiatorName}
-                  </span>
-                </div>
-                <div className="flex items-start">
-                  <span className="font-bold min-w-24">PARTY B:</span>
-                  <span className="ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-black">
-                    {contract.signeeName || "Lagos Cake Factory"}
-                  </span>
-                </div>
-                <div className="flex items-start">
-                  <span className="font-bold min-w-24">DATE:</span>
-                  <span className="ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-black">
-                    {formatDate(contract.createdAt)}
-                  </span>
-                </div>
-              </>
-            )}
+          <div className="space-y-4 mb-8 text-left">
+            <div className="flex ">
+              <span className="font-bold ">PARTY A:</span>
+              <span className="ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-black">
+                {contract.initiatorName}
+              </span>
+            </div>
+            <div className="flex ">
+              <span className="font-bold ">PARTY B:</span>
+              <span className="ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-black">
+                {contract.signeeName || "Signee Name"}
+              </span>
+            </div>
+            <div className="flex ">
+              <span className="font-bold">DATE:</span>
+              <span className="ml-4 relative pl-4 before:absolute before:left-0 before:top-3 before:w-2 before:h-0.5 before:bg-black">
+                {formatDate(contract.contractDate || contract.createdAt)}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -219,19 +173,9 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                 dangerouslySetInnerHTML={{ __html: contract.content }}
               />
             ) : (
-              // Render plain text with structure
-              <div className="space-y-4">
-                {parseContractContent().terms.length > 0 ? (
-                  parseContractContent().terms.map((term, index) => (
-                    <div key={index} className="text-sm leading-relaxed">
-                      {term}
-                    </div>
-                  ))
-                ) : (
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {contract.content}
-                  </div>
-                )}
+              // Render plain text
+              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                {contract.content}
               </div>
             )
           ) : (
@@ -240,6 +184,34 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
             </div>
           )}
         </div>
+
+        {/* PAYMENT TERMS Section - Only show if payment terms exist */}
+        {paymentTerms && (
+          <div className="mb-10">
+            <div className="flex items-center gap-4 my-6">
+              <div className="flex-1 h-1 bg-[#C29307] rounded-2xl" />
+
+              <h2 className="text-xl font-bold text-center whitespace-nowrap">
+                PAYMENT TERMS
+              </h2>
+
+              <div className="flex-1 h-1 bg-[#C29307] rounded-2xl" />
+            </div>
+
+            <div className="space-y-4">
+              {paymentTerms.includes("<") ? (
+                <div
+                  className="rich-text-content prose prose-sm max-w-none text-sm leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: paymentTerms }}
+                />
+              ) : (
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {paymentTerms}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Signature Section - matches the table layout from image */}
         <div className="mb-10 pt-6 border-t border-gray-200">
@@ -299,7 +271,6 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                           </span>
                         </div>
                         <div className="text-center">
-                        
                           <p className="text-sm text-gray-600 mt-1">
                             Legal Counsel
                           </p>
@@ -315,7 +286,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                   <td className="py-6 px-4 text-center align-top">
                     <div className="min-h-[120px] flex flex-col items-center justify-start">
                       <div className="font-bold">
-                        {contract.signeeName || "Lagos Cake Factory"}
+                        {contract.signeeName || "Signee Name"}
                       </div>
                       <div className="h-[50px] w-48 border-b-2 border-dotted border-black mb-4 flex items-center justify-center">
                         {contract.signeeSignature ? (
@@ -333,55 +304,12 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                     </div>
                   </td>
                 </tr>
-
-                {/* Lawyer Signature Section Below the Table */}
-                {/* {contract.hasLawyerSignature && (
-                  <tr>
-                    <td colSpan={3} className="pt-8 pb-4">
-                      <div className="space-y-4">
-                        <div className="border-t border-gray-300 pt-4">
-                          <div className="flex items-center mb-4">
-                            <div className="h-6 w-6 bg-[#C29307] rounded-full flex items-center justify-center mr-2">
-                              <span className="text-white text-xs">✓</span>
-                            </div>
-                            <p className="text-sm font-medium text-[#C29307]">
-                              LEGAL WITNESS SIGNATURE
-                            </p>
-                          </div>
-                          <div className="h-32 border-b border-gray-300 flex items-end justify-center mb-4">
-                            <div className="text-center">
-                              <p className="text-gray-600 italic font-serif text-lg">
-                                Barr. Adewale Johnson
-                              </p>
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <p className="font-semibold text-gray-900">
-                              Barr. Adewale Johnson
-                            </p>
-                            <p className="text-sm text-gray-600 mt-1">
-                              Legal Counsel
-                            </p>
-                            <p className="text-xs bg-[#C29307]/10 text-[#C29307] px-2 py-1 rounded-full inline-block mt-2">
-                              Verified Lawyer
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )} */}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center text-xs text-gray-500 pt-6 border-t border-gray-200">
-          THIS CONTRACT WAS CREATED AND SIGNED ON ZIDWELL.COM
-          <br />
-          Contract ID: {contract.token.substring(0, 8).toUpperCase()}
-        </div>
+       
 
         {/* Action Buttons - Only show if not signed */}
         {contract.status !== "signed" && (
@@ -444,6 +372,13 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
             </div>
           </div>
         )}
+
+         {/* Footer */}
+        <div className="text-center text-xs text-gray-500 pt-6 border-t border-gray-200">
+          THIS CONTRACT WAS CREATED AND SIGNED ON ZIDWELL.COM
+          <br />
+          Contract ID: {contract.token.substring(0, 8).toUpperCase()}
+        </div>
       </div>
 
       {/* Modals */}

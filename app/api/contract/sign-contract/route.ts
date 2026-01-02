@@ -1102,10 +1102,19 @@ export async function POST(request: Request) {
                 text-align: left;
                 max-width: 100%;
             }
+
+            .img-header{
+                width: 100%;
+                height: auto;
+                }
         }
     </style>
 </head>
 <body>
+   <div class="img-header">
+            <img src="./ZIDWELL HEADER.png" alt="">
+        </div>
+
     <div class="email-container">
         <!-- Header -->
         <div class="email-header">

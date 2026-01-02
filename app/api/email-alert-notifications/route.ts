@@ -107,53 +107,106 @@ export async function POST(request: NextRequest) {
 
 // Email Template Generators (same as before)
 function generateLoginEmail(user: any, device: any, timestamp: string): string {
+  const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+  const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
   return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: #C29307; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-        .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
-        .alert { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 15px 0; }
-        .alert spam a {margin-left: 15px; font-weight: bold;}
-        .info-box { background: white; padding: 15px; border-radius: 4px; margin: 10px 0; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>Zidwell Security Alert</h1>
-        </div>
-        <div class="content">
-          <h2>New Login Detected</h2>
-          <p>Hello ${user.full_name},</p>
-          <p>We noticed a recent login to your account:</p>
-          
-          <div class="info-box">
-            <p><strong>Account:</strong> ${user.email || 'N/A'}</p>
-            <p><strong>Time:</strong> ${new Date(timestamp).toLocaleString()}</p>
-            ${device?.browser ? `<p><strong>Browser:</strong> ${device.browser}</p>` : ''}
-            ${device?.os ? `<p><strong>Operating System:</strong> ${device.os}</p>` : ''}
-            ${device?.location ? `<p><strong>Location:</strong> ${device.location}</p>` : ''}
-            ${device?.ip_address ? `<p><strong>IP Address:</strong> ${device.ip_address}</p>` : ''}
-          </div>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zidwell Security Alert</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f3f4f6; font-family:Arial, sans-serif; color:#333;">
 
-          <div class="alert">
-            <p><strong>If this wasn't you:</strong></p>
-            <p>• Change your password immediately <a href="${baseUrl}/auth/password-reset">Click here</a></p>
-            <p>• Contact our support team <a href="https://wa.me/7069175399">click to contact support</a></p>
-          </div>
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
+    <tr>
+      <td align="center">
 
-          <p>Thank you for keeping your account secure.</p>
-          <p><strong>Zidwell App Team</strong></p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
+        <!-- Container -->
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:8px; overflow:hidden;">
+
+          <!-- Header Image -->
+          <tr>
+            <td align="center" style="padding:0;">
+              <img 
+                src="${headerImageUrl}" 
+                alt="Zidwell Header"
+                style="width:100%; max-width:600px; height:auto; display:block;"
+              />
+            </td>
+          </tr>
+
+          <!-- Title -->
+          <tr>
+            <td style="background:#C29307; color:#ffffff; text-align:center; padding:20px;">
+              <h1 style="margin:0; font-size:22px;">Zidwell Security Alert</h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding:24px; background:#f9fafb;">
+              <h2 style="margin-top:0; font-size:18px;">New Login Detected</h2>
+
+              <p style="margin:8px 0;">Hello <strong>${user.full_name}</strong>,</p>
+              <p style="margin:8px 0;">We noticed a recent login to your account with the following details:</p>
+
+              <!-- Info Box -->
+              <div style="background:#ffffff; padding:16px; border-radius:6px; margin:16px 0;">
+                <p><strong>Account:</strong> ${user.email || "N/A"}</p>
+                <p><strong>Time:</strong> ${new Date(timestamp).toLocaleString()}</p>
+                ${device?.browser ? `<p><strong>Browser:</strong> ${device.browser}</p>` : ""}
+                ${device?.os ? `<p><strong>Operating System:</strong> ${device.os}</p>` : ""}
+                ${device?.location ? `<p><strong>Location:</strong> ${device.location}</p>` : ""}
+                ${device?.ip_address ? `<p><strong>IP Address:</strong> ${device.ip_address}</p>` : ""}
+              </div>
+
+              <!-- Alert -->
+              <div style="background:#fff3cd; border:1px solid #ffeeba; padding:16px; border-radius:6px;">
+                <p style="margin-top:0;"><strong>If this wasn’t you:</strong></p>
+                <p style="margin:6px 0;">
+                  • Change your password immediately  
+                  <a href="${baseUrl}/auth/password-reset" style="color:#C29307; font-weight:bold;">
+                    Click here
+                  </a>
+                </p>
+                <p style="margin:6px 0;">
+                  • Contact our support team  
+                  <a href="https://wa.me/7069175399" style="color:#C29307; font-weight:bold;">
+                    Click to contact support
+                  </a>
+                </p>
+              </div>
+
+              <p style="margin-top:24px;">Thank you for keeping your account secure.</p>
+              <p style="margin-bottom:0;"><strong>Zidwell App Team</strong></p>
+            </td>
+          </tr>
+
+          <!-- Footer Image -->
+          <tr>
+            <td align="center" style="padding:0;">
+              <img 
+                src="${footerImageUrl}" 
+                alt="Zidwell Footer"
+                style="width:100%; max-width:600px; height:auto; display:block;"
+              />
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+`;
 }
+
 
 function generateDebitEmail(user: any, transaction: any, timestamp: string): string {
   const isTransfer = transaction.type?.includes('transfer');

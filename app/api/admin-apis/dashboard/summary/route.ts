@@ -53,7 +53,9 @@ async function fetchNombaBalanceCached(
   }
 }
 
-function parseRangeToDates(range: string | null): { start: string; end: string } | null {
+function parseRangeToDates(
+  range: string | null
+): { start: string; end: string } | null {
   if (!range || range === "total") return null;
   const now = new Date();
   let start = new Date(now);
@@ -129,21 +131,23 @@ function clearSummaryCache(range?: string): boolean | number {
 async function getCachedSummaryData(rangeParam: string): Promise<any> {
   const cacheKey = `summary_${rangeParam}`;
   const cached = summaryCache.get(cacheKey);
-  
-  if (cached && (Date.now() - cached.timestamp) < SUMMARY_CACHE_TTL) {
+
+  if (cached && Date.now() - cached.timestamp < SUMMARY_CACHE_TTL) {
     return {
       ...cached.data,
-      _fromCache: true
+      _fromCache: true,
     };
   }
-  
+
   const rangeDates = parseRangeToDates(rangeParam);
 
   let txQuery = supabaseAdmin
     .from("transactions")
-    .select("id, amount, type, status, created_at, description, fee, total_deduction")
+    .select(
+      "id, amount, type, status, created_at, description, fee, total_deduction"
+    )
     .order("created_at", { ascending: false });
-  
+
   if (rangeDates) {
     txQuery = txQuery
       .gte("created_at", rangeDates.start)
@@ -166,26 +170,22 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     "topup",
     "funding",
     "payment",
-    "transfer"
+    "transfer",
   ];
 
   const OUTFLOW_TYPES = [
     "withdrawal",
     "transfer",
-    "p2p_sent",
+    "p2p_transfer",
     "airtime",
     "data",
     "electricity",
     "cable",
-    "bank_charge",
     "debit",
-    "payment",
-    "charge",
+    "invoice_creation",
+    "invoice",
+    "contract",
     "fee",
-    "commission",
-    "service_fee",
-    "transaction_fee",
-    "processing_fee",
   ];
 
   const totalTransactions = transactions.length;
@@ -203,41 +203,44 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   const totalInflow = successfulTransactions
     .filter((t: any) => {
       const typeLower = (t.type || "").toString().toLowerCase();
-      return INFLOW_TYPES.some(inflowType => typeLower.includes(inflowType.toLowerCase()));
+      return INFLOW_TYPES.some((inflowType) =>
+        typeLower.includes(inflowType.toLowerCase())
+      );
     })
     .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
   const totalOutflow = successfulTransactions
     .filter((t: any) => {
       const typeLower = (t.type || "").toString().toLowerCase();
-      return OUTFLOW_TYPES.some(outflowType => typeLower.includes(outflowType.toLowerCase()));
+      return OUTFLOW_TYPES.some((outflowType) =>
+        typeLower.includes(outflowType.toLowerCase())
+      );
     })
     .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
-  const totalFeesFromColumn = successfulTransactions
-    .reduce((s: number, t: any) => {
+  const totalFeesFromColumn = successfulTransactions.reduce(
+    (s: number, t: any) => {
       const fee = Number(t.fee ?? 0);
       return s + (isNaN(fee) ? 0 : fee);
-    }, 0);
+    },
+    0
+  );
 
-  const totalDeductions = successfulTransactions
-    .reduce((s: number, t: any) => {
-      const deduction = Number(t.total_deduction ?? 0);
-      return s + (isNaN(deduction) ? 0 : deduction);
-    }, 0);
+  const totalDeductions = successfulTransactions.reduce((s: number, t: any) => {
+    const deduction = Number(t.total_deduction ?? 0);
+    return s + (isNaN(deduction) ? 0 : deduction);
+  }, 0);
 
-  const latestTransactions = transactions
-    .slice(0, 5)
-    .map((t: any) => ({
-      id: t.id,
-      type: t.type,
-      amount: Number(t.amount ?? 0),
-      fee: Number(t.fee ?? 0),
-      total_deduction: Number(t.total_deduction ?? 0),
-      status: t.status,
-      created_at: t.created_at,
-      description: t.description,
-    }));
+  const latestTransactions = transactions.slice(0, 5).map((t: any) => ({
+    id: t.id,
+    type: t.type,
+    amount: Number(t.amount ?? 0),
+    fee: Number(t.fee ?? 0),
+    total_deduction: Number(t.total_deduction ?? 0),
+    status: t.status,
+    created_at: t.created_at,
+    description: t.description,
+  }));
 
   const { data: usersBalancesData } = await supabaseAdmin
     .from("users")
@@ -290,31 +293,34 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
 
   let invoicesQuery = supabaseAdmin
     .from("invoices")
-    .select("id, status, created_at, paid_amount, total_amount, fee_amount, subtotal")
+    .select(
+      "id, status, created_at, paid_amount, total_amount, fee_amount, subtotal"
+    )
     .eq("status", "paid");
-  
+
   if (rangeDates) {
     invoicesQuery = invoicesQuery
       .gte("created_at", rangeDates.start)
       .lte("created_at", rangeDates.end);
   }
-  
+
   const { data: invoicesDataRaw } = await invoicesQuery;
   const invoicesData = invoicesDataRaw || [];
-  
+
   const { count: totalInvoicesCount } = await supabaseAdmin
     .from("invoices")
     .select("*", { count: "exact", head: true });
   const totalInvoicesIssued = Number(totalInvoicesCount ?? 0);
-    
+
   const paidInvoices = invoicesData.length;
   const unpaidInvoices = totalInvoicesIssued - paidInvoices;
-  
+
   const totalInvoiceRevenue = invoicesData.reduce(
-    (s: number, inv: any) => s + Number(inv.paid_amount ?? inv.total_amount ?? 0),
+    (s: number, inv: any) =>
+      s + Number(inv.paid_amount ?? inv.total_amount ?? 0),
     0
   );
-  
+
   const totalInvoiceFees = invoicesData.reduce(
     (s: number, inv: any) => s + Number(inv.fee_amount ?? 0),
     0
@@ -324,13 +330,13 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     .from("invoice_payments")
     .select("amount, platform_fee, status, created_at")
     .eq("status", "completed");
-    
+
   if (rangeDates) {
     invoicePaymentsQuery = invoicePaymentsQuery
       .gte("created_at", rangeDates.start)
       .lte("created_at", rangeDates.end);
   }
-  
+
   const { data: invoicePaymentsRaw } = await invoicePaymentsQuery;
   const invoicePayments = invoicePaymentsRaw || [];
   const totalPlatformFees = invoicePayments.reduce(
@@ -340,7 +346,8 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
 
   const combinedAppRevenue = totalFeesFromColumn + totalPlatformFees;
 
-  const monthlyInvoicesMap: Record<string, { count: number; revenue: number }> = {};
+  const monthlyInvoicesMap: Record<string, { count: number; revenue: number }> =
+    {};
   invoicesData.forEach((inv: any) => {
     const d = new Date(inv.created_at);
     if (isNaN(d.getTime())) return;
@@ -353,7 +360,9 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       revenue: 0,
     };
     monthlyInvoicesMap[key].count += 1;
-    monthlyInvoicesMap[key].revenue += Number(inv.paid_amount ?? inv.total_amount ?? 0);
+    monthlyInvoicesMap[key].revenue += Number(
+      inv.paid_amount ?? inv.total_amount ?? 0
+    );
   });
   const monthlyInvoices = monthLabels.map((m) => ({
     month: m,
@@ -378,7 +387,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   }));
 
   const monthlyRevenueMap: Record<string, number> = {};
-  
+
   successfulTransactions.forEach((t: any) => {
     const feeAmount = Number(t.fee ?? 0);
     if (feeAmount > 0) {
@@ -391,7 +400,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + feeAmount;
     }
   });
-  
+
   successfulTransactions.forEach((t: any) => {
     const deductionAmount = Number(t.total_deduction ?? 0);
     if (deductionAmount > 0) {
@@ -404,7 +413,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + deductionAmount;
     }
   });
-  
+
   invoicePayments.forEach((p: any) => {
     const platformFee = Number(p.platform_fee ?? 0);
     if (platformFee > 0) {
@@ -417,7 +426,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + platformFee;
     }
   });
-  
+
   invoicesData.forEach((inv: any) => {
     const invoiceFee = Number(inv.fee_amount ?? 0);
     if (invoiceFee > 0) {
@@ -430,7 +439,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + invoiceFee;
     }
   });
-  
+
   const monthlyAppRevenue = monthLabels.map((m) => ({
     month: m,
     revenue: monthlyRevenueMap[m] ?? 0,
@@ -476,12 +485,12 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     successfulTransactions: successfulTransactions.length,
     failedTransactions: failedTransactions.length,
     pendingTransactions: pendingTransactions.length,
-    _fromCache: false
+    _fromCache: false,
   };
 
   summaryCache.set(cacheKey, {
     data: response,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   return response;
@@ -491,10 +500,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
     const adminUser = await requireAdmin(req);
     if (adminUser instanceof NextResponse) return adminUser;
-    
-    const allowedRoles = ['super_admin', 'operations_admin', 'finance_admin', 'support_admin', 'legal_admin'];
+
+    const allowedRoles = [
+      "super_admin",
+      "operations_admin",
+      "finance_admin",
+      "support_admin",
+      "legal_admin",
+    ];
     if (!allowedRoles.includes(adminUser?.admin_role)) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+      return NextResponse.json(
+        { error: "Insufficient permissions" },
+        { status: 403 }
+      );
     }
 
     const cookieHeader = req.headers.get("cookie") || "";
@@ -518,8 +536,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       _cache: {
         cached: _fromCache,
         timestamp: Date.now(),
-        range: rangeParam
-      }
+        range: rangeParam,
+      },
     });
   } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });

@@ -434,6 +434,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
     const logo = getLogoBase64();
     const html = generateInvoiceHTML(invoice, logo);
     const pdfBuffer = await generatePdfBufferFromHtml(html);
@@ -444,17 +447,21 @@ export async function POST(request: Request) {
     if (sendPaymentConfirmation) {
       subject = `Payment Confirmation - Invoice #${invoice.invoice_id}`;
       bodyHtml = `
-        <div style="font-family: Arial, sans-serif;">
-          <h2 style="color: green;">Payment Confirmed</h2>
-          <p>Hello ${invoice.signee_name},</p>
-          <p>Your payment of <b>₦${Number(invoice.total_amount).toLocaleString(
-            "en-NG"
-          )}<</b> for invoice <b>#${
-        invoice.invoice_id
-      }</b> has been received.</p>
-          <p>You can now sign your invoice using the link below:</p>
-        </div>
-      `;
+  <div style="font-family: Arial, sans-serif;">
+    <!-- Header -->
+    <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
+    
+    <h2 style="color: green;">Payment Confirmed</h2>
+    <p>Hello ${invoice.signee_name},</p>
+    <p>Your payment of <b>₦${Number(invoice.total_amount).toLocaleString(
+      "en-NG"
+    )}</b> for invoice <b>#${invoice.invoice_id}</b> has been received.</p>
+    <p>You can now sign your invoice using the link below:</p>
+    
+    <!-- Footer -->
+    <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px;" />
+  </div>
+`;
     }
 
     await transporter.sendMail({

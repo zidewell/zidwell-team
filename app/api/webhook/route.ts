@@ -26,6 +26,11 @@ function safeNum(v: any) {
   return Number.isFinite(n) ? n : 0;
 }
 
+      
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
+
 async function sendVirtualAccountDepositEmailNotification(
   userId: string,
   amount: number,
@@ -78,45 +83,52 @@ Best regards,
 Zidwell Team
     `;
 
+
     await transporter.sendMail({
       from: `Zidwell <${process.env.EMAIL_USER}>`,
       to: user.email,
       subject,
       text: emailBody,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>${greeting}</p>
-          
-          <h3 style="color: #22c55e;">
-            ✅ Account Deposit Successful
-          </h3>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
-            <p><strong>Bank:</strong> ${bankName}</p>
-            <p><strong>Account Number:</strong> ${accountNumber}</p>
-            <p><strong>Account Name:</strong> ${accountName}</p>
-            <p><strong>Sender:</strong> ${senderName}</p>
-            <p><strong>Narration:</strong> ${narration || "N/A"}</p>
-            <p><strong>Transaction ID:</strong> ${transactionId}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            <p><strong>Status:</strong> <span style="color: #22c55e; font-weight: bold;">Success</span></p>
-          </div>
-          
-          <p style="color: #64748b;">
-            The funds have been credited to your Zidwell wallet and are ready to use.
-          </p>
-          
-          <p>Thank you for using Zidwell!</p>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px;">
-            Best regards,<br>
-            <strong>Zidwell Team</strong>
-          </p>
-        </div>
-      `,
+    html: `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <!-- Header -->
+    <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
+    
+    <p>${greeting}</p>
+    
+    <h3 style="color: #22c55e;">
+      ✅ Account Deposit Successful
+    </h3>
+    
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+      <h4 style="margin-top: 0;">Transaction Details:</h4>
+      <p><strong>Amount:</strong> ₦${amount.toLocaleString()}</p>
+      <p><strong>Bank:</strong> ${bankName}</p>
+      <p><strong>Account Number:</strong> ${accountNumber}</p>
+      <p><strong>Account Name:</strong> ${accountName}</p>
+      <p><strong>Sender:</strong> ${senderName}</p>
+      <p><strong>Narration:</strong> ${narration || "N/A"}</p>
+      <p><strong>Transaction ID:</strong> ${transactionId}</p>
+      <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+      <p><strong>Status:</strong> <span style="color: #22c55e; font-weight: bold;">Success</span></p>
+    </div>
+    
+    <p style="color: #64748b;">
+      The funds have been credited to your Zidwell wallet and are ready to use.
+    </p>
+    
+    <p>Thank you for using Zidwell!</p>
+    
+    <!-- Footer -->
+    <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px; margin-bottom: 20px;" />
+    
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #64748b; font-size: 14px;">
+      Best regards,<br>
+      <strong>Zidwell Team</strong>
+    </p>
+  </div>
+`,
     });
 
     console.log(
@@ -231,65 +243,71 @@ Zidwell Team
       to: user.email,
       subject,
       text: emailBody,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>${greeting}</p>
-          
-          <h3 style="color: ${statusColor};">
-            ${statusIcon} ${statusText}
-          </h3>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount:</strong> ₦${(
-              amount
-            ).toLocaleString()}</p>
-            <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
-            <p><strong>Total Deduction:</strong> ₦${totalDeduction.toLocaleString()}</p>
-            <p><strong>Recipient Name:</strong> ${recipientName}</p>
-            <p><strong>Account Number:</strong> ${recipientAccount}</p>
-            <p><strong>Bank:</strong> ${bankName}</p>
-            <p><strong>Narration:</strong> ${narration || "N/A"}</p>
-            <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
-              ${status === "success" ? "Success" : "Failed"}
-            </span></p>
-            ${
-              status === "failed"
-                ? `<p><strong>Reason:</strong> ${
-                    errorDetail || "Transaction failed"
-                  }</p>`
-                : ""
-            }
-          </div>
-          
-          ${
-            status === "success"
-              ? `<p style="color: #64748b;">
-                  The funds should reflect in the beneficiary's bank account shortly.
-                  If there are any dispute, please contact our support team.
-                </p>`
-              : ""
-          }
-          
-          ${
-            status === "failed" &&
-            (errorDetail?.includes("refunded") ||
-              errorDetail?.includes("refund"))
-              ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
-              : ""
-          }
-          
-          <p>Thank you for using Zidwell!</p>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px;">
-            Best regards,<br>
-            <strong>Zidwell Team</strong>
-          </p>
-        </div>
-      `,
+     html: `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <!-- Header -->
+    <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
+    
+    <p>${greeting}</p>
+    
+    <h3 style="color: ${statusColor};">
+      ${statusIcon} ${statusText}
+    </h3>
+    
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+      <h4 style="margin-top: 0;">Transaction Details:</h4>
+      <p><strong>Amount:</strong> ₦${(
+        amount
+      ).toLocaleString()}</p>
+      <p><strong>Fee:</strong> ₦${totalFee.toLocaleString()}</p>
+      <p><strong>Total Deduction:</strong> ₦${totalDeduction.toLocaleString()}</p>
+      <p><strong>Recipient Name:</strong> ${recipientName}</p>
+      <p><strong>Account Number:</strong> ${recipientAccount}</p>
+      <p><strong>Bank:</strong> ${bankName}</p>
+      <p><strong>Narration:</strong> ${narration || "N/A"}</p>
+      <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
+      <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+      <p><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">
+        ${status === "success" ? "Success" : "Failed"}
+      </span></p>
+      ${
+        status === "failed"
+          ? `<p><strong>Reason:</strong> ${
+              errorDetail || "Transaction failed"
+            }</p>`
+          : ""
+      }
+    </div>
+    
+    ${
+      status === "success"
+        ? `<p style="color: #64748b;">
+            The funds should reflect in the beneficiary's bank account shortly.
+            If there are any dispute, please contact our support team.
+          </p>`
+        : ""
+    }
+    
+    ${
+      status === "failed" &&
+      (errorDetail?.includes("refunded") ||
+        errorDetail?.includes("refund"))
+        ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
+        : ""
+    }
+    
+    <p>Thank you for using Zidwell!</p>
+    
+    <!-- Footer -->
+    <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px; margin-bottom: 20px;" />
+    
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #64748b; font-size: 14px;">
+      Best regards,<br>
+      <strong>Zidwell Team</strong>
+    </p>
+  </div>
+`,
     });
 
     console.log(
@@ -314,7 +332,7 @@ async function sendInvoiceCreatorNotificationWithFees(
   try {
     const subject = `💰 New Payment Received for Invoice ${invoiceId} - ₦${totalAmount.toLocaleString()}`;
 
-    // Calculate total fees if nombaFee is provided
+  
     const processingFee = nombaFee || 0;
     const totalFees = platformFee + processingFee;
 
@@ -349,46 +367,52 @@ Zidwell Team
       to: creatorEmail,
       subject,
       text: emailBody,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #22c55e;">💰 New Payment Received!</h2>
-          
-          <p>Great news! You've received a new payment for your invoice.</p>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h3 style="margin-top: 0;">📋 Invoice Details</h3>
-            <p><strong>Invoice ID:</strong> ${invoiceId}</p>
-            <p><strong>Customer:</strong> ${customerName}</p>
-            <p><strong>Customer Email:</strong> ${
-              customerEmail || "Not provided"
-            }</p>
-          </div>
-          
-          <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #3b82f6;">
-            <h3 style="margin-top: 0;">💰 Payment Breakdown</h3>
-            <p><strong>Total Payment Received:</strong> ₦${totalAmount.toLocaleString()}</p>
-            <p><strong>Platform Service Fee (2%):</strong> ₦${platformFee.toLocaleString()}</p>
-            <p><strong>Payment Processing Fee:</strong> ₦${processingFee.toLocaleString()}</p>
-            <p><strong>Total Fees:</strong> ₦${totalFees.toLocaleString()}</p>
-            <p><strong>Amount Credited to Your Wallet:</strong> <span style="color: #22c55e; font-weight: bold;">₦${userAmount.toLocaleString()}</span></p>
-            <p><strong>Payment Method:</strong>Bank Transfer</p>
-          </div>
-          
-          <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #22c55e;">
-            <h3 style="margin-top: 0;">✅ Wallet Updated</h3>
-            <p>Your wallet has been successfully credited with <strong>₦${userAmount.toLocaleString()}</strong></p>
-            <p>The funds are now available for use in your Zidwell Wallet.</p>
-          </div>
-          
-          <p>Thank you for using Zidwell!</p>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px;">
-            Best regards,<br>
-            <strong>Zidwell Team</strong>
-          </p>
-        </div>
-      `,
+    html: `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <!-- Header -->
+    <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
+    
+    <h2 style="color: #22c55e;">💰 New Payment Received!</h2>
+    
+    <p>Great news! You've received a new payment for your invoice.</p>
+    
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+      <h3 style="margin-top: 0;">📋 Invoice Details</h3>
+      <p><strong>Invoice ID:</strong> ${invoiceId}</p>
+      <p><strong>Customer:</strong> ${customerName}</p>
+      <p><strong>Customer Email:</strong> ${
+        customerEmail || "Not provided"
+      }</p>
+    </div>
+    
+    <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #3b82f6;">
+      <h3 style="margin-top: 0;">💰 Payment Breakdown</h3>
+      <p><strong>Total Payment Received:</strong> ₦${totalAmount.toLocaleString()}</p>
+      <p><strong>Platform Service Fee (2%):</strong> ₦${platformFee.toLocaleString()}</p>
+      <p><strong>Payment Processing Fee:</strong> ₦${processingFee.toLocaleString()}</p>
+      <p><strong>Total Fees:</strong> ₦${totalFees.toLocaleString()}</p>
+      <p><strong>Amount Credited to Your Wallet:</strong> <span style="color: #22c55e; font-weight: bold;">₦${userAmount.toLocaleString()}</span></p>
+      <p><strong>Payment Method:</strong>Bank Transfer</p>
+    </div>
+    
+    <div style="background: #f0fdf4; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #22c55e;">
+      <h3 style="margin-top: 0;">✅ Wallet Updated</h3>
+      <p>Your wallet has been successfully credited with <strong>₦${userAmount.toLocaleString()}</strong></p>
+      <p>The funds are now available for use in your Zidwell Wallet.</p>
+    </div>
+    
+    <p>Thank you for using Zidwell!</p>
+    
+    <!-- Footer -->
+    <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px; margin-bottom: 20px;" />
+    
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+    <p style="color: #64748b; font-size: 14px;">
+      Best regards,<br>
+      <strong>Zidwell Team</strong>
+    </p>
+  </div>
+`,
     });
 
     console.log(

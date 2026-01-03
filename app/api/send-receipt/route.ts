@@ -69,30 +69,123 @@ export async function POST(req: Request) {
       );
     }
 
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
+
+
     // Send email to signee
-    await transporter.sendMail({
-      from: `Zidwell Receipts <${process.env.EMAIL_USER}>`,
-      to: data.email,
-      subject: "Action Required: Please Sign Your Receipt",
-      html: `
-        <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-          <p>Hello ${data.name || ""},</p>
-          <p>You’ve been sent a receipt that requires your signature from <strong>${initiatorName}</strong>.</p>
-          <p style="font-weight: bold; color: #C29307;">
-            Verification Code: <span style="font-size: 16px;">${verificationCode}</span>
-          </p>
-          <p>Click below to review and sign the receipt:</p>
-          <a href="${signingLink}" target="_blank" rel="noopener noreferrer"
-             style="display:inline-block; background:#C29307; color:white; padding:10px 20px; border-radius:6px; text-decoration:none; font-weight:bold;">
-            Sign Receipt
-          </a>
-          <p style="margin-top: 20px;">Or copy and paste this link:</p>
-          <p><a href="${signingLink}" style="color:#C29307;">${signingLink}</a></p>
-          <p>If you were not expecting this, you can ignore the email.</p>
-          <p style="margin-top: 30px; font-size: 12px; color: #888;">– Zidwell Receipts Team</p>
-        </div>
-      `,
-    });
+ await transporter.sendMail({
+  from: `Zidwell Receipts <${process.env.EMAIL_USER}>`,
+  to: data.email,
+  subject: "Action Required: Please Sign Your Receipt",
+  html: `
+<!DOCTYPE html>
+<html>
+<body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
+  <tr>
+    <td align="center">
+
+      <table width="600" cellpadding="0" cellspacing="0"
+        style="background:#ffffff; border-radius:8px; overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td>
+            <img
+              src="${headerImageUrl}"
+              alt="Zidwell Header"
+              style="width:100%; max-width:600px; display:block;"
+            />
+          </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+          <td style="padding:24px; color:#333; line-height:1.6;">
+            <p style="margin-top: 0;">Hello ${data.name || "Valued Customer"},</p>
+            <p>You've been sent a receipt that requires your signature from <strong>${initiatorName}</strong>.</p>
+            
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #C29307; margin: 20px 0;">
+              <p style="margin: 0 0 10px 0; font-weight: bold; color: #C29307; font-size: 16px;">
+                Verification Code:
+              </p>
+              <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border: 2px dashed #e5e7eb;">
+                <span style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #1f2937;">
+                  ${verificationCode}
+                </span>
+              </div>
+              <p style="margin: 10px 0 0 0; font-size: 13px; color: #6b7280;">
+                Use this code to verify your identity when signing the receipt.
+              </p>
+            </div>
+            
+            <p>Click below to review and sign the receipt:</p>
+            
+            <div style="text-align: center; margin: 25px 0;">
+              <a href="${signingLink}" target="_blank" rel="noopener noreferrer"
+                 style="display:inline-block; 
+                        background:#C29307; 
+                        color:white; 
+                        padding:14px 28px; 
+                        border-radius:6px; 
+                        text-decoration:none; 
+                        font-weight:bold;
+                        font-size: 16px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                ✍️ Sign Receipt
+              </a>
+            </div>
+            
+            <p style="margin-top: 20px;"><strong>Or copy and paste this link into your browser:</strong></p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin: 10px 0 20px 0; word-break: break-all;">
+              <a href="${signingLink}" style="color:#C29307; text-decoration: none; font-size: 14px;">
+                ${signingLink}
+              </a>
+            </div>
+            
+            <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 20px;">
+              <p style="font-size: 14px; color: #6b7280;">
+                <strong>Important:</strong> 
+                <ul style="margin: 10px 0 0 20px; padding: 0;">
+                  <li>This link and verification code will expire for security reasons</li>
+                  <li>Review all details carefully before signing</li>
+                  <li>Once signed, the receipt will be legally binding</li>
+                </ul>
+              </p>
+              <p style="margin-top: 15px; font-size: 14px; color: #6b7280;">
+                If you were not expecting this receipt, you can safely ignore this email.
+              </p>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 12px; color: #888;">– Zidwell Receipts Team</p>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td>
+            <img
+              src="${footerImageUrl}"
+              alt="Zidwell Footer"
+              style="width:100%; max-width:600px; display:block;"
+            />
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
+`,
+});
 
     // clearAllReceiptsCache();
     // clearWalletBalanceCache(userId);

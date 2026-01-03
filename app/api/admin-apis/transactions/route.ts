@@ -16,6 +16,23 @@ const ADMIN_TRANSACTIONS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 const transactionsStatsCache = new Map();
 const STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// Define outflow types
+const OUTFLOW_TYPES = [
+  "withdrawal",
+  "transfer",
+  "p2p_transfer",
+  "airtime",
+  "data",
+  "electricity",
+  "cable",
+  "debit",
+  "invoice_creation",
+  "invoice",
+  "contract",
+  "tansfer", // Keep for backward compatibility (typo in data)
+  "fee",
+];
+
 function getRangeDates(range: string | null) {
   if (!range || range === "total") return null;
 
@@ -119,7 +136,7 @@ function clearAllAdminTransactionsCache() {
   return { transactionsCount, statsCount };
 }
 
-// IMPROVED: Correct fee calculation function
+// IMPROVED: Correct fee and outflow calculation function
 async function getCachedTransactionsStats(range: string = "total", userId?: string) {
   const cacheKey = `transactions_stats_${range}_${userId || 'all'}`;
   const cached = transactionsStatsCache.get(cacheKey);
@@ -136,7 +153,7 @@ async function getCachedTransactionsStats(range: string = "total", userId?: stri
   // Fetch ALL transactions with fee data
   let statsQuery = supabaseAdmin
     .from("transactions")
-    .select("status, type, amount, fee, user_id, created_at, description, reference");
+    .select("status, type, amount, fee, total_deduction, user_id, created_at, description, reference");
 
   if (rangeDates) {
     statsQuery = statsQuery
@@ -176,19 +193,32 @@ async function getCachedTransactionsStats(range: string = "total", userId?: stri
 
   console.log(`📊 DEBUG: Fee distribution:`, feeCounts);
   
-  // Calculate user fees - ROBUST PARSING
-  const userFees = transactions?.reduce((acc, t) => {
+  // Calculate user fees and outflows - ROBUST PARSING
+  const userStats = transactions?.reduce((acc, t) => {
     const userId = t.user_id;
     if (!userId) return acc;
     
-    // SAFE FEE PARSING - handles all cases from your CSV
+    // Initialize user if not exists
+    if (!acc[userId]) {
+      acc[userId] = {
+        total_fee: 0,
+        total_outflow: 0,
+        total_inflow: 0,
+        transaction_count: 0,
+        successful_transactions: 0,
+        failed_transactions: 0,
+        pending_transactions: 0,
+        last_transaction: t.created_at,
+        first_transaction: t.created_at
+      };
+    }
+    
+    // SAFE FEE PARSING
     let feeValue = 0;
     try {
       if (t.fee !== null && t.fee !== undefined && t.fee !== "") {
-        // Convert to string and clean
         const feeStr = String(t.fee).trim();
         if (feeStr && feeStr !== "0" && feeStr !== "0.00") {
-          // Remove any non-numeric characters except decimal point and minus
           const cleanFee = feeStr.replace(/[^0-9.-]+/g, '');
           const parsed = parseFloat(cleanFee);
           feeValue = isNaN(parsed) ? 0 : parsed;
@@ -199,25 +229,41 @@ async function getCachedTransactionsStats(range: string = "total", userId?: stri
       feeValue = 0;
     }
     
-    if (!acc[userId]) {
-      acc[userId] = {
-        total_fee: 0,
-        transaction_count: 0,
-        successful_transactions: 0,
-        failed_transactions: 0,
-        pending_transactions: 0,
-        last_transaction: t.created_at,
-        first_transaction: t.created_at
-      };
+    // Parse amount and total_deduction
+    const amountValue = Number(t.amount) || 0;
+    const deductionValue = Number(t.total_deduction) || 0;
+    
+    // Determine if this is an outflow transaction
+    const typeLower = (t.type || "").toString().toLowerCase();
+    const isOutflow = OUTFLOW_TYPES.some((outflowType) =>
+      typeLower.includes(outflowType.toLowerCase())
+    );
+    
+    // Only count successful transactions for financial calculations
+    if (t.status === "success") {
+      acc[userId].total_fee += feeValue;
+      acc[userId].transaction_count += 1;
+      acc[userId].successful_transactions += 1;
+      
+      // Calculate outflow/inflow
+      if (isOutflow) {
+        // For outflow transactions, use total_deduction if available, otherwise amount
+        if (deductionValue > 0) {
+          acc[userId].total_outflow += deductionValue;
+        } else {
+          acc[userId].total_outflow += amountValue;
+        }
+      } else {
+        // For inflow transactions, use amount
+        acc[userId].total_inflow += amountValue;
+      }
+    } else if (t.status === "failed") {
+      acc[userId].failed_transactions += 1;
+      acc[userId].transaction_count += 1;
+    } else if (t.status === "pending") {
+      acc[userId].pending_transactions += 1;
+      acc[userId].transaction_count += 1;
     }
-    
-    acc[userId].total_fee += feeValue;
-    acc[userId].transaction_count += 1;
-    
-    // Count by status
-    if (t.status === "success") acc[userId].successful_transactions += 1;
-    else if (t.status === "failed") acc[userId].failed_transactions += 1;
-    else if (t.status === "pending") acc[userId].pending_transactions += 1;
     
     // Update date ranges
     if (t.created_at > acc[userId].last_transaction) {
@@ -230,6 +276,8 @@ async function getCachedTransactionsStats(range: string = "total", userId?: stri
     return acc;
   }, {} as Record<string, {
     total_fee: number;
+    total_outflow: number;
+    total_inflow: number;
     transaction_count: number;
     successful_transactions: number;
     failed_transactions: number;
@@ -238,21 +286,21 @@ async function getCachedTransactionsStats(range: string = "total", userId?: stri
     first_transaction: string;
   }>);
 
-  // Convert userFees object to sorted array
-  const userFeesArray = Object.entries(userFees || {}).map(([user_id, data]) => ({
+  // Convert userStats object to sorted array
+  const userStatsArray = Object.entries(userStats || {}).map(([user_id, data]) => ({
     user_id,
-    ...data
+    ...data,
+    net_flow: data.total_inflow - data.total_outflow
   })).sort((a, b) => b.total_fee - a.total_fee); // Sort by highest fee
 
   // Calculate overall totals
-  const totalFeeAllUsers = userFeesArray.reduce((sum, user) => sum + user.total_fee, 0);
-  const totalAmountAllUsers = transactions
-    ?.filter(t => t.status === "success")
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
+  const totalFeeAllUsers = userStatsArray.reduce((sum, user) => sum + user.total_fee, 0);
+  const totalOutflowAllUsers = userStatsArray.reduce((sum, user) => sum + user.total_outflow, 0);
+  const totalInflowAllUsers = userStatsArray.reduce((sum, user) => sum + user.total_inflow, 0);
 
   console.log(`📊 DEBUG: Calculated total fees: ₦${totalFeeAllUsers.toFixed(2)}`);
-  console.log(`📊 DEBUG: Expected from CSV: ₦2028.39`);
-  console.log(`📊 DEBUG: Difference: ₦${(totalFeeAllUsers - 2028.39).toFixed(2)}`);
+  console.log(`📊 DEBUG: Total outflow: ₦${totalOutflowAllUsers.toFixed(2)}`);
+  console.log(`📊 DEBUG: Total inflow: ₦${totalInflowAllUsers.toFixed(2)}`);
 
   const stats = {
     total: transactions?.length || 0,
@@ -260,27 +308,37 @@ async function getCachedTransactionsStats(range: string = "total", userId?: stri
     failed: transactions?.filter(t => t.status === "failed").length || 0,
     pending: transactions?.filter(t => t.status === "pending").length || 0,
     processing: transactions?.filter(t => t.status === "processing").length || 0,
-    totalAmount: totalAmountAllUsers,
+    
+    // Financial statistics
+    totalAmount: totalInflowAllUsers,
+    totalOutflow: totalOutflowAllUsers,
+    totalInflow: totalInflowAllUsers,
+    netFlow: totalInflowAllUsers - totalOutflowAllUsers,
+    
     // Fee statistics
     totalFee: totalFeeAllUsers,
-    averageFeePerUser: userFeesArray.length > 0 ? totalFeeAllUsers / userFeesArray.length : 0,
-    userFees: userFeesArray,
-    topUsersByFee: userFeesArray.slice(0, 10),
+    averageFeePerUser: userStatsArray.length > 0 ? totalFeeAllUsers / userStatsArray.length : 0,
+    userStats: userStatsArray,
+    topUsersByFee: userStatsArray.slice(0, 10),
+    topUsersByOutflow: [...userStatsArray].sort((a, b) => b.total_outflow - a.total_outflow).slice(0, 10),
+    
     // Distribution
     byType: transactions?.reduce((acc, t) => {
       acc[t.type] = (acc[t.type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>) || {},
+    
     byStatus: {
       success: transactions?.filter(t => t.status === "success").length || 0,
       failed: transactions?.filter(t => t.status === "failed").length || 0,
       pending: transactions?.filter(t => t.status === "pending").length || 0,
       processing: transactions?.filter(t => t.status === "processing").length || 0
     },
+    
     // Debug info
     _debug: {
       feeDistribution: feeCounts,
-      userCount: userFeesArray.length,
+      userCount: userStatsArray.length,
       calculationTimestamp: new Date().toISOString()
     }
   };
@@ -389,6 +447,33 @@ async function getCachedAdminTransactions({
     throw new Error(`Fetch error: ${error.message}`);
   }
 
+  // Enhance transactions with calculated fields
+  const enhancedTransactions = transactions?.map(t => {
+    const typeLower = (t.type || "").toString().toLowerCase();
+    const isOutflow = OUTFLOW_TYPES.some((outflowType) =>
+      typeLower.includes(outflowType.toLowerCase())
+    );
+    
+    const amountValue = Number(t.amount) || 0;
+    const deductionValue = Number(t.total_deduction) || 0;
+    const feeValue = Number(t.fee) || 0;
+    
+    let calculatedOutflow = 0;
+    if (isOutflow && t.status === "success") {
+      calculatedOutflow = deductionValue > 0 ? deductionValue : amountValue;
+    }
+    
+    return {
+      ...t,
+      _calculated: {
+        is_outflow: isOutflow,
+        calculated_outflow: calculatedOutflow,
+        fee_value: feeValue,
+        net_amount: isOutflow ? -calculatedOutflow : amountValue
+      }
+    };
+  }) || [];
+
   // Get statistics if requested
   let stats = null;
   if (includeStats) {
@@ -400,7 +485,7 @@ async function getCachedAdminTransactions({
     limit,
     total: totalCount,
     range,
-    transactions: transactions ?? [],
+    transactions: enhancedTransactions,
     filters: {
       search,
       type,
@@ -419,7 +504,7 @@ async function getCachedAdminTransactions({
     timestamp: Date.now()
   });
 
-  console.log(`✅ Cached ${transactions?.length || 0} admin transactions for page ${page}`);
+  console.log(`✅ Cached ${enhancedTransactions?.length || 0} admin transactions for page ${page}`);
   
   return responseData;
 }
@@ -431,7 +516,7 @@ async function calculateUserFeesDirectly(range: string = "total") {
   // Simple direct query - no complex joins
   let query = supabaseAdmin
     .from("transactions")
-    .select("user_id, fee, status, created_at")
+    .select("user_id, fee, total_deduction, amount, type, status, created_at")
     .order("created_at", { ascending: false });
 
   if (rangeDates) {
@@ -448,13 +533,18 @@ async function calculateUserFeesDirectly(range: string = "total") {
   }
 
   // Manual calculation matching CSV logic
-  const userFees: Record<string, {
+  const userStats: Record<string, {
     total_fee: number;
+    total_outflow: number;
+    total_inflow: number;
     transactions: number;
+    successful_transactions: number;
     sample_fees: string[];
   }> = {};
 
-  let grandTotal = 0;
+  let grandTotalFee = 0;
+  let grandTotalOutflow = 0;
+  let grandTotalInflow = 0;
   let processedCount = 0;
 
   transactions?.forEach(t => {
@@ -463,58 +553,94 @@ async function calculateUserFeesDirectly(range: string = "total") {
 
     // Parse fee exactly like CSV would
     let feeValue = 0;
-    
     if (t.fee !== null && t.fee !== undefined && t.fee !== "") {
       const feeStr = String(t.fee).trim();
-      // Direct numeric conversion
       const num = Number(feeStr);
       feeValue = isNaN(num) ? 0 : num;
     }
 
-    if (!userFees[userId]) {
-      userFees[userId] = {
+    const amountValue = Number(t.amount) || 0;
+    const deductionValue = Number(t.total_deduction) || 0;
+    
+    // Determine if this is an outflow
+    const typeLower = (t.type || "").toString().toLowerCase();
+    const isOutflow = OUTFLOW_TYPES.some((outflowType) =>
+      typeLower.includes(outflowType.toLowerCase())
+    );
+
+    if (!userStats[userId]) {
+      userStats[userId] = {
         total_fee: 0,
+        total_outflow: 0,
+        total_inflow: 0,
         transactions: 0,
+        successful_transactions: 0,
         sample_fees: []
       };
     }
 
-    userFees[userId].total_fee += feeValue;
-    userFees[userId].transactions += 1;
-    
-    // Keep a few sample fee values for debugging
-    if (userFees[userId].sample_fees.length < 3 && t.fee) {
-      userFees[userId].sample_fees.push(`${t.fee} (→ ${feeValue})`);
+    // Only count successful transactions for financials
+    if (t.status === "success") {
+      userStats[userId].total_fee += feeValue;
+      userStats[userId].successful_transactions += 1;
+      
+      if (isOutflow) {
+        const outflowValue = deductionValue > 0 ? deductionValue : amountValue;
+        userStats[userId].total_outflow += outflowValue;
+        grandTotalOutflow += outflowValue;
+      } else {
+        userStats[userId].total_inflow += amountValue;
+        grandTotalInflow += amountValue;
+      }
+      
+      // Keep a few sample fee values for debugging
+      if (userStats[userId].sample_fees.length < 3 && t.fee) {
+        userStats[userId].sample_fees.push(`${t.fee} (→ ${feeValue})`);
+      }
+      
+      grandTotalFee += feeValue;
     }
-
-    grandTotal += feeValue;
+    
+    userStats[userId].transactions += 1;
     processedCount++;
   });
 
   // Convert to array and sort
-  const userFeesArray = Object.entries(userFees).map(([user_id, data]) => ({
+  const userStatsArray = Object.entries(userStats).map(([user_id, data]) => ({
     user_id,
     total_fee: Number(data.total_fee.toFixed(2)),
+    total_outflow: Number(data.total_outflow.toFixed(2)),
+    total_inflow: Number(data.total_inflow.toFixed(2)),
+    net_flow: Number((data.total_inflow - data.total_outflow).toFixed(2)),
     transactions: data.transactions,
-    average_fee: Number((data.total_fee / data.transactions).toFixed(2)),
+    successful_transactions: data.successful_transactions,
+    success_rate: data.transactions > 0 ? 
+      Number((data.successful_transactions / data.transactions * 100).toFixed(1)) : 0,
     sample_fees: data.sample_fees
   })).sort((a, b) => b.total_fee - a.total_fee);
 
   return {
-    calculation_method: "direct_fee_sum",
+    calculation_method: "direct_calculation_with_outflow",
     calculation_timestamp: new Date().toISOString(),
     range_applied: range,
     range_dates: rangeDates,
     total_transactions_processed: processedCount,
-    total_users: userFeesArray.length,
-    grand_total_fee: Number(grandTotal.toFixed(2)),
-    expected_csv_total: 2028.39,
-    difference_from_csv: Number((grandTotal - 2028.39).toFixed(2)),
-    user_fees: userFeesArray,
+    total_users: userStatsArray.length,
+    
+    // Financial totals
+    grand_total_fee: Number(grandTotalFee.toFixed(2)),
+    grand_total_outflow: Number(grandTotalOutflow.toFixed(2)),
+    grand_total_inflow: Number(grandTotalInflow.toFixed(2)),
+    grand_net_flow: Number((grandTotalInflow - grandTotalOutflow).toFixed(2)),
+    
+    user_stats: userStatsArray,
+    
     summary: {
-      top_payer: userFeesArray[0] || null,
-      bottom_payer: userFeesArray[userFeesArray.length - 1] || null,
-      average_per_user: Number((grandTotal / userFeesArray.length).toFixed(2))
+      top_payer_by_fee: userStatsArray[0] || null,
+      top_outflow_user: [...userStatsArray].sort((a, b) => b.total_outflow - a.total_outflow)[0] || null,
+      bottom_payer: userStatsArray[userStatsArray.length - 1] || null,
+      average_fee_per_user: Number((grandTotalFee / userStatsArray.length).toFixed(2)),
+      average_outflow_per_user: Number((grandTotalOutflow / userStatsArray.length).toFixed(2))
     }
   };
 }
@@ -656,9 +782,10 @@ export async function POST(req: NextRequest) {
           comparison: {
             stats_total_fee: stats?.totalFee || 0,
             direct_total_fee: directCalculation?.grand_total_fee || 0,
-            csv_expected: 2028.39,
-            stats_vs_csv: stats ? (stats.totalFee - 2028.39).toFixed(2) : "N/A",
-            direct_vs_csv: directCalculation ? (directCalculation.grand_total_fee - 2028.39).toFixed(2) : "N/A"
+            stats_total_outflow: stats?.totalOutflow || 0,
+            direct_total_outflow: directCalculation?.grand_total_outflow || 0,
+            stats_total_inflow: stats?.totalInflow || 0,
+            direct_total_inflow: directCalculation?.grand_total_inflow || 0,
           }
         },
         _admin: {

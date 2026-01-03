@@ -1,11 +1,11 @@
 // /app/api/generate-statement/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 
 export async function POST(req: NextRequest) {
   let browser = null;
-  
+
   try {
     const { userId, from, to, transactions, user } = await req.json();
 
@@ -20,23 +20,40 @@ export async function POST(req: NextRequest) {
     let totalInflow = 0;
     let totalOutflow = 0;
     let totalFees = 0;
-    
+
     const filteredTransactions = transactions || [];
-    
+
     filteredTransactions.forEach((tx: any) => {
       const amount = Number(tx.amount) || 0;
       const fee = Number(tx.fee) || 0;
-      
-      if (["deposit", "virtual_account_deposit", "card_deposit", "p2p_received", "referral", "referral_reward"].includes(tx.type?.toLowerCase())) {
+
+      if (
+        [
+          "deposit",
+          "virtual_account_deposit",
+          "card_deposit",
+          "p2p_received",
+          "referral",
+          "referral_reward",
+        ].includes(tx.type?.toLowerCase())
+      ) {
         totalInflow += amount;
       } else {
         totalOutflow += amount;
       }
-      
+
       totalFees += fee;
     });
 
     const netBalance = totalInflow - totalOutflow - totalFees;
+
+    const baseUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.NEXT_PUBLIC_DEV_URL
+        : process.env.NEXT_PUBLIC_BASE_URL;
+
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
     // Generate HTML for the statement
     const htmlContent = `
@@ -67,6 +84,14 @@ export async function POST(req: NextRequest) {
             max-width: 800px;
             margin: 0 auto;
             background: white;
+        }
+        
+        /* Header Image */
+        .header-image {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            display: block;
         }
         
         /* Header */
@@ -247,9 +272,17 @@ export async function POST(req: NextRequest) {
             color: #991b1b;
         }
         
+        /* Footer Image */
+        .footer-image {
+            width: 100%;
+            max-width: 800px;
+            margin: 40px auto 0;
+            display: block;
+        }
+        
         /* Footer */
         .footer {
-            margin-top: 40px;
+            margin-top: 20px;
             padding-top: 20px;
             border-top: 1px solid #e5e7eb;
             text-align: center;
@@ -271,6 +304,10 @@ export async function POST(req: NextRequest) {
                 max-width: 100%;
             }
             
+            .header-image, .footer-image {
+                max-width: 100%;
+            }
+            
             .summary-cards {
                 break-inside: avoid;
             }
@@ -283,19 +320,24 @@ export async function POST(req: NextRequest) {
 </head>
 <body>
     <div class="statement-container">
+        <!-- Header Image -->
+        <img src="${headerImageUrl}" alt="Zidwell Header" class="header-image" />
+        
         <!-- Header -->
         <div class="header">
             <div class="logo">ZIDWELL FINANCE</div>
             <h1 class="title">Bank Statement</h1>
-            <p class="subtitle">Statement Period: ${new Date(from).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            })} to ${new Date(to).toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            })}</p>
+            <p class="subtitle">Statement Period: ${new Date(
+              from
+            ).toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })} to ${new Date(to).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })}</p>
         </div>
         
         <!-- User Information -->
@@ -306,10 +348,10 @@ export async function POST(req: NextRequest) {
             </div>
             <div class="info-group">
                 <h3>Statement Date</h3>
-                <p>${new Date().toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
+                <p>${new Date().toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
                 })}</p>
             </div>
             <div class="info-group">
@@ -322,19 +364,27 @@ export async function POST(req: NextRequest) {
         <div class="summary-cards">
             <div class="summary-card inflow">
                 <h4>TOTAL INFLOW</h4>
-                <div class="amount">₦${totalInflow.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
+                <div class="amount">₦${totalInflow.toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                })}</div>
             </div>
             <div class="summary-card outflow">
                 <h4>TOTAL OUTFLOW</h4>
-                <div class="amount">₦${totalOutflow.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
+                <div class="amount">₦${totalOutflow.toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                })}</div>
             </div>
             <div class="summary-card fees">
                 <h4>TOTAL FEES</h4>
-                <div class="amount">₦${totalFees.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
+                <div class="amount">₦${totalFees.toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                })}</div>
             </div>
             <div class="summary-card balance">
                 <h4>NET BALANCE</h4>
-                <div class="amount">₦${netBalance.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</div>
+                <div class="amount">₦${netBalance.toLocaleString("en-NG", {
+                  minimumFractionDigits: 2,
+                })}</div>
             </div>
         </div>
         
@@ -342,7 +392,9 @@ export async function POST(req: NextRequest) {
         <div class="transactions-section">
             <h2 class="section-title">Transaction Details</h2>
             
-            ${filteredTransactions.length > 0 ? `
+            ${
+              filteredTransactions.length > 0
+                ? `
             <table class="transactions-table">
                 <thead>
                     <tr>
@@ -355,62 +407,94 @@ export async function POST(req: NextRequest) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${filteredTransactions.map((tx: any) => {
+                    ${filteredTransactions
+                      .map((tx: any) => {
                         const txDate = new Date(tx.created_at);
-                        const dateStr = txDate.toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
+                        const dateStr = txDate.toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
                         });
-                        const timeStr = txDate.toLocaleTimeString('en-US', {
-                            hour: '2-digit',
-                            minute: '2-digit'
+                        const timeStr = txDate.toLocaleTimeString("en-US", {
+                          hour: "2-digit",
+                          minute: "2-digit",
                         });
-                        
+
                         const isOutflow = [
-                            "withdrawal", "debit", "airtime", "data", 
-                            "electricity", "cable", "transfer", "p2p_transfer"
+                          "withdrawal",
+                          "debit",
+                          "airtime",
+                          "data",
+                          "electricity",
+                          "cable",
+                          "transfer",
+                          "p2p_transfer",
                         ].includes(tx.type?.toLowerCase());
-                        
+
                         const amount = Number(tx.amount) || 0;
                         const fee = Number(tx.fee) || 0;
-                        
-                        const statusClass = tx.status?.toLowerCase() === 'success' ? 'status-success' :
-                                          tx.status?.toLowerCase() === 'pending' ? 'status-pending' : 'status-failed';
-                        
+
+                        const statusClass =
+                          tx.status?.toLowerCase() === "success"
+                            ? "status-success"
+                            : tx.status?.toLowerCase() === "pending"
+                            ? "status-pending"
+                            : "status-failed";
+
                         return `
                         <tr>
                             <td>${dateStr}<br><small>${timeStr}</small></td>
-                            <td>${tx.description || tx.type || 'N/A'}</td>
-                            <td>${tx.type || 'N/A'}</td>
-                            <td><span class="status-badge ${statusClass}">${tx.status || 'N/A'}</span></td>
-                            <td><small>${tx.reference || 'N/A'}</small></td>
-                            <td class="amount-cell ${isOutflow ? 'outflow-amount' : 'inflow-amount'}">
-                                ${isOutflow ? '-' : '+'}₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}
-                                ${fee > 0 ? `<br><small style="color: #6b7280;">Fee: ₦${fee.toLocaleString("en-NG", { minimumFractionDigits: 2 })}</small>` : ''}
+                            <td>${tx.description || tx.type || "N/A"}</td>
+                            <td>${tx.type || "N/A"}</td>
+                            <td><span class="status-badge ${statusClass}">${
+                          tx.status || "N/A"
+                        }</span></td>
+                            <td><small>${tx.reference || "N/A"}</small></td>
+                            <td class="amount-cell ${
+                              isOutflow ? "outflow-amount" : "inflow-amount"
+                            }">
+                                ${
+                                  isOutflow ? "-" : "+"
+                                }₦${amount.toLocaleString("en-NG", {
+                          minimumFractionDigits: 2,
+                        })}
+                                ${
+                                  fee > 0
+                                    ? `<br><small style="color: #6b7280;">Fee: ₦${fee.toLocaleString(
+                                        "en-NG",
+                                        { minimumFractionDigits: 2 }
+                                      )}</small>`
+                                    : ""
+                                }
                             </td>
                         </tr>
                         `;
-                    }).join('')}
+                      })
+                      .join("")}
                 </tbody>
             </table>
-            ` : `
+            `
+                : `
             <div style="text-align: center; padding: 40px; background: #f9fafb; border-radius: 8px;">
                 <p style="color: #6b7280; font-size: 16px;">No transactions found in the selected period</p>
             </div>
-            `}
+            `
+            }
         </div>
+        
+        <!-- Footer Image -->
+        <img src="${footerImageUrl}" alt="Zidwell Footer" class="footer-image" />
         
         <!-- Footer -->
         <div class="footer">
             <p>This is an official bank statement from ZIDWELL FINANCE</p>
-            <p>Generated on ${new Date().toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
+            <p>Generated on ${new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
             })}</p>
             <p>For any questions, please contact our customer support</p>
             <p style="margin-top: 20px; font-size: 10px; color: #9ca3af;">
@@ -420,38 +504,43 @@ export async function POST(req: NextRequest) {
     </div>
 </body>
 </html>
-    `;
+`;
 
     // Generate PDF using Puppeteer
     let executablePath: string;
     let browserArgs: string[];
 
-    if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
-      console.log('Using @sparticuz/chromium for production PDF generation');
+    if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+      console.log("Using @sparticuz/chromium for production PDF generation");
       executablePath = await chromium.executablePath();
-      browserArgs = [...chromium.args, '--hide-scrollbars', '--disable-web-security'];
-    } else {
-      console.log('Using local Chrome for development PDF generation');
-      executablePath = process.env.CHROME_PATH || 
-        (process.platform === 'win32' 
-          ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-          : process.platform === 'darwin'
-          ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-          : '/usr/bin/google-chrome');
-      
       browserArgs = [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
+        ...chromium.args,
+        "--hide-scrollbars",
+        "--disable-web-security",
+      ];
+    } else {
+      console.log("Using local Chrome for development PDF generation");
+      executablePath =
+        process.env.CHROME_PATH ||
+        (process.platform === "win32"
+          ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+          : process.platform === "darwin"
+          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          : "/usr/bin/google-chrome");
+
+      browserArgs = [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--single-process",
+        "--disable-gpu",
       ];
     }
 
-    console.log('Launching browser for PDF generation');
+    console.log("Launching browser for PDF generation");
 
     browser = await puppeteer.launch({
       executablePath,
@@ -462,27 +551,31 @@ export async function POST(req: NextRequest) {
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: "networkidle0" });
 
-    const pdfBuffer = await page.pdf({ 
-      format: "A4", 
+    const pdfBuffer = await page.pdf({
+      format: "A4",
       printBackground: true,
       margin: {
-        top: '20px',
-        right: '20px',
-        bottom: '20px',
-        left: '20px'
-      }
+        top: "20px",
+        right: "20px",
+        bottom: "20px",
+        left: "20px",
+      },
     });
 
-    console.log('Bank statement PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+    console.log(
+      "Bank statement PDF generated successfully, size:",
+      pdfBuffer.length,
+      "bytes"
+    );
 
     // Generate filename
-    const fromDate = new Date(from).toISOString().split('T')[0];
-    const toDate = new Date(to).toISOString().split('T')[0];
+    const fromDate = new Date(from).toISOString().split("T")[0];
+    const toDate = new Date(to).toISOString().split("T")[0];
     const filename = `bank-statement-${fromDate}-to-${toDate}.pdf`;
 
     // Convert Buffer to Uint8Array for proper response
     const pdfArray = new Uint8Array(pdfBuffer);
-    
+
     // Return PDF as response
     return new NextResponse(pdfArray, {
       status: 200,
@@ -492,7 +585,6 @@ export async function POST(req: NextRequest) {
         "Content-Length": pdfBuffer.length.toString(),
       },
     });
-
   } catch (error: any) {
     console.error("Statement PDF generation failed:", error);
     return NextResponse.json(

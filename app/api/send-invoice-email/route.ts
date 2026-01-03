@@ -33,6 +33,16 @@ export async function POST(request: Request) {
       currency: "NGN",
     }).format(totalAmount);
 
+          const baseUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.NEXT_PUBLIC_DEV_URL
+        : process.env.NEXT_PUBLIC_BASE_URL;
+
+      
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
+
     const htmlContent = `
     <!DOCTYPE html>
     <html lang="en">

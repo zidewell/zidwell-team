@@ -16,11 +16,10 @@ import {
   Wifi,
   Tv,
   Lightbulb,
-  ChevronDown,
-  ChevronRight,
   Settings,
   Eye,
   EyeOff,
+  Send,
 } from "lucide-react";
 import Image from "next/image";
 import { useUserContextData } from "../context/userData";
@@ -39,8 +38,6 @@ const preferenceItems = [
 
 export default function DashboardSidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [openTopUp, setOpenTopUp] = useState(false);
-  const [openBills, setOpenBills] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
 
   const pathname = usePathname();
@@ -71,38 +68,6 @@ export default function DashboardSidebar() {
       <item.icon className="w-5 h-5" />
       <span className="font-medium">{item.name}</span>
     </Link>
-  );
-
-  const Dropdown = ({
-    title,
-    icon: Icon,
-    isOpen,
-    toggle,
-    children,
-  }: {
-    title: string;
-    icon: any;
-    isOpen: boolean;
-    toggle: () => void;
-    children: React.ReactNode;
-  }) => (
-    <div>
-      <button
-        onClick={toggle}
-        className="flex items-center justify-between w-full px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700/50 hover:text-white transition-all duration-200"
-      >
-        <div className="flex items-center space-x-3">
-          <Icon className="w-5 h-5" />
-          <span className="font-medium">{title}</span>
-        </div>
-        {isOpen ? (
-          <ChevronDown className="w-4 h-4" />
-        ) : (
-          <ChevronRight className="w-4 h-4" />
-        )}
-      </button>
-      {isOpen && <div className="ml-8 mt-1 space-y-1">{children}</div>}
-    </div>
   );
 
   // Function to format balance with hidden state
@@ -210,12 +175,13 @@ export default function DashboardSidebar() {
             />
             <NavItem
               item={{
-                name: "Create Invoice",
-                href: "/dashboard/services/create-invoice",
-                icon: FileSpreadsheet,
+                name: "Transfer",
+                href: "/dashboard/fund-account/transfer-page",
+                icon: Send,
               }}
-              isActive={pathname === "/dashboard/services/create-invoice"}
+              isActive={pathname === "/dashboard/fund-account/transfer-page"}
             />
+
             <NavItem
               item={{
                 name: "My Transaction",
@@ -227,21 +193,54 @@ export default function DashboardSidebar() {
 
             <NavItem
               item={{
-                name: "Tax Manager",
-                href: "/dashboard/services/tax-filing",
-                icon: FileSpreadsheet,
+                name: "Airtime",
+                href: "/dashboard/services/buy-airtime",
+                icon: Smartphone,
               }}
-              isActive={pathname === "/dashboard/services/tax-filing"}
+              isActive={pathname === "/dashboard/services/buy-airtime"}
             />
-
-            {/* Other services */}
             <NavItem
               item={{
+<<<<<<< HEAD
                 name: "Create Contract",
                 href: "/dashboard/services/contract",
                 icon: FileText,
               }}
               isActive={pathname === "/dashboard/services/contract"}
+=======
+                name: "Buy Data",
+                href: "/dashboard/services/buy-data",
+                icon: Wifi,
+              }}
+              isActive={pathname === "/dashboard/services/buy-data"}
+            />
+
+            {/* Pay Bills Links - Now Visible */}
+            <NavItem
+              item={{
+                name: "Buy Light",
+                href: "/dashboard/services/buy-power",
+                icon: Lightbulb,
+              }}
+              isActive={pathname === "/dashboard/services/buy-power"}
+            />
+            <NavItem
+              item={{
+                name: "Cable TV",
+                href: "/dashboard/services/buy-cable-tv",
+                icon: Tv,
+              }}
+              isActive={pathname === "/dashboard/services/buy-cable-tv"}
+            />
+
+            <NavItem
+              item={{
+                name: "Create Invoice",
+                href: "/dashboard/services/create-invoice",
+                icon: FileSpreadsheet,
+              }}
+              isActive={pathname === "/dashboard/services/create-invoice"}
+>>>>>>> fa815ffaf16f3689f1fe15a81ad9aa34f05247dd
             />
 
             <NavItem
@@ -253,55 +252,23 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/services/create-receipt"}
             />
 
-            {/* Top Up dropdown */}
-            <Dropdown
-              title="Top Up"
-              icon={Smartphone}
-              isOpen={openTopUp}
-              toggle={() => setOpenTopUp(!openTopUp)}
-            >
-              <NavItem
-                item={{
-                  name: "Airtime",
-                  href: "/dashboard/services/buy-airtime",
-                  icon: Smartphone,
-                }}
-                isActive={pathname === "/dashboard/services/buy-airtime"}
-              />
-              <NavItem
-                item={{
-                  name: "Data Bundles",
-                  href: "/dashboard/services/buy-data",
-                  icon: Wifi,
-                }}
-                isActive={pathname === "/dashboard/services/buy-data"}
-              />
-            </Dropdown>
+            <NavItem
+              item={{
+                name: "Create Agreement",
+                href: "/dashboard/services/simple-agreement",
+                icon: FileText,
+              }}
+              isActive={pathname === "/dashboard/services/simple-agreement"}
+            />
 
-            {/* Pay Bills dropdown */}
-            <Dropdown
-              title="Pay Bills"
-              icon={Tv}
-              isOpen={openBills}
-              toggle={() => setOpenBills(!openBills)}
-            >
-              <NavItem
-                item={{
-                  name: "Electricity",
-                  href: "/dashboard/services/buy-power",
-                  icon: Lightbulb,
-                }}
-                isActive={pathname === "/dashboard/services/buy-power"}
-              />
-              <NavItem
-                item={{
-                  name: "Cable / TV",
-                  href: "/dashboard/services/buy-cable-tv",
-                  icon: Tv,
-                }}
-                isActive={pathname === "/dashboard/services/buy-cable-tv"}
-              />
-            </Dropdown>
+            <NavItem
+              item={{
+                name: "Tax Manager",
+                href: "/dashboard/services/tax-filing",
+                icon: FileSpreadsheet,
+              }}
+              isActive={pathname === "/dashboard/services/tax-filing"}
+            />
           </div>
 
           {/* Preferences */}

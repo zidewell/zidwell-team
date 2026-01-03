@@ -18,7 +18,7 @@ import {
   CommandGroup,
   CommandItem,
 } from "./ui/command";
-import { Check, ChevronsUpDown, Loader2, Bookmark } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Bookmark, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -48,6 +48,15 @@ interface SavedAccount {
   bank_name: string;
   bank_code: string;
   is_default: boolean;
+}
+
+interface SavedP2PBeneficiary {
+  id: string;
+  wallet_id: string;
+  account_number: string;
+  account_name: string;
+  is_default: boolean;
+  created_at: string;
 }
 
 type PaymentMethod = "checkout" | "virtual_account" | "bank_transfer";
@@ -88,6 +97,16 @@ export default function Transfer() {
   const [selectedSavedAccount, setSelectedSavedAccount] =
     useState<SavedAccount | null>(null);
   const [showSavedAccounts, setShowSavedAccounts] = useState(false);
+
+  // New states for saved P2P beneficiaries
+  const [savedP2PBeneficiaries, setSavedP2PBeneficiaries] = useState<
+    SavedP2PBeneficiary[]
+  >([]);
+  const [saveP2PBeneficiary, setSaveP2PBeneficiary] = useState(false);
+  const [selectedSavedP2PBeneficiary, setSelectedSavedP2PBeneficiary] =
+    useState<SavedP2PBeneficiary | null>(null);
+  const [showSavedP2PBeneficiaries, setShowSavedP2PBeneficiaries] =
+    useState(false);
 
   // Confetti function
   const triggerConfetti = () => {
@@ -141,38 +160,43 @@ export default function Transfer() {
     setSearch("");
   };
 
-  // Fetch user & bank details
+  // Fetch user, bank details, saved accounts, and saved P2P beneficiaries
   useEffect(() => {
     if (!userData?.id) return;
 
     const fetchDetails = async () => {
       setLoading2(true);
       try {
-        const [accountRes, banksRes, savedAccountsRes] = await Promise.all([
-          fetch("/api/get-wallet-account-details", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: userData.id }),
-          }),
-          fetch("/api/banks"),
-          fetch(`/api/saved-accounts?userId=${userData.id}`),
-        ]);
+        const [accountRes, banksRes, savedAccountsRes, savedP2PRes] =
+          await Promise.all([
+            fetch("/api/get-wallet-account-details", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: userData.id }),
+            }),
+            fetch("/api/banks"),
+            fetch(`/api/saved-accounts?userId=${userData.id}`),
+            fetch(`/api/save-p2p-beneficiary?userId=${userData.id}`),
+          ]);
 
         const accountData = accountRes.ok ? await accountRes.json() : {};
         const banksData = banksRes.ok ? await banksRes.json() : {};
         const savedAccountsData = savedAccountsRes.ok
           ? await savedAccountsRes.json()
           : {};
+        const savedP2PData = savedP2PRes.ok ? await savedP2PRes.json() : {};
 
         setUserDetails(accountData || {});
         setBanks(banksData?.data || []);
         setSavedAccounts(savedAccountsData.accounts || []);
+        setSavedP2PBeneficiaries(savedP2PData.beneficiaries || []);
       } catch (err) {
         console.error("Error fetching details:", err);
         setUserDetails(null);
         setWalletDetails(null);
         setBanks([]);
         setSavedAccounts([]);
+        setSavedP2PBeneficiaries([]);
       } finally {
         setLoading2(false);
       }
@@ -181,12 +205,11 @@ export default function Transfer() {
     fetchDetails();
   }, [userData?.id]);
 
- 
+  // Handle account lookup for other-bank transfers
   useEffect(() => {
     if (transferType !== "other-bank") return;
     if (accountNumber.length !== 10 || !bankCode) return;
 
-    
     if (accountNumber === userDetails?.bank_details.bank_account_number) {
       setP2pDetails(null);
       setErrors((prev) => ({
@@ -230,7 +253,7 @@ export default function Transfer() {
     return () => clearTimeout(timeout);
   }, [accountNumber, bankCode, transferType]);
 
-
+  // Handle P2P lookup
   useEffect(() => {
     if (transferType !== "p2p") return;
     if (!recepientAcc || recepientAcc.length < 6) return;
@@ -292,7 +315,19 @@ export default function Transfer() {
     setSaveAccount(false);
   };
 
- 
+  // Handle saved P2P beneficiary selection
+  const handleSelectSavedP2PBeneficiary = (beneficiary: SavedP2PBeneficiary) => {
+    setSelectedSavedP2PBeneficiary(beneficiary);
+    setRecepientAcc(beneficiary.account_number);
+    setP2pDetails({
+      name: beneficiary.account_name,
+      id: beneficiary.wallet_id,
+    });
+    setShowSavedP2PBeneficiaries(false);
+    setSaveP2PBeneficiary(false);
+  };
+
+  // Handle account number change
   const handleAccountNumberChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -310,7 +345,23 @@ export default function Transfer() {
     }
   };
 
- 
+  // Handle P2P account number change
+  const handleP2PAccountNumberChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const newValue = e.target.value;
+    setRecepientAcc(newValue);
+
+    if (
+      selectedSavedP2PBeneficiary &&
+      newValue !== selectedSavedP2PBeneficiary.account_number
+    ) {
+      setSelectedSavedP2PBeneficiary(null);
+      setP2pDetails(null);
+    }
+  };
+
+  // Save account to profile
   const saveAccountToProfile = async () => {
     if (
       !userData?.id ||
@@ -339,7 +390,6 @@ export default function Transfer() {
       const data = await response.json();
 
       if (data.success) {
-        // Update local state
         setSavedAccounts((prev) => [...prev, data.account]);
         Swal.fire({
           icon: "success",
@@ -361,6 +411,58 @@ export default function Transfer() {
         icon: "error",
         title: "Error",
         text: "Failed to save account. Please try again.",
+      });
+    }
+  };
+
+  // Save P2P beneficiary to profile
+  const saveP2PBeneficiaryToProfile = async () => {
+    if (
+      !userData?.id ||
+      !recepientAcc ||
+      !p2pDetails?.name ||
+      !p2pDetails?.id
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/save-p2p-beneficiary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: userData.id,
+          walletId: p2pDetails.id,
+          accountNumber: recepientAcc,
+          accountName: p2pDetails.name,
+          isDefault: false,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSavedP2PBeneficiaries((prev) => [...prev, data.beneficiary]);
+        Swal.fire({
+          icon: "success",
+          title: "Beneficiary Saved!",
+          text: "This user has been saved to your beneficiaries for future transfers.",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Failed to Save",
+          text: data.message || "Could not save beneficiary",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save beneficiary:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Failed to save beneficiary. Please try again.",
       });
     }
   };
@@ -412,13 +514,13 @@ export default function Transfer() {
       const data = await res.json();
 
       if (res.ok) {
-
-        if (
-          saveAccount &&
-          !selectedSavedAccount &&
-          transferType === "other-bank"
-        ) {
+        // Save account/beneficiary if requested
+        if (saveAccount && !selectedSavedAccount && transferType === "other-bank") {
           await saveAccountToProfile();
+        }
+
+        if (saveP2PBeneficiary && !selectedSavedP2PBeneficiary && transferType === "p2p") {
+          await saveP2PBeneficiaryToProfile();
         }
 
         // Trigger confetti animation
@@ -434,7 +536,6 @@ export default function Transfer() {
           timerProgressBar: true,
           background: "#fefefe",
           didOpen: () => {
-     
             setTimeout(() => {
               confetti({
                 particleCount: 50,
@@ -448,7 +549,6 @@ export default function Transfer() {
           if (result.isConfirmed) {
             window.location.reload();
           }
-
           window.location.reload();
         });
 
@@ -463,7 +563,9 @@ export default function Transfer() {
         setPin(Array(inputCount).fill(""));
         setErrors({});
         setSaveAccount(false);
+        setSaveP2PBeneficiary(false);
         setSelectedSavedAccount(null);
+        setSelectedSavedP2PBeneficiary(null);
       } else {
         Swal.fire({
           icon: "error",
@@ -542,20 +644,17 @@ export default function Transfer() {
     !narration ||
     Number(amount) <= 0 ||
     (transferType === "my-account" &&
-      !userDetails.payment_details.p_account_number) ||
+      !userDetails?.payment_details?.p_account_number) ||
     (transferType === "other-bank" &&
       (!bankCode || !accountNumber || !accountName)) ||
     (transferType === "p2p" && (!recepientAcc || !p2pDetails?.id));
 
-    
   const getPaymentMethod = (): PaymentMethod => {
     if (transferType === "my-account" || transferType === "other-bank") {
       return "bank_transfer";
     }
-    return "bank_transfer"; 
+    return "bank_transfer";
   };
-
- 
 
   return (
     <>
@@ -599,7 +698,9 @@ export default function Transfer() {
                 onValueChange={(value) => {
                   setTransferType(value as "my-account" | "other-bank" | "p2p");
                   setSelectedSavedAccount(null);
+                  setSelectedSavedP2PBeneficiary(null);
                   setSaveAccount(false);
+                  setSaveP2PBeneficiary(false);
                 }}
               >
                 <SelectTrigger>
@@ -816,7 +917,7 @@ export default function Transfer() {
                       Account Name: {accountName}
                     </p>
 
-                    {/* Save Account Toggle - Only show when user manually enters account number (not from saved accounts) */}
+                    {/* Save Account Toggle */}
                     {!selectedSavedAccount &&
                       accountNumber.length === 10 &&
                       accountName && (
@@ -848,28 +949,111 @@ export default function Transfer() {
 
             {/* P2P */}
             {transferType === "p2p" && (
-              <div className="space-y-1">
-                <Label>Account Number (Zidwell User)</Label>
-                <Input
-                  type="number"
-                  value={recepientAcc}
-                  onChange={(e) => setRecepientAcc(e.target.value)}
-                  placeholder="0234******"
-                />
-                {errors.recepientAcc && (
-                  <p className="text-red-600 text-sm">{errors.recepientAcc}</p>
+              <>
+                {/* Saved P2P Beneficiaries Dropdown */}
+                {savedP2PBeneficiaries.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">
+                        Saved Beneficiaries
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSavedP2PBeneficiaries(!showSavedP2PBeneficiaries)}
+                        className="flex items-center gap-1"
+                      >
+                        <User className="h-4 w-4" />
+                        {showSavedP2PBeneficiaries ? "Hide" : "Show"} Saved
+                      </Button>
+                    </div>
+
+                    {showSavedP2PBeneficiaries && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 space-y-2 max-h-60 overflow-y-auto">
+                        {savedP2PBeneficiaries.map((beneficiary) => (
+                          <div
+                            key={beneficiary.id}
+                            onClick={() => handleSelectSavedP2PBeneficiary(beneficiary)}
+                            className={`p-2 rounded cursor-pointer transition-colors ${
+                              selectedSavedP2PBeneficiary?.id === beneficiary.id
+                                ? "bg-purple-100 border border-purple-300"
+                                : "bg-white hover:bg-gray-50 border"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-medium text-gray-900 text-sm">
+                                  {beneficiary.account_name}
+                                </p>
+                                <p className="text-xs text-gray-600">
+                                  {beneficiary.account_number} • Zidwell User
+                                </p>
+                              </div>
+                              {beneficiary.is_default && (
+                                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full ml-2">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
-                {lookupLoading && (
-                  <p className="text-[#C29307] text-sm flex items-center gap-2">
-                    <Loader2 className="animate-spin" /> Verifying account...
-                  </p>
-                )}
-                {p2pDetails?.name && !errors.recepientAcc && (
-                  <p className="text-green-600 text-sm font-semibold">
-                    Account Name: {p2pDetails.name}
-                  </p>
-                )}
-              </div>
+
+                <div className="space-y-1">
+                  <Label>Account Number (Zidwell User)</Label>
+                  <Input
+                    type="number"
+                    value={recepientAcc}
+                    onChange={handleP2PAccountNumberChange}
+                    placeholder="0234******"
+                  />
+                  {errors.recepientAcc && (
+                    <p className="text-red-600 text-sm">{errors.recepientAcc}</p>
+                  )}
+                  {lookupLoading && (
+                    <p className="text-[#C29307] text-sm flex items-center gap-2">
+                      <Loader2 className="animate-spin" /> Verifying account...
+                    </p>
+                  )}
+                  {p2pDetails?.name && !errors.recepientAcc && (
+                    <div className="space-y-2">
+                      <p className="text-green-600 text-sm font-semibold">
+                        Account Name: {p2pDetails.name}
+                      </p>
+
+                      {/* Save P2P Beneficiary Toggle */}
+                      {!selectedSavedP2PBeneficiary &&
+                        recepientAcc.length >= 6 &&
+                        p2pDetails?.name && (
+                          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                            <span className="text-sm font-medium text-gray-700">
+                              Save to beneficiaries
+                            </span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={saveP2PBeneficiary}
+                                onChange={(e) => setSaveP2PBeneficiary(e.target.checked)}
+                                className="sr-only peer"
+                              />
+                              <div
+                                className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer 
+                  peer-checked:after:translate-x-full peer-checked:after:border-white 
+                  after:content-[''] after:absolute after:top-0.5 after:left-0.5 
+                  after:bg-white after:border-gray-300 after:border after:rounded-full 
+                  after:h-5 after:w-5 after:transition-all peer-checked:bg-[#C29307]"
+                              ></div>
+                            </label>
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
             {/* Narration */}
@@ -925,7 +1109,7 @@ export default function Transfer() {
           setIsOpen(true);
         }}
         paymentMethod={getPaymentMethod()}
-         isP2P={transferType === "p2p"}
+        isP2P={transferType === "p2p"}
       />
     </>
   );

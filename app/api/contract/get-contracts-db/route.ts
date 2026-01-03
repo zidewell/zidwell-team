@@ -1,4 +1,4 @@
-// /app/api/get-contracts/route.ts
+
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 

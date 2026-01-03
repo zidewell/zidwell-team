@@ -39,7 +39,7 @@ export default function SignContractForm({
     setLoading(true);
 
     try {
-      const res = await fetch("/api/sign-contracts", {
+      const res = await fetch("/api/contract/sign-contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

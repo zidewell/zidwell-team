@@ -139,7 +139,7 @@ export default function PinPopOver({
                         className={`text-xl font-bold ${
                           invoiceFeeInfo.isFree
                             ? "text-green-600"
-                            : "text-yellow-600"
+                            : "text-[#C29307]"
                         }`}
                       >
                         {invoiceFeeInfo.isFree ? "FREE" : "₦100"}

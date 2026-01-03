@@ -159,7 +159,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               lastModified: Date.now(),
             });
 
-            console.log(`✅ Image compressed: ${file.size} → ${compressedFile.size} bytes (${Math.round((compressedFile.size / file.size) * 100)}%)`);
+            console.log(
+              `✅ Image compressed: ${file.size} → ${
+                compressedFile.size
+              } bytes (${Math.round((compressedFile.size / file.size) * 100)}%)`
+            );
             resolve(compressedFile);
           },
           "image/jpeg",
@@ -223,18 +227,24 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
         // Show loading message
         const loadingMsg = `<div class="image-loading" data-placeholder-id="${placeholderId}" style="border:2px dashed #C29307;padding:20px;text-align:center;color:#C29307;border-radius:0.375rem;margin:0.5rem 0;background-color:#fefce8;">
-          <div>⏳ Compressing image... (${(file.size / 1024 / 1024).toFixed(1)}MB)</div>
+          <div>⏳ Compressing image... (${(file.size / 1024 / 1024).toFixed(
+            1
+          )}MB)</div>
         </div>`;
-        
+
         execCommand("insertHTML", loadingMsg);
 
         // Compress the image first
         let finalFile = file;
-        if (file.size > 1024 * 1024) { // Compress if larger than 1MB
+        if (file.size > 1024 * 1024) {
+          // Compress if larger than 1MB
           try {
             finalFile = await compressImage(file);
           } catch (compressError) {
-            console.warn("Failed to compress image, using original:", compressError);
+            console.warn(
+              "Failed to compress image, using original:",
+              compressError
+            );
           }
         }
 
@@ -243,11 +253,13 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
         // Replace loading message with actual image
         const imgHTML = `<img src="${base64}" alt="Uploaded image" data-placeholder-id="${placeholderId}" data-filename="${file.name}" data-size="${finalFile.size}" data-original-size="${file.size}" style="max-width:100%;height:auto;border-radius:0.375rem;margin:0.5rem 0;border:2px dashed #C29307;opacity:0.8;" />`;
-        
+
         // Find and replace the loading div
         if (editorRef.current) {
           const editor = editorRef.current;
-          const loadingDiv = editor.querySelector(`div[data-placeholder-id="${placeholderId}"]`);
+          const loadingDiv = editor.querySelector(
+            `div[data-placeholder-id="${placeholderId}"]`
+          );
           if (loadingDiv) {
             loadingDiv.outerHTML = imgHTML;
           }
@@ -271,11 +283,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
           type: finalFile.type,
           placeholderId,
         });
-        
+
         handleInput();
       } catch (error) {
         console.error("Image processing error:", error);
-        
+
         // Remove loading message if it exists
         if (editorRef.current) {
           const editor = editorRef.current;
@@ -284,7 +296,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
             loadingDiv.remove();
           }
         }
-        
+
         alert("Failed to process image. Please try again.");
       }
     };
@@ -326,7 +338,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     if (!editorRef.current) return;
 
     const editor = editorRef.current;
-    const placeholders = editor.querySelectorAll("img[data-placeholder-id], div[data-placeholder-id]");
+    const placeholders = editor.querySelectorAll(
+      "img[data-placeholder-id], div[data-placeholder-id]"
+    );
     placeholders.forEach((img) => img.remove());
 
     setPendingImages([]);
@@ -621,7 +635,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
           <div className="flex items-center justify-between mb-2">
             <span className="font-medium flex items-center">
-              ⚠️ {pendingImages.length} image{pendingImages.length > 1 ? "s" : ""} ready for upload
+              ⚠️ {pendingImages.length} image
+              {pendingImages.length > 1 ? "s" : ""} ready for upload
             </span>
             <button
               type="button"
@@ -631,13 +646,18 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               Clear all
             </button>
           </div>
-          
+
           {/* Image size info */}
           <div className="space-y-1 text-xs">
             {pendingImages.map(({ file, placeholderId }) => (
-              <div key={placeholderId} className="flex items-center justify-between py-1 border-t border-yellow-100 first:border-t-0">
+              <div
+                key={placeholderId}
+                className="flex items-center justify-between py-1 border-t border-yellow-100 first:border-t-0"
+              >
                 <span className="truncate mr-2" title={file.name}>
-                  {file.name.length > 30 ? `${file.name.substring(0, 30)}...` : file.name}
+                  {file.name.length > 30
+                    ? `${file.name.substring(0, 30)}...`
+                    : file.name}
                 </span>
                 <span className="text-yellow-700 font-medium whitespace-nowrap">
                   {(file.size / 1024 / 1024).toFixed(1)} MB
@@ -645,9 +665,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
               </div>
             ))}
           </div>
-          
-          <p className="text-xs mt-2 text-yellow-600">
-            Images are compressed automatically. They will be uploaded when you submit the notification.
+
+          <p className="text-xs mt-2 text-[#C29307]">
+            Images are compressed automatically. They will be uploaded when you
+            submit the notification.
           </p>
         </div>
       )}
@@ -723,10 +744,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
         /* Image loading placeholder */
         .rich-text-editor [contenteditable] .image-loading {
-          border: 2px dashed #C29307;
+          border: 2px dashed #c29307;
           padding: 20px;
           text-align: center;
-          color: #C29307;
+          color: #c29307;
           border-radius: 0.375rem;
           margin: 0.5rem 0;
           background-color: #fefce8;

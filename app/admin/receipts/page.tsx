@@ -17,7 +17,13 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/app/components/ui/pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -38,13 +44,21 @@ export default function ReceiptsPage() {
       range: dateRange,
     });
 
-    if (searchTerm) params.append('search', searchTerm);
-    if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    if (searchTerm) params.append("search", searchTerm);
+    if (statusFilter !== "all") params.append("status", statusFilter);
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
 
     return `/api/admin-apis/receipts?${params.toString()}`;
-  }, [currentPage, dateRange, searchTerm, statusFilter, startDate, endDate, itemsPerPage]);
+  }, [
+    currentPage,
+    dateRange,
+    searchTerm,
+    statusFilter,
+    startDate,
+    endDate,
+    itemsPerPage,
+  ]);
 
   const { data, error, isLoading, mutate } = useSWR(apiUrl, fetcher);
 
@@ -52,13 +66,13 @@ export default function ReceiptsPage() {
   const statsApiUrl = useMemo(() => {
     const params = new URLSearchParams({
       range: dateRange,
-      limit: '10000', // Get all for stats calculation
+      limit: "10000", // Get all for stats calculation
     });
 
-    if (searchTerm) params.append('search', searchTerm);
-    if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
+    if (searchTerm) params.append("search", searchTerm);
+    if (statusFilter !== "all") params.append("status", statusFilter);
+    if (startDate) params.append("startDate", startDate);
+    if (endDate) params.append("endDate", endDate);
 
     return `/api/admin-apis/receipts?${params.toString()}`;
   }, [dateRange, searchTerm, statusFilter, startDate, endDate]);
@@ -73,59 +87,78 @@ export default function ReceiptsPage() {
   // Memoize calculations
   const receipts = useMemo(() => data?.receipts || [], [data]);
   const totalReceipts = useMemo(() => data?.total || 0, [data]);
-  const totalPages = useMemo(() => Math.ceil(totalReceipts / itemsPerPage), [totalReceipts, itemsPerPage]);
+  const totalPages = useMemo(
+    () => Math.ceil(totalReceipts / itemsPerPage),
+    [totalReceipts, itemsPerPage]
+  );
 
   // Use statsData for calculations
-  const allFilteredReceipts = useMemo(() => statsData?.receipts || [], [statsData]);
+  const allFilteredReceipts = useMemo(
+    () => statsData?.receipts || [],
+    [statsData]
+  );
 
   // Calculate stats
-  const totalAmount = useMemo(() => 
-    allFilteredReceipts.reduce((sum: number, r: any) => sum + Number(r.amount_balance || 0), 0), 
+  const totalAmount = useMemo(
+    () =>
+      allFilteredReceipts.reduce(
+        (sum: number, r: any) => sum + Number(r.amount_balance || 0),
+        0
+      ),
     [allFilteredReceipts]
   );
 
-  const pendingReceipts = useMemo(() => 
-    allFilteredReceipts.filter((r: any) => r.status === "pending" || r.status === "draft"), 
+  const pendingReceipts = useMemo(
+    () =>
+      allFilteredReceipts.filter(
+        (r: any) => r.status === "pending" || r.status === "draft"
+      ),
     [allFilteredReceipts]
   );
 
-  const signedReceipts = useMemo(() => 
-    allFilteredReceipts.filter((r: any) => r.status === "signed" || r.status === "completed"), 
+  const signedReceipts = useMemo(
+    () =>
+      allFilteredReceipts.filter(
+        (r: any) => r.status === "signed" || r.status === "completed"
+      ),
     [allFilteredReceipts]
   );
 
-  const rejectedReceipts = useMemo(() => 
-    allFilteredReceipts.filter((r: any) => r.status === "rejected" || r.status === "cancelled"), 
+  const rejectedReceipts = useMemo(
+    () =>
+      allFilteredReceipts.filter(
+        (r: any) => r.status === "rejected" || r.status === "cancelled"
+      ),
     [allFilteredReceipts]
   );
 
-  const expiredReceipts = useMemo(() => 
-    allFilteredReceipts.filter((r: any) => r.status === "expired"), 
+  const expiredReceipts = useMemo(
+    () => allFilteredReceipts.filter((r: any) => r.status === "expired"),
     [allFilteredReceipts]
   );
 
   // ✅ Edit receipt status
   async function handleEdit(row: any) {
     const { value: newStatus } = await Swal.fire({
-      title: 'Update Receipt Status',
-      input: 'select',
+      title: "Update Receipt Status",
+      input: "select",
       inputOptions: {
-        'draft': 'Draft',
-        'pending': 'Pending',
-        'sent': 'Sent',
-        'signed': 'Signed',
-        'completed': 'Completed',
-        'rejected': 'Rejected',
-        'cancelled': 'Cancelled',
-        'expired': 'Expired'
+        draft: "Draft",
+        pending: "Pending",
+        sent: "Sent",
+        signed: "Signed",
+        completed: "Completed",
+        rejected: "Rejected",
+        cancelled: "Cancelled",
+        expired: "Expired",
       },
       inputValue: row.status,
       showCancelButton: true,
       inputValidator: (value) => {
         if (!value) {
-          return 'You need to select a status!';
+          return "You need to select a status!";
         }
-      }
+      },
     });
 
     if (newStatus) {
@@ -135,7 +168,7 @@ export default function ReceiptsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: row.id, status: newStatus }),
         });
-        
+
         Swal.fire({
           icon: "success",
           title: "Status Updated",
@@ -143,7 +176,7 @@ export default function ReceiptsPage() {
           timer: 2000,
           showConfirmButton: false,
         });
-        
+
         mutate();
       } catch (err) {
         Swal.fire("Error", "Failed to update receipt status", "error");
@@ -154,14 +187,14 @@ export default function ReceiptsPage() {
   // ✅ Delete receipt
   async function handleDelete(row: any) {
     const result = await Swal.fire({
-      title: 'Delete Receipt?',
+      title: "Delete Receipt?",
       text: `Are you sure you want to delete receipt ${row.receipt_id}?`,
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Delete',
-      cancelButtonText: 'Cancel'
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Delete",
+      cancelButtonText: "Cancel",
     });
 
     if (result.isConfirmed) {
@@ -171,7 +204,7 @@ export default function ReceiptsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: row.id }),
         });
-        
+
         Swal.fire({
           icon: "success",
           title: "Deleted!",
@@ -179,7 +212,7 @@ export default function ReceiptsPage() {
           timer: 2000,
           showConfirmButton: false,
         });
-        
+
         mutate();
       } catch (err) {
         Swal.fire("Error", "Failed to delete receipt", "error");
@@ -202,7 +235,9 @@ export default function ReceiptsPage() {
           <div>${row.signee_email || "N/A"}</div>
           
           <div><strong>Amount:</strong></div>
-          <div class="font-semibold">₦${Number(row.amount_balance || 0).toLocaleString()}</div>
+          <div class="font-semibold">₦${Number(
+            row.amount_balance || 0
+          ).toLocaleString()}</div>
           
           <div><strong>Status:</strong></div>
           <div>${row.status}</div>
@@ -242,13 +277,18 @@ export default function ReceiptsPage() {
       completed: { color: "bg-green-100 text-green-800", text: "🎉 Completed" },
       rejected: { color: "bg-red-100 text-red-800", text: "❌ Rejected" },
       cancelled: { color: "bg-red-100 text-red-800", text: "🚫 Cancelled" },
-      expired: { color: "bg-orange-100 text-orange-800", text: "⏰ Expired" }
+      expired: { color: "bg-orange-100 text-orange-800", text: "⏰ Expired" },
     };
 
-    const config = statusConfig[value] || { color: "bg-gray-100 text-gray-800", text: value };
-    
+    const config = statusConfig[value] || {
+      color: "bg-gray-100 text-gray-800",
+      text: value,
+    };
+
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}
+      >
         {config.text}
       </span>
     );
@@ -266,13 +306,15 @@ export default function ReceiptsPage() {
     try {
       const date = new Date(value);
       if (isNaN(date.getTime())) return value || "-";
-      
+
       const now = new Date();
       const hoursDiff = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
       const formattedDate = date.toLocaleString();
-      
+
       if (hoursDiff < 1) {
-        return <span className="text-green-600 font-medium">{formattedDate}</span>;
+        return (
+          <span className="text-green-600 font-medium">{formattedDate}</span>
+        );
       } else if (hoursDiff < 24) {
         return <span className="text-blue-600">{formattedDate}</span>;
       } else {
@@ -296,7 +338,9 @@ export default function ReceiptsPage() {
   if (error) {
     return (
       <AdminLayout>
-        <div className="text-center text-red-500 mt-10">Failed to load receipts.</div>
+        <div className="text-center text-red-500 mt-10">
+          Failed to load receipts.
+        </div>
       </AdminLayout>
     );
   }
@@ -327,11 +371,13 @@ export default function ReceiptsPage() {
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Total Amount</h3>
-            <p className="text-2xl font-semibold">₦{totalAmount.toLocaleString()}</p>
+            <p className="text-2xl font-semibold">
+              ₦{totalAmount.toLocaleString()}
+            </p>
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
             <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-            <p className="text-2xl font-semibold text-yellow-600">
+            <p className="text-2xl font-semibold text-[#C29307]">
               {pendingReceipts.length}
             </p>
           </div>
@@ -364,7 +410,7 @@ export default function ReceiptsPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
+
           <div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -401,8 +447,8 @@ export default function ReceiptsPage() {
           </div>
 
           <div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full"
               onClick={() => {
                 setSearchTerm("");
@@ -421,7 +467,9 @@ export default function ReceiptsPage() {
         {dateRange === "custom" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                From Date
+              </label>
               <Input
                 type="date"
                 value={startDate}
@@ -429,7 +477,9 @@ export default function ReceiptsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                To Date
+              </label>
               <Input
                 type="date"
                 value={endDate}
@@ -443,7 +493,7 @@ export default function ReceiptsPage() {
         <div className="text-sm text-gray-500">
           Showing {receipts.length} of {totalReceipts} receipts
           {searchTerm && ` matching "${searchTerm}"`}
-          {statusFilter !== 'all' && ` | Status: ${statusFilter}`}
+          {statusFilter !== "all" && ` | Status: ${statusFilter}`}
           {dateRange !== "total" && ` | Date: ${dateRange}`}
           {` - Page ${currentPage} of ${totalPages}`}
         </div>
@@ -466,7 +516,9 @@ export default function ReceiptsPage() {
                   <PaginationPrevious
                     href="#"
                     onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    className={
+                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
                   />
                 </PaginationItem>
 
@@ -498,8 +550,14 @@ export default function ReceiptsPage() {
                 <PaginationItem>
                   <PaginationNext
                     href="#"
-                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                    className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(p + 1, totalPages))
+                    }
+                    className={
+                      currentPage >= totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
                   />
                 </PaginationItem>
               </PaginationContent>

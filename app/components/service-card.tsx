@@ -68,7 +68,7 @@ const services: any = [
     title: "Buy Light",
     description: "Pay Electricity",
     icon: Lightbulb,
-    color: "bg-yellow-50 text-yellow-600",
+    color: "bg-yellow-50 text-[#C29307]",
     buttonColor: "bg-[#C29307] hover:bg-[#C29307]",
     link: "/dashboard/services/buy-power",
   },

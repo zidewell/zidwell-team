@@ -1,17 +1,26 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Bot, TrendingUp, TrendingDown, DollarSign, PieChart, BarChart3, Send, Mic } from "lucide-react"
-import { Button } from "./ui/button" 
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { Input } from "./ui/input"
-import { Badge } from "./ui/badge"
+import { useState } from "react";
+import {
+  Bot,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  PieChart,
+  BarChart3,
+  Send,
+  Mic,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Input } from "./ui/input";
+import { Badge } from "./ui/badge";
 
 interface ChatMessage {
-  id: string
-  type: "user" | "ai"
-  message: string
-  timestamp: Date
+  id: string;
+  type: "user" | "ai";
+  message: string;
+  timestamp: Date;
 }
 
 const insights = [
@@ -47,18 +56,20 @@ const insights = [
     color: "text-orange-600",
     bgColor: "bg-orange-50",
   },
-]
+];
 
 const recommendations = [
   {
     title: "Optimize Payment Terms",
-    description: "Consider reducing payment terms from 30 to 15 days to improve cash flow",
+    description:
+      "Consider reducing payment terms from 30 to 15 days to improve cash flow",
     priority: "High",
     impact: "₦2.5M monthly improvement",
   },
   {
     title: "Diversify Revenue Streams",
-    description: "Explore additional services like insurance payments to reduce dependency",
+    description:
+      "Explore additional services like insurance payments to reduce dependency",
     priority: "Medium",
     impact: "15-20% revenue increase potential",
   },
@@ -68,7 +79,7 @@ const recommendations = [
     priority: "Low",
     impact: "5% cost reduction",
   },
-]
+];
 
 export default function AIAccountant() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -79,20 +90,20 @@ export default function AIAccountant() {
         "Hello! I'm your AI Accountant. I can help you with financial analysis, budgeting, tax planning, and business insights. What would you like to know about your finances today?",
       timestamp: new Date(),
     },
-  ])
-  const [inputMessage, setInputMessage] = useState("")
+  ]);
+  const [inputMessage, setInputMessage] = useState("");
 
   const sendMessage = () => {
-    if (!inputMessage.trim()) return
+    if (!inputMessage.trim()) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: "user",
       message: inputMessage,
       timestamp: new Date(),
-    }
+    };
 
-    setChatMessages((prev) => [...prev, userMessage])
+    setChatMessages((prev) => [...prev, userMessage]);
 
     // Simulate AI response
     setTimeout(() => {
@@ -101,26 +112,26 @@ export default function AIAccountant() {
         type: "ai",
         message: getAIResponse(inputMessage),
         timestamp: new Date(),
-      }
-      setChatMessages((prev) => [...prev, aiResponse])
-    }, 1000)
+      };
+      setChatMessages((prev) => [...prev, aiResponse]);
+    }, 1000);
 
-    setInputMessage("")
-  }
+    setInputMessage("");
+  };
 
   const getAIResponse = (message: string): string => {
-    const lowerMessage = message.toLowerCase()
+    const lowerMessage = message.toLowerCase();
     if (lowerMessage.includes("revenue") || lowerMessage.includes("income")) {
-      return "Your revenue has grown by 23.5% this month! The main drivers are increased transaction volumes in airtime and data services. I recommend focusing on customer retention strategies to maintain this growth."
+      return "Your revenue has grown by 23.5% this month! The main drivers are increased transaction volumes in airtime and data services. I recommend focusing on customer retention strategies to maintain this growth.";
     }
     if (lowerMessage.includes("expense") || lowerMessage.includes("cost")) {
-      return "Your expenses have decreased by 12.3% compared to last month. This is mainly due to optimized operational costs. I suggest maintaining this trend by automating more processes."
+      return "Your expenses have decreased by 12.3% compared to last month. This is mainly due to optimized operational costs. I suggest maintaining this trend by automating more processes.";
     }
     if (lowerMessage.includes("tax")) {
-      return "Based on your current revenue, you should set aside approximately ₦850,000 for tax obligations this quarter. I can help you optimize your tax strategy through legitimate deductions."
+      return "Based on your current revenue, you should set aside approximately ₦850,000 for tax obligations this quarter. I can help you optimize your tax strategy through legitimate deductions.";
     }
-    return "I understand you're asking about your finances. Could you be more specific? I can help with revenue analysis, expense tracking, tax planning, cash flow management, or financial forecasting."
-  }
+    return "I understand you're asking about your finances. Could you be more specific? I can help with revenue analysis, expense tracking, tax planning, cash flow management, or financial forecasting.";
+  };
 
   return (
     <div className="space-y-6">
@@ -135,8 +146,12 @@ export default function AIAccountant() {
                 </div>
                 <Badge variant="secondary">AI Insight</Badge>
               </div>
-              <h3 className="font-semibold text-gray-900 mb-1">{insight.title}</h3>
-              <p className={`text-2xl font-bold mb-1 ${insight.color}`}>{insight.value}</p>
+              <h3 className="font-semibold text-gray-900 mb-1">
+                {insight.title}
+              </h3>
+              <p className={`text-2xl font-bold mb-1 ${insight.color}`}>
+                {insight.value}
+              </p>
               <p className="text-sm text-gray-600">{insight.description}</p>
             </CardContent>
           </Card>
@@ -157,7 +172,12 @@ export default function AIAccountant() {
               {/* Chat Messages */}
               <div className="h-96 overflow-y-auto space-y-4 p-4 bg-gray-50 rounded-lg">
                 {chatMessages.map((message) => (
-                  <div key={message.id} className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    key={message.id}
+                    className={`flex ${
+                      message.type === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                         message.type === "user"
@@ -166,7 +186,13 @@ export default function AIAccountant() {
                       }`}
                     >
                       <p className="text-sm">{message.message}</p>
-                      <p className={`text-xs mt-1 ${message.type === "user" ? "text-blue-100" : "text-gray-500"}`}>
+                      <p
+                        className={`text-xs mt-1 ${
+                          message.type === "user"
+                            ? "text-blue-100"
+                            : "text-gray-500"
+                        }`}
+                      >
                         {message.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
@@ -179,8 +205,8 @@ export default function AIAccountant() {
                 <Input
                   placeholder="Ask me about your finances..."
                   value={inputMessage}
-                  onChange={(e:any) => setInputMessage(e.target.value)}
-                  onKeyPress={(e:any) => e.key === "Enter" && sendMessage()}
+                  onChange={(e: any) => setInputMessage(e.target.value)}
+                  onKeyPress={(e: any) => e.key === "Enter" && sendMessage()}
                   className="flex-1"
                 />
                 <Button onClick={sendMessage} disabled={!inputMessage.trim()}>
@@ -193,8 +219,18 @@ export default function AIAccountant() {
 
               {/* Quick Questions */}
               <div className="flex flex-wrap gap-2">
-                {["Revenue analysis", "Tax planning", "Cash flow", "Expense optimization"].map((question) => (
-                  <Button key={question} variant="outline" size="sm" onClick={() => setInputMessage(question)}>
+                {[
+                  "Revenue analysis",
+                  "Tax planning",
+                  "Cash flow",
+                  "Expense optimization",
+                ].map((question) => (
+                  <Button
+                    key={question}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setInputMessage(question)}
+                  >
                     {question}
                   </Button>
                 ))}
@@ -214,19 +250,30 @@ export default function AIAccountant() {
           <CardContent>
             <div className="space-y-4">
               {recommendations.map((rec, index) => (
-                <div key={index} className="p-4 border border-gray-200 rounded-lg">
+                <div
+                  key={index}
+                  className="p-4 border border-gray-200 rounded-lg"
+                >
                   <div className="flex items-start justify-between mb-2">
                     <h4 className="font-medium text-gray-900">{rec.title}</h4>
                     <Badge
                       variant={
-                        rec.priority === "High" ? "destructive" : rec.priority === "Medium" ? "default" : "secondary"
+                        rec.priority === "High"
+                          ? "destructive"
+                          : rec.priority === "Medium"
+                          ? "default"
+                          : "secondary"
                       }
                     >
                       {rec.priority}
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-600 mb-2">{rec.description}</p>
-                  <p className="text-sm font-medium text-green-600">{rec.impact}</p>
+                  <p className="text-sm text-gray-600 mb-2">
+                    {rec.description}
+                  </p>
+                  <p className="text-sm font-medium text-green-600">
+                    {rec.impact}
+                  </p>
                 </div>
               ))}
             </div>
@@ -249,7 +296,9 @@ export default function AIAccountant() {
               </div>
               <div>
                 <p className="text-lg font-semibold text-gray-900">Excellent</p>
-                <p className="text-sm text-gray-600">Your financial health is above average</p>
+                <p className="text-sm text-gray-600">
+                  Your financial health is above average
+                </p>
               </div>
               <div className="space-y-2 text-left">
                 <div className="flex justify-between text-sm">
@@ -266,7 +315,7 @@ export default function AIAccountant() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Risk Management</span>
-                  <span className="text-yellow-600">75%</span>
+                  <span className="text-[#C29307]">75%</span>
                 </div>
               </div>
             </div>
@@ -274,5 +323,5 @@ export default function AIAccountant() {
         </Card>
       </div>
     </div>
-  )
+  );
 }

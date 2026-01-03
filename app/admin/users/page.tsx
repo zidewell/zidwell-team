@@ -25,7 +25,12 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/app/components/ui/pagination";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -48,8 +53,8 @@ export default function UsersPage() {
 
   // Fetch data based on active tab
   const { data, error, isLoading, mutate } = useSWR(
-    activeTab === "pending" 
-      ? "/api/admin-apis/users/pending-users" 
+    activeTab === "pending"
+      ? "/api/admin-apis/users/pending-users"
       : "/api/admin-apis/users",
     fetcher
   );
@@ -61,7 +66,14 @@ export default function UsersPage() {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, roleFilter, activityFilter, activeTab, balanceFilter]);
+  }, [
+    searchTerm,
+    statusFilter,
+    roleFilter,
+    activityFilter,
+    activeTab,
+    balanceFilter,
+  ]);
 
   // Process users data for active users tab
   const activeUsers = React.useMemo(() => {
@@ -73,7 +85,7 @@ export default function UsersPage() {
       created_at_raw: user.created_at,
       last_login_raw: user.last_login,
       last_logout_raw: user.last_logout,
-      is_blocked: user.is_blocked || user.status === 'blocked',
+      is_blocked: user.is_blocked || user.status === "blocked",
     }));
   }, [data, activeTab]);
 
@@ -90,34 +102,37 @@ export default function UsersPage() {
 
   // Helper functions for user activity
   const isUserRecentlyActive = (user: any) => {
-    const isActiveStatus = !user.is_blocked && user.status === 'active';
+    const isActiveStatus = !user.is_blocked && user.status === "active";
     const hasRecentLogin = user.last_login_raw;
-    
+
     if (hasRecentLogin) {
       const lastLogin = new Date(user.last_login_raw);
-      const daysSinceLogin = (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceLogin =
+        (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60 * 24);
       return isActiveStatus && daysSinceLogin <= 30;
     }
-    
+
     return isActiveStatus;
   };
 
   const isUserActiveToday = (user: any) => {
-    if (user.is_blocked || user.status !== 'active' || !user.last_login_raw) return false;
+    if (user.is_blocked || user.status !== "active" || !user.last_login_raw)
+      return false;
     const lastLogin = new Date(user.last_login_raw);
     const today = new Date();
     return lastLogin.toDateString() === today.toDateString();
   };
 
   const isUserActiveThisWeek = (user: any) => {
-    if (user.is_blocked || user.status !== 'active' || !user.last_login_raw) return false;
+    if (user.is_blocked || user.status !== "active" || !user.last_login_raw)
+      return false;
     const lastLogin = new Date(user.last_login_raw);
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     return lastLogin > weekAgo;
   };
 
   const isUserInactive = (user: any) => {
-    if (user.is_blocked || user.status !== 'active') return false;
+    if (user.is_blocked || user.status !== "active") return false;
     if (!user.last_login_raw) return true;
     const lastLogin = new Date(user.last_login_raw);
     const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -149,39 +164,47 @@ export default function UsersPage() {
   const lowBalanceUsers = activeUsers.filter(isLowBalance);
   const highBalanceUsers = activeUsers.filter(isHighBalance);
   const negativeBalanceUsers = activeUsers.filter(isNegativeBalance);
-  const pendingUsersCount = activeTab === "active" 
-    ? (data?.stats?.pending || pendingUsers.length) 
-    : pendingUsers.length;
+  const pendingUsersCount =
+    activeTab === "active"
+      ? data?.stats?.pending || pendingUsers.length
+      : pendingUsers.length;
 
   // Filter users based on search and filters
   const filteredActiveUsers = activeUsers.filter((user: any) => {
-    const matchesSearch = 
+    const matchesSearch =
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || 
+
+    const matchesStatus =
+      statusFilter === "all" ||
       (statusFilter === "active" && !user.is_blocked) ||
       (statusFilter === "blocked" && user.is_blocked);
-    
+
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    
-    const matchesActivity = 
+
+    const matchesActivity =
       activityFilter === "all" ||
       (activityFilter === "active" && isUserRecentlyActive(user)) ||
       (activityFilter === "today" && isUserActiveToday(user)) ||
       (activityFilter === "week" && isUserActiveThisWeek(user)) ||
       (activityFilter === "inactive" && isUserInactive(user));
-    
+
     // NEW: Balance filter logic
-    const matchesBalance = 
+    const matchesBalance =
       balanceFilter === "all" ||
       (balanceFilter === "low" && isLowBalance(user)) ||
       (balanceFilter === "high" && isHighBalance(user)) ||
       (balanceFilter === "negative" && isNegativeBalance(user)) ||
       (balanceFilter === "zero" && (Number(user.balance) || 0) === 0);
-    
-    return matchesSearch && matchesStatus && matchesRole && matchesActivity && matchesBalance;
+
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesRole &&
+      matchesActivity &&
+      matchesBalance
+    );
   });
 
   // Filter pending users based on search
@@ -194,7 +217,8 @@ export default function UsersPage() {
   });
 
   // Determine which data to use based on active tab
-  const currentUsers = activeTab === "active" ? filteredActiveUsers : filteredPendingUsers;
+  const currentUsers =
+    activeTab === "active" ? filteredActiveUsers : filteredPendingUsers;
   const currentData = activeTab === "active" ? activeUsers : pendingUsers;
 
   // Pagination
@@ -213,176 +237,188 @@ export default function UsersPage() {
     setSelectedUserId(null);
   };
 
- // ---------- Export to CSV ----------
-const handleExportCSV = async () => {
-  setExportLoading(true);
-  try {
-    // Build query parameters with all current filters
-    const params = new URLSearchParams();
-    
-    // Basic filters
-    if (searchTerm) params.append('search', searchTerm);
-    if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (roleFilter !== 'all') params.append('role', roleFilter);
-    if (activityFilter !== 'all') params.append('activity', activityFilter);
-    if (balanceFilter !== 'all') params.append('balance', balanceFilter);
-    
-    // Add tab type and current page info
-    params.append('type', activeTab);
-    params.append('page', currentPage.toString());
-    params.append('limit', itemsPerPage.toString());
-    
-    // Add balance thresholds for accurate server-side filtering
-    params.append('low_threshold', LOW_BALANCE_THRESHOLD.toString());
-    params.append('high_threshold', HIGH_BALANCE_THRESHOLD.toString());
-    
-    console.log('Exporting with params:', params.toString());
-    
-    const response = await fetch(`/api/admin-apis/users/export?${params.toString()}`);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Export failed: ${errorText}`);
-    }
-    
-    // Get the filename from Content-Disposition header or use default
-    const contentDisposition = response.headers.get('Content-Disposition');
-    let filename = `${activeTab}_users_${new Date().toISOString().split('T')[0]}.csv`;
-    
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      if (filenameMatch && filenameMatch[1]) {
-        filename = filenameMatch[1].replace(/['"]/g, '');
+  // ---------- Export to CSV ----------
+  const handleExportCSV = async () => {
+    setExportLoading(true);
+    try {
+      // Build query parameters with all current filters
+      const params = new URLSearchParams();
+
+      // Basic filters
+      if (searchTerm) params.append("search", searchTerm);
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      if (roleFilter !== "all") params.append("role", roleFilter);
+      if (activityFilter !== "all") params.append("activity", activityFilter);
+      if (balanceFilter !== "all") params.append("balance", balanceFilter);
+
+      // Add tab type and current page info
+      params.append("type", activeTab);
+      params.append("page", currentPage.toString());
+      params.append("limit", itemsPerPage.toString());
+
+      // Add balance thresholds for accurate server-side filtering
+      params.append("low_threshold", LOW_BALANCE_THRESHOLD.toString());
+      params.append("high_threshold", HIGH_BALANCE_THRESHOLD.toString());
+
+      console.log("Exporting with params:", params.toString());
+
+      const response = await fetch(
+        `/api/admin-apis/users/export?${params.toString()}`
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Export failed: ${errorText}`);
       }
+
+      // Get the filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get("Content-Disposition");
+      let filename = `${activeTab}_users_${
+        new Date().toISOString().split("T")[0]
+      }.csv`;
+
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(
+          /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+        );
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, "");
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      Swal.fire({
+        icon: "success",
+        title: "Export Successful",
+        text: `Exported ${currentUsers.length} users to CSV`,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } catch (error: any) {
+      console.error("Export error:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Export Failed",
+        text: error.message || "Failed to export users data. Please try again.",
+      });
+    } finally {
+      setExportLoading(false);
     }
-    
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-    
-    Swal.fire({
-      icon: 'success',
-      title: 'Export Successful',
-      text: `Exported ${currentUsers.length} users to CSV`,
-      timer: 2000,
-      showConfirmButton: false,
-    });
-  } catch (error: any) {
-    console.error('Export error:', error);
-    Swal.fire({
-      icon: 'error',
-      title: 'Export Failed',
-      text: error.message || 'Failed to export users data. Please try again.',
-    });
-  } finally {
-    setExportLoading(false);
-  }
-};
+  };
 
   // ---------- Handle Pending User Actions ----------
   const handleApprovePendingUser = async (user: any) => {
     const result = await Swal.fire({
-      title: 'Approve User?',
+      title: "Approve User?",
       text: `This will approve ${user.email} and allow them to access the platform.`,
-      icon: 'question',
+      icon: "question",
       showCancelButton: true,
-      confirmButtonColor: '#10b981',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Approve',
-      cancelButtonText: 'Cancel'
+      confirmButtonColor: "#10b981",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Approve",
+      cancelButtonText: "Cancel",
     });
 
     if (!result.isConfirmed) return;
 
     try {
-      const r = await fetch(`/api/admin-apis/users/pending-users/${user.id}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const r = await fetch(
+        `/api/admin-apis/users/pending-users/${user.id}/approve`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        }
+      );
 
       if (!r.ok) {
         const errorData = await r.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to approve user');
+        throw new Error(errorData.error || "Failed to approve user");
       }
 
       Swal.fire({
-        icon: 'success',
-        title: 'User Approved',
+        icon: "success",
+        title: "User Approved",
         text: `${user.email} has been approved and can now access the platform.`,
         timer: 2000,
         showConfirmButton: false,
       });
-      
+
       mutate();
     } catch (err: any) {
       console.error(err);
-      Swal.fire('Error', err.message || 'Failed to approve user', 'error');
+      Swal.fire("Error", err.message || "Failed to approve user", "error");
     }
   };
 
   const handleRejectPendingUser = async (user: any) => {
     const { value: reason } = await Swal.fire({
-      title: 'Reject User Registration',
-      input: 'text',
-      inputLabel: 'Please provide a reason for rejection:',
-      inputPlaceholder: 'e.g., Invalid documentation, incomplete information',
+      title: "Reject User Registration",
+      input: "text",
+      inputLabel: "Please provide a reason for rejection:",
+      inputPlaceholder: "e.g., Invalid documentation, incomplete information",
       showCancelButton: true,
-      confirmButtonText: 'Reject User',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#ef4444',
+      confirmButtonText: "Reject User",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#ef4444",
       inputValidator: (value) => {
         if (!value) {
-          return 'Please provide a reason for rejection';
+          return "Please provide a reason for rejection";
         }
-      }
+      },
     });
 
     if (!reason) return;
 
     const confirm = await Swal.fire({
-      title: 'Confirm Rejection?',
+      title: "Confirm Rejection?",
       text: `This will permanently reject ${user.email}'s registration.`,
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Yes, Reject',
-      cancelButtonText: 'Cancel'
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, Reject",
+      cancelButtonText: "Cancel",
     });
 
     if (!confirm.isConfirmed) return;
 
     try {
-      const r = await fetch(`/api/admin-apis/users/pending-users/${user.id}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason }),
-      });
+      const r = await fetch(
+        `/api/admin-apis/users/pending-users/${user.id}/reject`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason }),
+        }
+      );
 
       if (!r.ok) {
         const errorData = await r.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to reject user');
+        throw new Error(errorData.error || "Failed to reject user");
       }
 
       Swal.fire({
-        icon: 'success',
-        title: 'User Rejected',
+        icon: "success",
+        title: "User Rejected",
         text: `${user.email} has been rejected.`,
         timer: 2000,
         showConfirmButton: false,
       });
-      
+
       mutate();
     } catch (err: any) {
       console.error(err);
-      Swal.fire('Error', err.message || 'Failed to reject user', 'error');
+      Swal.fire("Error", err.message || "Failed to reject user", "error");
     }
   };
 
@@ -400,10 +436,11 @@ const handleExportCSV = async () => {
     if (!res.isConfirmed) return;
 
     try {
-      const endpoint = activeTab === "pending" 
-        ? `/api/admin-apis/users/pending-users/${user.id}`
-        : `/api/admin-apis/users/${user.id}`;
-      
+      const endpoint =
+        activeTab === "pending"
+          ? `/api/admin-apis/users/pending-users/${user.id}`
+          : `/api/admin-apis/users/${user.id}`;
+
       const r = await fetch(endpoint, {
         method: "DELETE",
       });
@@ -438,7 +475,7 @@ const handleExportCSV = async () => {
           if (!value) {
             return "Please provide a reason for blocking";
           }
-        }
+        },
       });
 
       if (!blockReason) return;
@@ -449,7 +486,9 @@ const handleExportCSV = async () => {
       title: `${actionText} user?`,
       text: isCurrentlyBlocked
         ? `Unblock ${user.email}? They will be able to log in again.`
-        : `Block ${user.email}? They will not be able to log in.${reason ? ` Reason: ${reason}` : ''}`,
+        : `Block ${user.email}? They will not be able to log in.${
+            reason ? ` Reason: ${reason}` : ""
+          }`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: actionText,
@@ -462,9 +501,9 @@ const handleExportCSV = async () => {
       const r = await fetch(`/api/admin-apis/users/${user.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          action, 
-          reason: action === "block" ? reason : "Admin unblocked" 
+        body: JSON.stringify({
+          action,
+          reason: action === "block" ? reason : "Admin unblocked",
         }),
       });
 
@@ -474,7 +513,7 @@ const handleExportCSV = async () => {
       }
 
       const result = await r.json();
-      
+
       Swal.fire(
         `${actionText}ed`,
         `${user.email} has been ${actionText.toLowerCase()}ed.`,
@@ -544,7 +583,7 @@ const handleExportCSV = async () => {
       },
     });
 
-    if (!formValues) return; 
+    if (!formValues) return;
 
     try {
       const r = await fetch(`/api/admin-apis/users/${user.id}`, {
@@ -569,14 +608,14 @@ const handleExportCSV = async () => {
   // ---------- Force Logout ----------
   const handleForceLogout = async (user: any) => {
     const result = await Swal.fire({
-      title: 'Force Logout?',
+      title: "Force Logout?",
       text: `This will immediately log out ${user.email} from all sessions.`,
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Force Logout',
-      cancelButtonText: 'Cancel'
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Force Logout",
+      cancelButtonText: "Cancel",
     });
 
     if (!result.isConfirmed) return;
@@ -606,32 +645,40 @@ const handleExportCSV = async () => {
   // ---------- View Login History ----------
   const handleViewLoginHistory = async (user: any) => {
     try {
-      const response = await fetch(`/api/admin-apis/users/${user.id}/login-history`);
+      const response = await fetch(
+        `/api/admin-apis/users/${user.id}/login-history`
+      );
       if (!response.ok) throw new Error("Failed to fetch login history");
-      
+
       const history = await response.json();
-      
+
       let historyHtml = '<div class="text-left max-h-64 overflow-y-auto">';
       if (history.length === 0) {
         historyHtml += '<p class="text-gray-500">No login history found.</p>';
       } else {
         historyHtml += '<ul class="space-y-2">';
         history.forEach((entry: any) => {
-          const loginTime = isClient ? new Date(entry.login_time).toLocaleString() : entry.login_time;
-          const logoutTime = entry.logout_time 
-            ? (isClient ? new Date(entry.logout_time).toLocaleString() : entry.logout_time)
-            : 'Still logged in';
+          const loginTime = isClient
+            ? new Date(entry.login_time).toLocaleString()
+            : entry.login_time;
+          const logoutTime = entry.logout_time
+            ? isClient
+              ? new Date(entry.logout_time).toLocaleString()
+              : entry.logout_time
+            : "Still logged in";
           historyHtml += `
             <li class="border-b pb-2">
               <div class="font-medium">Login: ${loginTime}</div>
               <div class="text-sm text-gray-600">Logout: ${logoutTime}</div>
-              <div class="text-xs text-gray-500">IP: ${entry.ip_address || 'Unknown'}</div>
+              <div class="text-xs text-gray-500">IP: ${
+                entry.ip_address || "Unknown"
+              }</div>
             </li>
           `;
         });
-        historyHtml += '</ul>';
+        historyHtml += "</ul>";
       }
-      historyHtml += '</div>';
+      historyHtml += "</div>";
 
       await Swal.fire({
         title: `Login History - ${user.email}`,
@@ -700,11 +747,11 @@ const handleExportCSV = async () => {
   const renderBalanceCell = (value: number, row: any) => {
     const amount = Number(value) || 0;
     let balanceClass = "";
-    
+
     if (amount > HIGH_BALANCE_THRESHOLD) {
       balanceClass = "font-bold text-purple-600";
     } else if (amount <= LOW_BALANCE_THRESHOLD && amount >= 0) {
-      balanceClass = "text-yellow-600";
+      balanceClass = "text-[#C29307]";
     } else if (amount < 0) {
       balanceClass = "font-medium text-red-600";
     } else if (amount === 0) {
@@ -712,7 +759,7 @@ const handleExportCSV = async () => {
     } else {
       balanceClass = "text-green-600";
     }
-    
+
     return (
       <span className={`font-medium ${balanceClass}`}>
         ₦{amount.toLocaleString()}
@@ -727,18 +774,19 @@ const handleExportCSV = async () => {
     if (!row.last_login_raw) {
       return <span className="text-gray-400 italic">Never</span>;
     }
-    
+
     if (!isClient) {
       return row.last_login_raw;
     }
-    
+
     try {
       const loginDate = new Date(row.last_login_raw);
       if (isNaN(loginDate.getTime())) return "Invalid date";
-      
+
       const now = new Date();
-      const hoursDiff = (now.getTime() - loginDate.getTime()) / (1000 * 60 * 60);
-      
+      const hoursDiff =
+        (now.getTime() - loginDate.getTime()) / (1000 * 60 * 60);
+
       const formattedDate = loginDate.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -746,9 +794,11 @@ const handleExportCSV = async () => {
         hour: "2-digit",
         minute: "2-digit",
       });
-      
+
       if (hoursDiff < 24) {
-        return <span className="text-green-600 font-medium">{formattedDate}</span>;
+        return (
+          <span className="text-green-600 font-medium">{formattedDate}</span>
+        );
       } else if (hoursDiff < 168) {
         return <span className="text-blue-600">{formattedDate}</span>;
       } else {
@@ -761,15 +811,15 @@ const handleExportCSV = async () => {
 
   const renderCreatedAtCell = (value: string, row: any) => {
     if (!row.created_at_raw) return "-";
-    
+
     if (!isClient) {
       return row.created_at_raw;
     }
-    
+
     try {
       const date = new Date(row.created_at_raw);
       if (isNaN(date.getTime())) return "Invalid date";
-      
+
       return date.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -784,15 +834,15 @@ const handleExportCSV = async () => {
     if (!row.last_logout_raw) {
       return <span className="text-gray-400 italic">Never</span>;
     }
-    
+
     if (!isClient) {
       return row.last_logout_raw;
     }
-    
+
     try {
       const logoutDate = new Date(row.last_logout_raw);
       if (isNaN(logoutDate.getTime())) return "Invalid date";
-      
+
       return logoutDate.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -837,7 +887,9 @@ const handleExportCSV = async () => {
 
   // Show user profile if a user is selected
   if (selectedUserId) {
-    return <UserProfilePage userId={selectedUserId} onBack={handleBackToUsers} />;
+    return (
+      <UserProfilePage userId={selectedUserId} onBack={handleBackToUsers} />
+    );
   }
 
   // Show loading state
@@ -880,12 +932,12 @@ const handleExportCSV = async () => {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-semibold">Users Management</h2>
           <div className="flex gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleExportCSV}
               disabled={exportLoading || currentUsers.length === 0}
             >
-              {exportLoading ? 'Exporting...' : '📥 Export CSV'}
+              {exportLoading ? "Exporting..." : "📥 Export CSV"}
             </Button>
             <Button variant="outline" onClick={() => mutate()}>
               🔄 Refresh
@@ -904,57 +956,79 @@ const handleExportCSV = async () => {
               {activeUsers.length} active + {pendingUsersCount} pending
             </p>
           </div>
-          
+
           {activeTab === "active" ? (
             <>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">High Balance</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  High Balance
+                </h3>
                 <p className="text-2xl font-semibold text-purple-600">
                   {highBalanceUsers.length}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">≥ ₦{HIGH_BALANCE_THRESHOLD.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  ≥ ₦{HIGH_BALANCE_THRESHOLD.toLocaleString()}
+                </p>
               </div>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">Low Balance</h3>
-                <p className="text-2xl font-semibold text-yellow-600">
+                <h3 className="text-sm font-medium text-gray-500">
+                  Low Balance
+                </h3>
+                <p className="text-2xl font-semibold text-[#C29307]">
                   {lowBalanceUsers.length}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">≤ ₦{LOW_BALANCE_THRESHOLD.toLocaleString()}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  ≤ ₦{LOW_BALANCE_THRESHOLD.toLocaleString()}
+                </p>
               </div>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">Negative Balance</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Negative Balance
+                </h3>
                 <p className="text-2xl font-semibold text-red-600">
                   {negativeBalanceUsers.length}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">⚠️ Overdrawn accounts</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  ⚠️ Overdrawn accounts
+                </p>
               </div>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">Blocked Users</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Blocked Users
+                </h3>
                 <p className="text-2xl font-semibold text-red-600">
                   {blockedUsers.length}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Cannot login</p>
               </div>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">Active (30d)</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Active (30d)
+                </h3>
                 <p className="text-2xl font-semibold text-green-600">
                   {recentlyActiveUsers.length}
                 </p>
               </div>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">Active Today</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Active Today
+                </h3>
                 <p className="text-2xl font-semibold text-blue-600">
                   {activeTodayCount.length}
                 </p>
               </div>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">Active This Week</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Active This Week
+                </h3>
                 <p className="text-2xl font-semibold text-purple-600">
                   {activeThisWeekCount.length}
                 </p>
               </div>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">Inactive (30d+)</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Inactive (30d+)
+                </h3>
                 <p className="text-2xl font-semibold text-orange-600">
                   {inactiveUsers.length}
                 </p>
@@ -963,14 +1037,18 @@ const handleExportCSV = async () => {
           ) : (
             <>
               <div className="bg-white p-4 rounded-lg border shadow-sm">
-                <h3 className="text-sm font-medium text-gray-500">Total Pending</h3>
-                <p className="text-2xl font-semibold text-yellow-600">
+                <h3 className="text-sm font-medium text-gray-500">
+                  Total Pending
+                </h3>
+                <p className="text-2xl font-semibold text-[#C29307]">
                   {pendingUsersCount}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">Awaiting approval</p>
               </div>
               <div className="bg-white p-4 rounded-lg border shadow-sm col-span-7">
-                <h3 className="text-sm font-medium text-gray-500">Pending Registration</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Pending Registration
+                </h3>
                 <p className="text-lg font-medium">
                   Review and approve new user registrations
                 </p>
@@ -992,7 +1070,7 @@ const handleExportCSV = async () => {
               Pending Users ({pendingUsersCount})
             </TabsTrigger>
           </TabsList>
-          
+
           {/* Active Users Tab */}
           <TabsContent value="active" className="space-y-4">
             {/* Filters */}
@@ -1004,7 +1082,7 @@ const handleExportCSV = async () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              
+
               <div className="w-full md:w-1/6">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger>
@@ -1017,9 +1095,12 @@ const handleExportCSV = async () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="w-full md:w-1/6">
-                <Select value={activityFilter} onValueChange={setActivityFilter}>
+                <Select
+                  value={activityFilter}
+                  onValueChange={setActivityFilter}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="All Activity" />
                   </SelectTrigger>
@@ -1032,7 +1113,7 @@ const handleExportCSV = async () => {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               {/* NEW: Balance Filter */}
               <div className="w-full md:w-1/6">
                 <Select value={balanceFilter} onValueChange={setBalanceFilter}>
@@ -1041,8 +1122,13 @@ const handleExportCSV = async () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Balances</SelectItem>
-                    <SelectItem value="high">High Balance (≥ ₦{HIGH_BALANCE_THRESHOLD.toLocaleString()})</SelectItem>
-                    <SelectItem value="low">Low Balance (≤ ₦{LOW_BALANCE_THRESHOLD.toLocaleString()})</SelectItem>
+                    <SelectItem value="high">
+                      High Balance (≥ ₦{HIGH_BALANCE_THRESHOLD.toLocaleString()}
+                      )
+                    </SelectItem>
+                    <SelectItem value="low">
+                      Low Balance (≤ ₦{LOW_BALANCE_THRESHOLD.toLocaleString()})
+                    </SelectItem>
                     <SelectItem value="negative">Negative Balance</SelectItem>
                     <SelectItem value="zero">Zero Balance</SelectItem>
                   </SelectContent>
@@ -1052,7 +1138,8 @@ const handleExportCSV = async () => {
 
             {/* Results Count */}
             <div className="text-sm text-gray-500">
-              Showing {paginatedUsers.length} of {filteredActiveUsers.length} active users
+              Showing {paginatedUsers.length} of {filteredActiveUsers.length}{" "}
+              active users
               {searchTerm && ` matching "${searchTerm}"`}
               {activityFilter !== "all" && ` (${activityFilter})`}
               {balanceFilter !== "all" && ` (${balanceFilter} balance)`}
@@ -1086,7 +1173,8 @@ const handleExportCSV = async () => {
 
             {/* Results Count */}
             <div className="text-sm text-gray-500">
-              Showing {paginatedUsers.length} of {filteredPendingUsers.length} pending users
+              Showing {paginatedUsers.length} of {filteredPendingUsers.length}{" "}
+              pending users
               {searchTerm && ` matching "${searchTerm}"`}
             </div>
 
@@ -1125,7 +1213,9 @@ const handleExportCSV = async () => {
                   <PaginationPrevious
                     href="#"
                     onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    className={
+                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
                   />
                 </PaginationItem>
 
@@ -1144,8 +1234,14 @@ const handleExportCSV = async () => {
                 <PaginationItem>
                   <PaginationNext
                     href="#"
-                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                    className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(p + 1, totalPages))
+                    }
+                    className={
+                      currentPage >= totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
                   />
                 </PaginationItem>
               </PaginationContent>

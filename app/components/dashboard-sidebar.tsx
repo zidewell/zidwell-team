@@ -201,38 +201,11 @@ export default function DashboardSidebar() {
             />
             <NavItem
               item={{
-                name: "Buy Data",
-                href: "/dashboard/services/buy-data",
-                icon: Wifi,
+                name: "Create Contract",
+                href: "/dashboard/services/contract",
+                icon: FileText,
               }}
-              isActive={pathname === "/dashboard/services/buy-data"}
-            />
-
-            {/* Pay Bills Links - Now Visible */}
-            <NavItem
-              item={{
-                name: "Buy Light",
-                href: "/dashboard/services/buy-power",
-                icon: Lightbulb,
-              }}
-              isActive={pathname === "/dashboard/services/buy-power"}
-            />
-            <NavItem
-              item={{
-                name: "Cable TV",
-                href: "/dashboard/services/buy-cable-tv",
-                icon: Tv,
-              }}
-              isActive={pathname === "/dashboard/services/buy-cable-tv"}
-            />
-
-            <NavItem
-              item={{
-                name: "Create Invoice",
-                href: "/dashboard/services/create-invoice",
-                icon: FileSpreadsheet,
-              }}
-              isActive={pathname === "/dashboard/services/create-invoice"}
+              isActive={pathname === "/dashboard/services/contract"}
             />
 
             <NavItem
@@ -244,14 +217,7 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/services/create-receipt"}
             />
 
-            <NavItem
-              item={{
-                name: "Create Agreement",
-                href: "/dashboard/services/simple-agreement",
-                icon: FileText,
-              }}
-              isActive={pathname === "/dashboard/services/simple-agreement"}
-            />
+          
 
             <NavItem
               item={{

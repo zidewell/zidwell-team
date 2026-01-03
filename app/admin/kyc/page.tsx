@@ -39,17 +39,14 @@ export default function KycPage() {
   // Build API URL with filters
   const buildApiUrl = () => {
     const params = new URLSearchParams();
-    params.append('page', currentPage.toString());
-    if (statusFilter !== 'all') params.append('status', statusFilter);
-    if (searchTerm) params.append('search', searchTerm);
-    
+    params.append("page", currentPage.toString());
+    if (statusFilter !== "all") params.append("status", statusFilter);
+    if (searchTerm) params.append("search", searchTerm);
+
     return `/api/admin-apis/kyc?${params.toString()}`;
   };
 
-  const { data, error, isLoading, mutate } = useSWR(
-    buildApiUrl(),
-    fetcher
-  );
+  const { data, error, isLoading, mutate } = useSWR(buildApiUrl(), fetcher);
 
   useEffect(() => {
     setIsClient(true);
@@ -65,9 +62,11 @@ export default function KycPage() {
     if (!data) return [];
     return (data.applications ?? data).map((app: any) => ({
       ...app,
-      user_name: app.user ? `${app.user.first_name} ${app.user.last_name}` : 'N/A',
-      user_email: app.user?.email || 'N/A',
-      user_phone: app.user?.phone || 'N/A',
+      user_name: app.user
+        ? `${app.user.first_name} ${app.user.last_name}`
+        : "N/A",
+      user_email: app.user?.email || "N/A",
+      user_phone: app.user?.phone || "N/A",
       user_created: app.user?.created_at || app.created_at,
       // Store raw dates for formatting
       created_at_raw: app.created_at,
@@ -78,22 +77,28 @@ export default function KycPage() {
   // Calculate stats
   const stats = React.useMemo(() => {
     const total = applications.length;
-    const pending = applications.filter((app: any) => app.status === 'pending').length;
-    const approved = applications.filter((app: any) => app.status === 'approved').length;
-    const rejected = applications.filter((app: any) => app.status === 'rejected').length;
-    
+    const pending = applications.filter(
+      (app: any) => app.status === "pending"
+    ).length;
+    const approved = applications.filter(
+      (app: any) => app.status === "approved"
+    ).length;
+    const rejected = applications.filter(
+      (app: any) => app.status === "rejected"
+    ).length;
+
     return { total, pending, approved, rejected };
   }, [applications]);
 
   // Filter applications based on search
   const filteredApplications = applications.filter((app: any) => {
-    const matchesSearch = 
+    const matchesSearch =
       app.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       app.user_phone?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -106,23 +111,23 @@ export default function KycPage() {
 
   // ---------- Update KYC Status ----------
   const handleUpdateStatus = async (application: any, newStatus: string) => {
-    const statusText = newStatus === 'approved' ? 'Approve' : 'Reject';
-    
+    const statusText = newStatus === "approved" ? "Approve" : "Reject";
+
     const { value: adminNotes } = await Swal.fire({
       title: `${statusText} KYC Application?`,
       text: `This will ${newStatus} the KYC application for ${application.user_email}`,
-      input: 'textarea',
-      inputLabel: 'Admin Notes (Optional)',
-      inputPlaceholder: 'Enter any notes or reasons for this decision...',
+      input: "textarea",
+      inputLabel: "Admin Notes (Optional)",
+      inputPlaceholder: "Enter any notes or reasons for this decision...",
       showCancelButton: true,
       confirmButtonText: statusText,
-      confirmButtonColor: newStatus === 'approved' ? '#10b981' : '#ef4444',
+      confirmButtonColor: newStatus === "approved" ? "#10b981" : "#ef4444",
       inputValidator: (value) => {
-        if (newStatus === 'rejected' && !value?.trim()) {
-          return 'Please provide a reason for rejection';
+        if (newStatus === "rejected" && !value?.trim()) {
+          return "Please provide a reason for rejection";
         }
         return null;
-      }
+      },
     });
 
     if (adminNotes === undefined) return; // User cancelled
@@ -134,7 +139,7 @@ export default function KycPage() {
         body: JSON.stringify({
           kycId: application.id,
           status: newStatus,
-          adminNotes: adminNotes || null
+          adminNotes: adminNotes || null,
         }),
       });
 
@@ -155,15 +160,18 @@ export default function KycPage() {
   };
 
   // ---------- View Document in Modal ----------
-  const handleViewDocument = async (documentUrl: string, documentType: string) => {
+  const handleViewDocument = async (
+    documentUrl: string,
+    documentType: string
+  ) => {
     if (!documentUrl) return;
 
     // Check if it's an image or PDF
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(documentUrl);
     const isPdf = /\.pdf$/i.test(documentUrl);
 
-    let htmlContent = '';
-    
+    let htmlContent = "";
+
     if (isImage) {
       htmlContent = `
         <div class="flex justify-center">
@@ -224,7 +232,7 @@ export default function KycPage() {
           </div>
           <div>
             <strong class="block text-sm font-medium text-gray-700">Phone</strong>
-            <p class="mt-1">${application.user_phone || 'Not provided'}</p>
+            <p class="mt-1">${application.user_phone || "Not provided"}</p>
           </div>
           <div>
             <strong class="block text-sm font-medium text-gray-700">Status</strong>
@@ -323,20 +331,32 @@ export default function KycPage() {
         <div class="grid grid-cols-2 gap-4">
           <div>
             <strong class="block text-sm font-medium text-gray-700">Submitted</strong>
-            <p class="mt-1">${isClient ? new Date(application.created_at_raw).toLocaleString() : application.created_at_raw}</p>
+            <p class="mt-1">${
+              isClient
+                ? new Date(application.created_at_raw).toLocaleString()
+                : application.created_at_raw
+            }</p>
           </div>
           <div>
             <strong class="block text-sm font-medium text-gray-700">Reviewed</strong>
-            <p class="mt-1">${application.reviewed_at_raw ? (isClient ? new Date(application.reviewed_at_raw).toLocaleString() : application.reviewed_at_raw) : 'Not reviewed'}</p>
+            <p class="mt-1">${
+              application.reviewed_at_raw
+                ? isClient
+                  ? new Date(application.reviewed_at_raw).toLocaleString()
+                  : application.reviewed_at_raw
+                : "Not reviewed"
+            }</p>
           </div>
         </div>
       </div>
     `;
 
     // Store the document URLs in window for the button click handlers
-    if (typeof window !== 'undefined') {
-      (window as any).viewIdCard = (url: string) => handleViewDocument(url, 'ID Card');
-      (window as any).viewUtilityBill = (url: string) => handleViewDocument(url, 'Utility Bill');
+    if (typeof window !== "undefined") {
+      (window as any).viewIdCard = (url: string) =>
+        handleViewDocument(url, "ID Card");
+      (window as any).viewUtilityBill = (url: string) =>
+        handleViewDocument(url, "Utility Bill");
     }
 
     await Swal.fire({
@@ -346,23 +366,30 @@ export default function KycPage() {
       confirmButtonColor: "#3b82f6",
       didOpen: () => {
         // Add click handlers for the preview buttons
-        const idCardBtn = document.querySelector('[onclick^="window.viewIdCard"]');
-        const utilityBillBtn = document.querySelector('[onclick^="window.viewUtilityBill"]');
-        
+        const idCardBtn = document.querySelector(
+          '[onclick^="window.viewIdCard"]'
+        );
+        const utilityBillBtn = document.querySelector(
+          '[onclick^="window.viewUtilityBill"]'
+        );
+
         if (idCardBtn) {
-          idCardBtn.addEventListener('click', (e) => {
+          idCardBtn.addEventListener("click", (e) => {
             e.preventDefault();
-            handleViewDocument(application.signed_id_card_url, 'ID Card');
+            handleViewDocument(application.signed_id_card_url, "ID Card");
           });
         }
-        
+
         if (utilityBillBtn) {
-          utilityBillBtn.addEventListener('click', (e) => {
+          utilityBillBtn.addEventListener("click", (e) => {
             e.preventDefault();
-            handleViewDocument(application.signed_utility_bill_url, 'Utility Bill');
+            handleViewDocument(
+              application.signed_utility_bill_url,
+              "Utility Bill"
+            );
           });
         }
-      }
+      },
     });
   };
 
@@ -386,7 +413,11 @@ export default function KycPage() {
 
       if (!r.ok) throw new Error("Delete failed");
 
-      Swal.fire("Deleted", `KYC application for ${application.user_email} has been deleted.`, "success");
+      Swal.fire(
+        "Deleted",
+        `KYC application for ${application.user_email} has been deleted.`,
+        "success"
+      );
       mutate();
     } catch (err) {
       console.error(err);
@@ -398,19 +429,28 @@ export default function KycPage() {
   const renderStatusCell = (value: string) => {
     if (value === "approved") {
       return (
-        <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-100">
+        <Badge
+          variant="default"
+          className="bg-green-100 text-green-800 hover:bg-green-100"
+        >
           ✓ Approved
         </Badge>
       );
     } else if (value === "pending") {
       return (
-        <Badge variant="default" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">
+        <Badge
+          variant="default"
+          className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
+        >
           ⏳ Pending
         </Badge>
       );
     } else if (value === "rejected") {
       return (
-        <Badge variant="default" className="bg-red-100 text-red-800 hover:bg-red-100">
+        <Badge
+          variant="default"
+          className="bg-red-100 text-red-800 hover:bg-red-100"
+        >
           ✗ Rejected
         </Badge>
       );
@@ -428,13 +468,16 @@ export default function KycPage() {
   };
 
   const renderDocumentCell = (value: string, row: any, field: string) => {
-    const signedUrl = field === 'id_card_url' ? row.signed_id_card_url : row.signed_utility_bill_url;
-    const documentType = field === 'id_card_url' ? 'ID Card' : 'Utility Bill';
-    
+    const signedUrl =
+      field === "id_card_url"
+        ? row.signed_id_card_url
+        : row.signed_utility_bill_url;
+    const documentType = field === "id_card_url" ? "ID Card" : "Utility Bill";
+
     if (!signedUrl) {
       return <span className="text-gray-400 italic">Not provided</span>;
     }
-    
+
     return (
       <div className="flex gap-2">
         <Button
@@ -445,9 +488,9 @@ export default function KycPage() {
         >
           <Eye className="h-3 w-3" />
         </Button>
-        <a 
-          href={signedUrl} 
-          download 
+        <a
+          href={signedUrl}
+          download
           target="_blank"
           className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
         >
@@ -461,15 +504,15 @@ export default function KycPage() {
     if (!row[`${field}_raw`]) {
       return <span className="text-gray-400 italic">Not set</span>;
     }
-    
+
     if (!isClient) {
       return row[`${field}_raw`];
     }
-    
+
     try {
       const date = new Date(row[`${field}_raw`]);
       if (isNaN(date.getTime())) return "Invalid date";
-      
+
       return date.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -492,13 +535,13 @@ export default function KycPage() {
         >
           View
         </Button>
-        {row.status === 'pending' && (
+        {row.status === "pending" && (
           <>
             <Button
               variant="default"
               size="sm"
               className="bg-green-600 hover:bg-green-700"
-              onClick={() => handleUpdateStatus(row, 'approved')}
+              onClick={() => handleUpdateStatus(row, "approved")}
             >
               Approve
             </Button>
@@ -506,7 +549,7 @@ export default function KycPage() {
               variant="default"
               size="sm"
               className="bg-red-600 hover:bg-red-700"
-              onClick={() => handleUpdateStatus(row, 'rejected')}
+              onClick={() => handleUpdateStatus(row, "rejected")}
             >
               Reject
             </Button>
@@ -521,11 +564,31 @@ export default function KycPage() {
     { key: "user_name", label: "User", render: renderUserNameCell },
     { key: "user_phone", label: "Phone" },
     { key: "nin", label: "NIN" },
-    { key: "id_card_url", label: "ID Card", render: (value: string, row: any) => renderDocumentCell(value, row, 'id_card_url') },
-    { key: "utility_bill_url", label: "Utility Bill", render: (value: string, row: any) => renderDocumentCell(value, row, 'utility_bill_url') },
+    {
+      key: "id_card_url",
+      label: "ID Card",
+      render: (value: string, row: any) =>
+        renderDocumentCell(value, row, "id_card_url"),
+    },
+    {
+      key: "utility_bill_url",
+      label: "Utility Bill",
+      render: (value: string, row: any) =>
+        renderDocumentCell(value, row, "utility_bill_url"),
+    },
     { key: "status", label: "Status", render: renderStatusCell },
-    { key: "created_at", label: "Submitted", render: (value: string, row: any) => renderDateCell(value, row, 'created_at') },
-    { key: "reviewed_at", label: "Reviewed", render: (value: string, row: any) => renderDateCell(value, row, 'reviewed_at') },
+    {
+      key: "created_at",
+      label: "Submitted",
+      render: (value: string, row: any) =>
+        renderDateCell(value, row, "created_at"),
+    },
+    {
+      key: "reviewed_at",
+      label: "Reviewed",
+      render: (value: string, row: any) =>
+        renderDateCell(value, row, "reviewed_at"),
+    },
     { key: "actions", label: "Actions", render: renderActionsCell },
   ];
 
@@ -570,12 +633,16 @@ export default function KycPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Total Applications</h3>
+            <h3 className="text-sm font-medium text-gray-500">
+              Total Applications
+            </h3>
             <p className="text-2xl font-semibold">{stats.total}</p>
           </div>
           <div className="bg-white p-4 rounded-lg border shadow-sm">
-            <h3 className="text-sm font-medium text-gray-500">Pending Review</h3>
-            <p className="text-2xl font-semibold text-yellow-600">
+            <h3 className="text-sm font-medium text-gray-500">
+              Pending Review
+            </h3>
+            <p className="text-2xl font-semibold text-[#C29307]">
               {stats.pending}
             </p>
           </div>
@@ -602,7 +669,7 @@ export default function KycPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          
+
           <div className="w-full md:w-1/4">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -620,7 +687,8 @@ export default function KycPage() {
 
         {/* Results Count */}
         <div className="text-sm text-gray-500">
-          Showing {paginatedApplications.length} of {filteredApplications.length} applications
+          Showing {paginatedApplications.length} of{" "}
+          {filteredApplications.length} applications
           {searchTerm && ` matching "${searchTerm}"`}
           {statusFilter !== "all" && ` (${statusFilter})`}
         </div>
@@ -641,7 +709,9 @@ export default function KycPage() {
                   <PaginationPrevious
                     href="#"
                     onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                    className={
+                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
                   />
                 </PaginationItem>
 
@@ -660,8 +730,14 @@ export default function KycPage() {
                 <PaginationItem>
                   <PaginationNext
                     href="#"
-                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                    className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(p + 1, totalPages))
+                    }
+                    className={
+                      currentPage >= totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
                   />
                 </PaginationItem>
               </PaginationContent>

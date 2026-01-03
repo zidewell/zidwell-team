@@ -70,30 +70,106 @@ export async function POST(req: Request) {
       );
     }
 
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
     await transporter.sendMail({
       from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
       to: signeeEmail,
-      subject: "You’ve been invited to sign a contract",
+      subject: "You've been invited to sign a contract",
       html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; font-size: 15px;">
-          <p>Hello,</p>
-          <p>You have received a new contract that requires your signature.</p>
-          <p style="color: #C29307; font-weight: bold;">
-            Your verification code: <span style="font-size: 16px;">${verificationCode}</span>
-          </p>
-          <p>Please click the secure link below to review and sign the document:</p>
-          <a href="${signingLink}" target="_blank" rel="noopener noreferrer"
-            style="display: inline-block; background-color: #C29307; color: white; padding: 10px 18px; text-decoration: none; border-radius: 5px; font-weight: bold; cursor:pointer">
-            Review & Sign Contract
-          </a>
-          <p style="margin-top: 20px;"><strong>Or copy and paste this link into your browser:</strong></p>
-          <a href="${signingLink}" style="color: #C29307;">${signingLink}</a>
-          <p>If you did not request this, you can safely ignore this email.</p>
-          <p style="margin-top: 30px; font-size: 13px; color: #999;">
-            – Zidwell Contracts
-          </p>
-        </div>
-      `,
+<!DOCTYPE html>
+<html>
+<body style="margin:0; padding:0; background:#f3f4f6; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
+  <tr>
+    <td align="center">
+
+      <table width="600" cellpadding="0" cellspacing="0"
+        style="background:#ffffff; border-radius:8px; overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td>
+            <img
+              src="${headerImageUrl}"
+              alt="Zidwell Header"
+              style="width:100%; max-width:600px; display:block;"
+            />
+          </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+          <td style="padding:24px; color:#333; line-height:1.6; font-size:15px;">
+
+            <p style="margin-top: 0;">Hello,</p>
+            <p>You have received a new contract that requires your signature.</p>
+            
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #C29307; margin: 20px 0;">
+              <p style="color: #C29307; font-weight: bold; margin: 0 0 10px 0; font-size: 16px;">
+                Your verification code:
+              </p>
+              <div style="background: white; padding: 15px; border-radius: 6px; text-align: center; border: 2px dashed #e5e7eb;">
+                <span style="font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #1f2937;">
+                  ${verificationCode}
+                </span>
+              </div>
+            </div>
+            
+            <p>Please click the secure link below to review and sign the document:</p>
+            
+            <div style="text-align: center; margin: 25px 0;">
+              <a href="${signingLink}" target="_blank" rel="noopener noreferrer"
+                style="display: inline-block; background-color: #C29307; color: white; 
+                       padding: 14px 28px; text-decoration: none; border-radius: 6px; 
+                       font-weight: bold; font-size: 16px; cursor:pointer;">
+                ✍️ Review & Sign Contract
+              </a>
+            </div>
+            
+            <p style="margin-top: 20px;"><strong>Or copy and paste this link into your browser:</strong></p>
+            <div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin: 10px 0 20px 0; word-break: break-all;">
+              <a href="${signingLink}" style="color: #C29307; text-decoration: none; font-size: 14px;">
+                ${signingLink}
+              </a>
+            </div>
+            
+            <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 20px;">
+              <p style="font-size: 13px; color: #6b7280;">
+                <strong>Important:</strong> This link and verification code will expire for security reasons.
+                If you did not request this, you can safely ignore this email.
+              </p>
+            </div>
+            
+            <p style="margin-top: 30px; font-size: 13px; color: #999;">
+              – Zidwell Contracts
+            </p>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td>
+            <img
+              src="${footerImageUrl}"
+              alt="Zidwell Footer"
+              style="width:100%; max-width:600px; display:block;"
+            />
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
+`,
     });
 
     return new Response(JSON.stringify({ message: "Email sent" }), {

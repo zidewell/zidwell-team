@@ -125,98 +125,163 @@ async function sendInvoiceEmail(params: {
     `
       : "";
 
-    await transporter.sendMail({
-      from: `Zidwell Invoice <${process.env.EMAIL_USER}>`,
-      to: params.to,
-      subject: params.subject,
-      html: `
-        <div style="
-          font-family: Arial, sans-serif; 
-          color: #333; 
-          line-height: 1.6; 
-          max-width: 600px; 
-          margin: 0 auto; 
-          padding: 20px; 
-          background-color: #f9f9f9; 
-          border-radius: 8px; 
-          border: 1px solid #e0e0e0;
-        ">
-          ${
-            params.businessLogo
-              ? `
-            <div style="text-align:center; margin-bottom:20px;">
-              <img src="${params.businessLogo}" alt="Business Logo" style="max-height:60px; max-width:200px;" />
-            </div>`
-              : `
-            <div style="text-align:center; margin-bottom:20px;">
-              <h2 style="color:#C29307; margin:0;">New Invoice</h2>
-            </div>`
-          }
-          <p>Hello <strong>Valued Customer</strong>,</p>
-          <p>You have received an invoice from <strong>${
-            params.senderName
-          }</strong>.</p>
-          
-          ${multiplePaymentsInfo}
+       const baseUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.NEXT_PUBLIC_DEV_URL
+        : process.env.NEXT_PUBLIC_BASE_URL;
 
-          <div style="
-            background:white; 
-            padding:15px; 
-            border-radius:6px; 
-            border-left:4px solid #C29307; 
-            margin:20px 0;
-          ">
-            <p style="margin:0; font-weight:bold;">Invoice Details:</p>
-            <p style="margin:5px 0;">Invoice ID: ${params.invoiceId}</p>
-            <p style="margin:5px 0;">Amount: ₦${Number(
-              params.amount
-            ).toLocaleString()}</p>
-          
-          </div>
-          
-          <p style="margin-bottom: 10px;">Click the button below to view invoice details and make payment:</p>
-          <div style="text-align:center; margin:25px 0;">
-            <a href="${params.signingLink}" 
-               target="_blank"
-               style="
-                 display:inline-block;
-                 background-color:#C29307;
-                 color:#fff;
-                 padding:12px 24px;
-                 border-radius:6px;
-                 text-decoration:none;
-                 font-weight:bold;
-                 font-size:16px;
-               ">
-              View Invoice & Pay
-            </a>
-          </div>
-          
-          ${
-            params.message
-              ? `
-            <div style="
-              background:#f0f0f0; 
-              padding:15px; 
-              border-radius:6px; 
-              margin:20px 0;
-            ">
-              <p style="margin:0; font-weight:bold;">Message from ${params.senderName}:</p>
-              <p style="margin:10px 0 0 0;">${params.message}</p>
-            </div>`
-              : ""
-          }
-          
-          <p style="color:#666; font-size:14px;">
-            You'll be able to provide your payment information and complete the payment on the invoice page.
-          </p>
-          
-          <div style="margin-top:32px; padding-top:20px; border-top:1px solid #e0e0e0; text-align:center;">
-            <p style="font-size:13px; color:#888; margin:0;">– Zidwell Contracts Team</p>
-          </div>
-        </div>
-      `,
-    });
+      
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
+
+  await transporter.sendMail({
+  from: `Zidwell Invoice <${process.env.EMAIL_USER}>`,
+  to: params.to,
+  subject: params.subject,
+  html: `
+<!DOCTYPE html>
+<html>
+<body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
+  <tr>
+    <td align="center">
+
+      <table width="600" cellpadding="0" cellspacing="0"
+        style="background:#ffffff; border-radius:8px; overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td>
+            <img
+              src="${headerImageUrl}"
+              alt="Zidwell Header"
+              style="width:100%; max-width:600px; display:block;"
+            />
+          </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+          <td style="padding:24px; color:#333; line-height:1.6;">
+            <div style="max-width: 600px; margin: 0 auto;">
+              ${
+                params.businessLogo
+                  ? `
+                <div style="text-align:center; margin-bottom:20px;">
+                  <img src="${params.businessLogo}" alt="Business Logo" style="max-height:60px; max-width:200px;" />
+                </div>`
+                  : `
+                <div style="text-align:center; margin-bottom:20px;">
+                  <h2 style="color:#C29307; margin:0; font-size:24px;">New Invoice</h2>
+                </div>`
+              }
+              
+              <p>Hello <strong>Valued Customer</strong>,</p>
+              <p>You have received an invoice from <strong>${
+                params.senderName
+              }</strong>.</p>
+              
+              ${multiplePaymentsInfo}
+
+              <div style="
+                background:#f8fafc; 
+                padding:20px; 
+                border-radius:8px; 
+                border-left:4px solid #C29307; 
+                margin:20px 0;
+              ">
+                <p style="margin:0 0 15px 0; font-weight:bold; font-size:16px; color:#1f2937;">Invoice Details:</p>
+                <div style="display: grid; gap: 10px;">
+                  <p style="margin:0;"><strong>Invoice ID:</strong> ${params.invoiceId}</p>
+                  <p style="margin:0;"><strong>Amount:</strong> ₦${Number(
+                    params.amount
+                  ).toLocaleString()}</p>
+                  <p style="margin:0;"><strong>From:</strong> ${params.senderName}</p>
+                </div>
+              </div>
+              
+              <p style="margin-bottom: 15px; font-size: 15px;">Click the button below to view invoice details and make payment:</p>
+              
+              <div style="text-align:center; margin:25px 0;">
+                <a href="${params.signingLink}" 
+                   target="_blank"
+                   style="
+                     display:inline-block;
+                     background-color:#C29307;
+                     color:#fff;
+                     padding:14px 28px;
+                     border-radius:6px;
+                     text-decoration:none;
+                     font-weight:bold;
+                     font-size:16px;
+                     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                   ">
+                  📄 View Invoice & Pay
+                </a>
+              </div>
+              
+              <div style="background: #f8fafc; padding: 15px; border-radius: 6px; margin: 20px 0; text-align: center;">
+                <p style="margin:0; font-size: 14px; color: #6b7280;">
+                  <strong>Alternative:</strong> Copy and paste this link in your browser:<br>
+                  <a href="${params.signingLink}" style="color:#C29307; font-size:13px; word-break: break-all;">
+                    ${params.signingLink}
+                  </a>
+                </p>
+              </div>
+              
+              ${
+                params.message
+                  ? `
+                <div style="
+                  background:#f0f8ff; 
+                  padding:20px; 
+                  border-radius:6px; 
+                  margin:20px 0;
+                  border-left: 4px solid #3b82f6;
+                ">
+                  <p style="margin:0 0 10px 0; font-weight:bold; color:#1e40af;">Message from ${params.senderName}:</p>
+                  <p style="margin:0; color:#374151;">${params.message}</p>
+                </div>`
+                  : ""
+              }
+              
+              <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 20px;">
+                <p style="color:#6b7280; font-size:14px; margin:0;">
+                  <strong>Note:</strong> You'll be able to provide your payment information and complete the payment on the invoice page.
+                </p>
+              </div>
+              
+              <div style="margin-top:32px; padding-top:20px; border-top:1px solid #e5e7eb; text-align:center;">
+                <p style="font-size:13px; color:#888; margin:0;">– Zidwell Invoice Team</p>
+              </div>
+            </div>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td>
+            <img
+              src="${footerImageUrl}"
+              alt="Zidwell Footer"
+              style="width:100%; max-width:600px; display:block;"
+            />
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
+`,
+});
   } catch (error) {
     console.error("Email send error:", error);
   }

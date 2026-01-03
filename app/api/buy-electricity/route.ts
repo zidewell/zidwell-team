@@ -128,71 +128,126 @@ Zidwell Team
     `;
 
     const emailBody = status === "success" ? successBody : failedBody;
+    
+    const baseUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.NEXT_PUBLIC_DEV_URL
+        : process.env.NEXT_PUBLIC_BASE_URL;
 
-    await transporter.sendMail({
-      from: `"Zidwell" <${process.env.EMAIL_USER}>`,
-      to: user.email,
-      subject,
-      text: emailBody,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <p>${greeting}</p>
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
+
+  await transporter.sendMail({
+  from: `"Zidwell" <${process.env.EMAIL_USER}>`,
+  to: user.email,
+  subject,
+  text: emailBody,
+  html: `
+<!DOCTYPE html>
+<html>
+<body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial, sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:20px;">
+  <tr>
+    <td align="center">
+
+      <table width="600" cellpadding="0" cellspacing="0"
+        style="background:#ffffff; border-radius:8px; overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td>
+            <img
+              src="${headerImageUrl}"
+              alt="Zidwell Header"
+              style="width:100%; max-width:600px; display:block;"
+            />
+          </td>
+        </tr>
+
+        <!-- Content -->
+        <tr>
+          <td style="padding:24px; color:#333;">
+
+            <p>${greeting}</p>
           
-          <h3 style="color: ${status === "success" ? "#22c55e" : "#ef4444"};">
-            ${
-              status === "success"
-                ? "✅ Electricity Purchase Successful"
-                : "❌ Electricity Purchase Failed"
-            }
-          </h3>
-          
-          <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
-            <h4 style="margin-top: 0;">Transaction Details:</h4>
-            <p><strong>Amount:</strong> ₦${amount}</p>
-            <p><strong>Disco:</strong> ${disco}</p>
-            <p><strong>Meter Number:</strong> ${meterNumber}</p>
-            <p><strong>Meter Type:</strong> ${meterType}</p>
-            <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
-            <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
-            ${
-              status === "success" && tokenData
-                ? `
-              <p><strong>Token:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${
-                tokenData.token || "N/A"
-              }</code></p>
+            <h3 style="color: ${status === "success" ? "#22c55e" : "#ef4444"};">
               ${
-                tokenData.units
-                  ? `<p><strong>Units:</strong> ${tokenData.units}</p>`
+                status === "success"
+                  ? "✅ Electricity Purchase Successful"
+                  : "❌ Electricity Purchase Failed"
+              }
+            </h3>
+            
+            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0;">
+              <h4 style="margin-top: 0;">Transaction Details:</h4>
+              <p><strong>Amount:</strong> ₦${amount}</p>
+              <p><strong>Disco:</strong> ${disco}</p>
+              <p><strong>Meter Number:</strong> ${meterNumber}</p>
+              <p><strong>Meter Type:</strong> ${meterType}</p>
+              <p><strong>Transaction ID:</strong> ${transactionId || "N/A"}</p>
+              <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+              ${
+                status === "success" && tokenData
+                  ? `
+                <p><strong>Token:</strong> <code style="background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace;">${
+                  tokenData.token || "N/A"
+                }</code></p>
+                ${
+                  tokenData.units
+                    ? `<p><strong>Units:</strong> ${tokenData.units}</p>`
+                    : ""
+                }
+              `
                   : ""
               }
-            `
-                : ""
-            }
+              ${
+                status === "failed"
+                  ? `<p><strong>Status:</strong> ${
+                      errorDetail || "Transaction failed"
+                    }</p>`
+                  : ""
+              }
+            </div>
+            
             ${
-              status === "failed"
-                ? `<p><strong>Status:</strong> ${
-                    errorDetail || "Transaction failed"
-                  }</p>`
+              status === "failed" && errorDetail?.includes("refunded")
+                ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
                 : ""
             }
-          </div>
-          
-          ${
-            status === "failed" && errorDetail?.includes("refunded")
-              ? '<p style="color: #22c55e; font-weight: bold;">✅ Your wallet has been refunded successfully.</p>'
-              : ""
-          }
-          
-          <p>Thank you for using Zidwell!</p>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
-          <p style="color: #64748b; font-size: 14px;">
-            Best regards,<br>
-            <strong>Zidwell Team</strong>
-          </p>
-        </div>
-      `,
-    });
+            
+            <p>Thank you for using Zidwell!</p>
+            
+            <p style="color: #64748b; font-size: 14px;">
+              Best regards,<br>
+              <strong>Zidwell Team</strong>
+            </p>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td>
+            <img
+              src="${footerImageUrl}"
+              alt="Zidwell Footer"
+              style="width:100%; max-width:600px; display:block;"
+            />
+          </td>
+        </tr>
+
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
+`,
+});
 
     console.log(
       `Email notification sent to ${user.email} for ${status} electricity purchase`

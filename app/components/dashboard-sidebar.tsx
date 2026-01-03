@@ -201,46 +201,11 @@ export default function DashboardSidebar() {
             />
             <NavItem
               item={{
-<<<<<<< HEAD
                 name: "Create Contract",
                 href: "/dashboard/services/contract",
                 icon: FileText,
               }}
               isActive={pathname === "/dashboard/services/contract"}
-=======
-                name: "Buy Data",
-                href: "/dashboard/services/buy-data",
-                icon: Wifi,
-              }}
-              isActive={pathname === "/dashboard/services/buy-data"}
-            />
-
-            {/* Pay Bills Links - Now Visible */}
-            <NavItem
-              item={{
-                name: "Buy Light",
-                href: "/dashboard/services/buy-power",
-                icon: Lightbulb,
-              }}
-              isActive={pathname === "/dashboard/services/buy-power"}
-            />
-            <NavItem
-              item={{
-                name: "Cable TV",
-                href: "/dashboard/services/buy-cable-tv",
-                icon: Tv,
-              }}
-              isActive={pathname === "/dashboard/services/buy-cable-tv"}
-            />
-
-            <NavItem
-              item={{
-                name: "Create Invoice",
-                href: "/dashboard/services/create-invoice",
-                icon: FileSpreadsheet,
-              }}
-              isActive={pathname === "/dashboard/services/create-invoice"}
->>>>>>> fa815ffaf16f3689f1fe15a81ad9aa34f05247dd
             />
 
             <NavItem
@@ -252,14 +217,7 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/services/create-receipt"}
             />
 
-            <NavItem
-              item={{
-                name: "Create Agreement",
-                href: "/dashboard/services/simple-agreement",
-                icon: FileText,
-              }}
-              isActive={pathname === "/dashboard/services/simple-agreement"}
-            />
+          
 
             <NavItem
               item={{

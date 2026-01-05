@@ -8,6 +8,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+  const baseUrl =
+      process.env.NODE_ENV === "development"
+        ? process.env.NEXT_PUBLIC_DEV_URL
+        : process.env.NEXT_PUBLIC_BASE_URL;
+
+
 // Generate a 6-digit verification code
 function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -71,15 +77,17 @@ export async function POST(request: Request) {
       );
     }
 
+       const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
     // Send email with verification code
-    await transporter.sendMail({
-      from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
-      to: signeeEmail,
-      subject: `Your Signature Verification Code - ${
-        contract.contract_title || "Contract"
-      }`,
-      html: `
-       
+  await transporter.sendMail({
+  from: `Zidwell Contracts <${process.env.EMAIL_USER}>`,
+  to: signeeEmail,
+  subject: `Your Signature Verification Code - ${
+    contract.contract_title || "Contract"
+  }`,
+  html: `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -101,7 +109,8 @@ export async function POST(request: Request) {
         }
         
         .email-container {
-          
+            max-width: 600px;
+            margin: 0 auto;
             background: #ffffff;
             overflow: hidden;
         }
@@ -153,101 +162,22 @@ export async function POST(request: Request) {
         .font-semibold { font-weight: 600 !important; }
         .font-bold { font-weight: 700 !important; }
         
-        /* Header */
-        .email-header {
-            background: #073b2a;
-            padding: 30px 20px;
-            text-align: center;
-        }
-        
-        .brand-logo {
-            color: #c9a227;
-            font-size: 36px;
-            letter-spacing: 2px;
-            margin: 0;
-            font-weight: 700;
-        }
-        
-        /* Footer Styling */
-        .email-footer {
-            background-color: #073b2a;
-            padding: 25px 20px;
-            color: #ffffff;
-        }
-        
-        .footer-services {
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 600;
-            text-align: center;
-            margin: 0 0 25px 0;
-        }
-        
-        .social-grid {
-            font-size: 14px;
-            line-height: 1.8;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .social-item {
-            display: flex;
-            align-items: center;
-        }
-        
-        .social-icon {
-            color: #c9a227;
-            font-size: 20px;
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
-        }
-        
-        .disclaimer {
-            max-width: 360px;
-            font-size: 13px;
-            text-align: right;
-            color: #e5e7eb;
-            line-height: 1.5;
-        }
-        
         /* Mobile Responsive */
         @media screen and (max-width: 600px) {
             .content-section {
                 padding: 30px 20px !important;
             }
             
-            .email-header {
-                padding: 20px 15px !important;
-            }
-            
-            .email-footer {
-                padding: 20px 15px !important;
-            }
-            
             .code-display {
                 padding: 20px 30px !important;
-            }
-            
-            .social-grid {
-                grid-template-columns: 1fr !important;
-            }
-            
-            .disclaimer {
-                text-align: left !important;
-                max-width: 100% !important;
             }
         }
     </style>
 </head>
 <body style="margin:0; padding:0; background-color:#f9fafb;">
     <div class="email-container">
-        <!-- ================= HEADER ================= -->
-        <div class="email-header">
-            <h1 class="brand-logo">ZIDWELL</h1>
-        </div>
+        <!-- ================= CUSTOM HEADER ================= -->
+        <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
 
         <!-- ================= CONTENT ================= -->
         <div class="content-section">
@@ -292,8 +222,6 @@ export async function POST(request: Request) {
                 </p>
             </div>
             
-           
-            
             <!-- Warning -->
             <div style="margin-top: 25px; padding: 15px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
                 <p style="margin: 0; color: #dc2626; font-size: 14px; text-align: center;">
@@ -309,66 +237,14 @@ export async function POST(request: Request) {
             </div>
         </div>
 
-        <!-- ================= FOOTER ================= -->
-        <div class="email-footer">
-            <h1 style="margin:0; color:#c9a227; font-size:42px; letter-spacing:3px; text-align: center;">
-                ZIDWELL
-            </h1>
-            
-            <h3 class="footer-services">
-                PAYMENTS | INVOICES | RECEIPTS | CONTRACTS | TAX MANAGEMENT | FINANCIAL WELLNESS | COMMUNITY
-            </h3>
-            
-            <div style="display:flex; flex-wrap:wrap; justify-content:space-between;  align-items: center;">
-
-                <!-- Social Links with Unicode Icons -->
-                <div class="social-grid">
-                    <div class="social-item">
-                        <span class="social-icon">📷</span>
-                        <span>@zidwellfinance</span>
-                    </div>
-
-                    <div class="social-item">
-                        <span class="social-icon">📘</span>
-                        <span>@zidwell</span>
-                    </div>
-
-                    <div class="social-item">
-                        <span class="social-icon">💼</span>
-                        <span>@zidwell</span>
-                    </div>
-
-                    <div class="social-item">
-                        <span class="social-icon">💬</span>
-                        <span>+234 706 917 5399</span>
-                    </div>
-                </div>
-
-                <!-- Disclaimer -->
-                <div class="disclaimer">
-                    <p style="margin:6px 0; line-height:1.5; color:#e5e7eb;">
-                        <strong style="color:#ffffff;">Disclaimer:</strong>
-                        Please do not share your personal details such as BVN, password,
-                        or OTP code with anyone.
-                    </p>
-                </div>
-
-            </div>
-            
-            <!-- Copyright -->
-            <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <p style="margin: 0; font-size: 12px; color: #e5e7eb;">
-                    © ${new Date().getFullYear()} Zidwell Finance. All rights reserved.
-                </p>
-            </div>
-        </div>
+        <!-- ================= CUSTOM FOOTER ================= -->
+        <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px;" />
 
     </div>
 </body>
 </html>
-
-      `,
-    });
+  `,
+});
 
     return NextResponse.json(
       {

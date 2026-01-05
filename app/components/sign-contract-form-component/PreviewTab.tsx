@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/app/components/ui/card";
+import Swal from "sweetalert2";
 
 interface AttachmentFile {
   file: File;
@@ -46,6 +47,9 @@ interface PreviewTabProps {
   setLocalCreatorName: (name: string) => void;
   creatorSignature?: string | null;
   onSignatureChange?: (signature: string | null) => void;
+  saveSignatureForFuture?: boolean;
+  onSaveSignatureToggle?: (save: boolean) => void;
+  onLoadSavedSignature?: () => void; // Add this prop
 }
 
 const PreviewTab: React.FC<PreviewTabProps> = ({
@@ -65,12 +69,21 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
   onSignatureChange,
   localCreatorName,
   setLocalCreatorName,
+  saveSignatureForFuture = false,
+  onSaveSignatureToggle,
+  onLoadSavedSignature, // Destructure this prop
 }) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [localSignature, setLocalSignature] = useState(creatorSignature);
   const [canvasSize, setCanvasSize] = useState({ width: 400, height: 150 });
+  const [isSavingSignature, setIsSavingSignature] = useState(false);
+
+  // Update local signature when creatorSignature changes
+  useEffect(() => {
+    setLocalSignature(creatorSignature);
+  }, [creatorSignature]);
 
   // Update canvas size based on container
   useEffect(() => {
@@ -88,13 +101,15 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
     return () => window.removeEventListener("resize", updateCanvasSize);
   }, []);
 
-  // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Set canvas background
     ctx.fillStyle = "white";
@@ -108,13 +123,26 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
 
     // If there's a saved signature, draw it
     if (localSignature) {
+      console.log("Drawing saved signature on canvas:", localSignature);
       const img = new Image();
       img.onload = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        console.log("Signature drawn successfully on canvas");
+      };
+      img.onerror = (err) => {
+        console.error("Failed to load signature image:", err);
       };
       img.src = localSignature;
+    } else {
+      console.log("No local signature to draw");
     }
   }, [localSignature, canvasSize]);
+
+  useEffect(() => {
+    if (creatorSignature && creatorSignature !== localSignature) {
+      setLocalSignature(creatorSignature);
+    }
+  }, [creatorSignature]);
 
   const getCanvasCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
@@ -192,7 +220,18 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
     const dataUrl = canvas.toDataURL("image/png");
     setLocalSignature(dataUrl);
     onSignatureChange?.(dataUrl);
-  }, [isDrawing, onSignatureChange]);
+
+    // If save signature toggle is enabled, trigger the save
+    if (saveSignatureForFuture && onSaveSignatureToggle) {
+      // This will trigger the parent component to save the signature
+      onSaveSignatureToggle(saveSignatureForFuture);
+    }
+  }, [
+    isDrawing,
+    onSignatureChange,
+    saveSignatureForFuture,
+    onSaveSignatureToggle,
+  ]);
 
   const clearSignature = useCallback(() => {
     const canvas = canvasRef.current;
@@ -209,39 +248,38 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
     onSignatureChange?.(null);
   }, [onSignatureChange]);
 
+  // Handle save signature toggle change
+  const handleSaveSignatureToggle = (save: boolean) => {
+    if (onSaveSignatureToggle) {
+      onSaveSignatureToggle(save);
+
+      // If turning on and there's a signature, trigger save
+      if (save && localSignature) {
+        // The parent component will handle the saving
+        onSignatureChange?.(localSignature);
+      }
+    }
+  };
+
+  // Handle loading saved signature
+  const handleLoadSavedSignature = () => {
+    if (onLoadSavedSignature) {
+      onLoadSavedSignature();
+    }
+  };
+
   return (
-    <Card className="border-border shadow-sm">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-[#C29307]">Contract Preview</CardTitle>
-            <CardDescription>
-              Review your contract document before sending
-            </CardDescription>
-          </div>
-          {/* <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              className="hidden print:hidden sm:flex"
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Print
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownload}
-              className="hidden print:hidden sm:flex"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-          </div> */}
+    <div className="">
+      <div className="flex items-center justify-between">
+        <div className="mb-5">
+          <CardTitle className="text-[#C29307]">Contract Preview</CardTitle>
+          <CardDescription>
+            Review your contract document before sending
+          </CardDescription>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+
+      <div>
         {contractContent ? (
           <div className="space-y-8">
             {/* Document/PDF View */}
@@ -330,7 +368,10 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                         dangerouslySetInnerHTML={{
                           __html: contractContent.includes("<")
                             ? contractContent
-                            : contractContent.replace(/\n/g, "<br>"),
+                            : contractContent
+                                .split("\n")
+                                .map((para) => `<p>${para}</p>`)
+                                .join(""),
                         }}
                       />
                     ) : (
@@ -515,17 +556,63 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                   </p>
                 </div>
                 {localSignature && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearSignature}
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear Signature
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Clear just the canvas but keep the signature data
+                        const canvas = canvasRef.current;
+                        if (canvas) {
+                          const ctx = canvas.getContext("2d");
+                          if (ctx) {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.fillStyle = "white";
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                          }
+                        }
+                      }}
+                      className="border-gray-300 text-gray-700 hover:bg-gray-100 w-full sm:w-auto"
+                    >
+                      Clear Canvas
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSignature}
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Clear Signature
+                    </Button>
+                  </div>
                 )}
               </div>
+
+              {/* Load Saved Signature Button - Updated */}
+              {onLoadSavedSignature && !localSignature && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">
+                        Saved Signature Available
+                      </p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        You have a signature saved for future use. Would you
+                        like to load it?
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleLoadSavedSignature}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                    >
+                      Load Saved Signature
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-6">
                 <div className="space-y-3">
@@ -563,6 +650,36 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                     </p>
                   </div>
                 </div>
+
+                {/* Save Signature Toggle */}
+                {onSaveSignatureToggle && (
+                  <div className="flex items-center space-x-3 p-4 bg-white border border-gray-200 rounded-lg">
+                    <Switch
+                      id="save-signature-toggle"
+                      checked={saveSignatureForFuture}
+                      onCheckedChange={handleSaveSignatureToggle}
+                      className="data-[state=checked]:bg-[#C29307]"
+                      disabled={!localSignature && saveSignatureForFuture}
+                    />
+                    <div className="space-y-1 flex-1">
+                      <Label
+                        htmlFor="save-signature-toggle"
+                        className="cursor-pointer text-sm font-medium text-gray-700"
+                      >
+                        Save signature for future use
+                      </Label>
+                      <p className="text-xs text-gray-500">
+                        Your signature will be securely stored and automatically
+                        loaded for future contracts
+                      </p>
+                      {!localSignature && saveSignatureForFuture && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          Please create a signature first to enable saving
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -577,14 +694,6 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                   <Edit className="h-4 w-4 mr-2" />
                   Back To Edit Contract
                 </Button>
-                {/* <Button
-                  variant="outline"
-                  onClick={() => setActiveTab("upload")}
-                  className="flex-1"
-                >
-                  <FileIcon className="h-4 w-4 mr-2" />
-                  Manage Attachments
-                </Button> */}
               </div>
             </div>
           </div>
@@ -612,8 +721,8 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

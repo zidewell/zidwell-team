@@ -68,7 +68,7 @@ export default function PinPopOver({
     e.preventDefault();
     const code = pin.join("");
 
-    // 👇 Trigger parent's API call if provided
+  
     if (onConfirm) {
       onConfirm(code);
     }
@@ -99,7 +99,7 @@ export default function PinPopOver({
             transition={{ type: "spring", stiffness: 260, damping: 22 }}
           >
             <div className="max-w-md w-full text-center bg-white px-4 sm:px-8 py-10 rounded-xl shadow-xl relative">
-              {/* ❌ Close button */}
+          
               <button
                 onClick={() => setIsOpen(false)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"

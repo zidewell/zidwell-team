@@ -30,6 +30,8 @@ import {
   Copy,
   X,
   Scale,
+  Download,
+  Check,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import {
@@ -130,8 +132,7 @@ const FormBody: React.FC = () => {
   const inputCount = 4;
   const [isOpen, setIsOpen] = useState(false);
   const [pin, setPin] = useState<string[]>(Array(inputCount).fill(""));
-  const [loading, setLoading] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [isProcessingPin, setIsProcessingPin] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -144,6 +145,7 @@ const FormBody: React.FC = () => {
   const [attachments, setAttachments] = useState<AttachmentFile[]>([]);
   const [includeLawyerSignature, setIncludeLawyerSignature] = useState(false);
   const [totalAmount, setTotalAmount] = useState(10);
+  const [saveSignatureForFuture, setSaveSignatureForFuture] = useState(false);
   const CONTRACT_FEE = 10;
   const LAWYER_FEE = 10000;
 
@@ -154,6 +156,9 @@ const FormBody: React.FC = () => {
   );
   const [creatorSignature, setCreatorSignature] = useState<string | null>(null);
   const [localCreatorName, setLocalCreatorName] = useState(creatorName);
+
+  const [isFormLocked, setIsFormLocked] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (includeLawyerSignature) {
@@ -175,7 +180,7 @@ const FormBody: React.FC = () => {
     status: "pending",
     contractId: "",
     contractType: "custom",
-    contractDate: new Date().toISOString().split('T')[0], // Set default to today
+    contractDate: new Date().toISOString().split("T")[0],
   });
 
   const [drafts, setDrafts] = useState<ContractDraft[]>([]);
@@ -281,6 +286,18 @@ const FormBody: React.FC = () => {
     }
   }, [userData?.id]);
 
+  useEffect(() => {
+    return () => {
+      setIsProcessingPin(false);
+      setIsFormLocked(false);
+      setIsSubmitting(false);
+      setIsOpen(false);
+      setShowContractSummary(false);
+      setShowSuccessModal(false);
+      setPin(Array(inputCount).fill(""));
+    };
+  }, [inputCount]);
+
   const loadUserDrafts = async () => {
     try {
       if (!userData?.id) {
@@ -337,7 +354,6 @@ const FormBody: React.FC = () => {
             }).then((swalResult) => {
               if (swalResult.isConfirmed) {
                 const recentDraft = result.drafts[0];
-                console.log("Loading recent draft:", recentDraft);
                 loadDraftIntoForm(recentDraft);
               } else if (swalResult.isDenied) {
                 showDraftsList(result.drafts);
@@ -357,17 +373,179 @@ const FormBody: React.FC = () => {
     }
   };
 
-  const loadDraftIntoForm = (draft: ContractDraft) => {
-    console.log("Loading draft into form:", draft);
+  const loadSignatureManually = async () => {
+    try {
+      if (!userData?.id) {
+        Swal.fire({
+          icon: "warning",
+          title: "Not Logged In",
+          text: "You need to be logged in to load saved signatures.",
+        });
+        return;
+      }
 
-    // Get contract_id from metadata if available
+      const res = await fetch(
+        `/api/contract/saved-signature?userId=${userData.id}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        if (data.signature) {
+          setCreatorSignature(data.signature);
+          setSaveSignatureForFuture(true);
+
+          Swal.fire({
+            icon: "success",
+            title: "Signature Loaded",
+            text: "Your saved signature has been loaded.",
+            confirmButtonColor: "#C29307",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        } else {
+          Swal.fire({
+            icon: "info",
+            title: "No Saved Signature",
+            text: "No saved signature found. Please create a new one.",
+            confirmButtonColor: "#C29307",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        }
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Load Failed",
+          text: "Failed to load saved signature. Please try again.",
+          confirmButtonColor: "#C29307",
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        icon: "error",
+        title: "Load Failed",
+        text: "Failed to load saved signature. Please try again.",
+        confirmButtonColor: "#C29307",
+      });
+    }
+  };
+
+  const saveSignatureToDatabase = async (signatureDataUrl: string) => {
+    try {
+      if (!userData?.id) {
+        return false;
+      }
+
+      const res = await fetch("/api/contract/saved-signature", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: userData.id,
+          signature: signatureDataUrl,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const handleSaveSignatureToggle = async (save: boolean) => {
+    setSaveSignatureForFuture(save);
+
+    if (save && creatorSignature && userData?.id) {
+      try {
+        const saved = await saveSignatureToDatabase(creatorSignature);
+        if (saved) {
+          Swal.fire({
+            icon: "success",
+            title: "Signature Saved",
+            text: "Your signature has been saved for future use.",
+            confirmButtonColor: "#C29307",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        }
+      } catch (error) {
+        Swal.fire({
+          icon: "error",
+          title: "Save Failed",
+          text: "Failed to save signature. Please try again.",
+          confirmButtonColor: "#C29307",
+        });
+      }
+    }
+
+    if (!save && userData?.id) {
+      try {
+        await deleteSavedSignature();
+      } catch (error) {}
+    }
+  };
+
+  const handleSignatureChange = async (signature: string | null) => {
+    setCreatorSignature(signature);
+
+    if (!signature && saveSignatureForFuture && userData?.id) {
+      try {
+        await deleteSavedSignature();
+      } catch (error) {}
+    }
+
+    if (signature && saveSignatureForFuture && userData?.id) {
+      try {
+        await saveSignatureToDatabase(signature);
+      } catch (error) {}
+    }
+  };
+
+  const deleteSavedSignature = async () => {
+    try {
+      if (!userData?.id) return false;
+
+      const res = await fetch("/api/contract/saved-signature", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: userData.id }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const loadDraftIntoForm = (draft: ContractDraft) => {
     const draftContractId =
       draft.metadata?.contract_id ||
       draft.contract_id ||
       draft.id ||
       generateContractId();
 
-    // Parse payment terms from metadata or content if available
     const paymentTerms = draft.metadata?.payment_terms || "";
 
     const formData: FormState = {
@@ -383,13 +561,13 @@ const FormBody: React.FC = () => {
       status: (draft.status as "pending" | "draft") || "draft",
       contractId: draftContractId,
       contractType: "custom",
-      contractDate: draft.contract_date || new Date().toISOString().split('T')[0],
+      contractDate:
+        draft.contract_date || new Date().toISOString().split("T")[0],
     };
 
     setForm(formData);
     setHasUnsavedChanges(false);
 
-    // Also set creator name and signature if available
     if (draft.creator_name) {
       setCreatorName(draft.creator_name);
       setLocalCreatorName(draft.creator_name);
@@ -506,6 +684,7 @@ const FormBody: React.FC = () => {
   const handleSaveDraft = async () => {
     try {
       setIsSavingDraft(true);
+      setIsFormLocked(true);
 
       if (!userData?.id) {
         Swal.fire({
@@ -513,6 +692,7 @@ const FormBody: React.FC = () => {
           title: "Unauthorized",
           text: "You must be logged in to save a draft.",
         });
+        setIsFormLocked(false);
         return;
       }
 
@@ -527,6 +707,7 @@ const FormBody: React.FC = () => {
           title: "No Content",
           text: "Please add some content before saving as draft.",
         });
+        setIsFormLocked(false);
         return;
       }
 
@@ -572,7 +753,6 @@ const FormBody: React.FC = () => {
       });
 
       const result = await res.json();
-      console.log("Save draft response:", result);
 
       if (!res.ok) {
         throw new Error(
@@ -592,7 +772,6 @@ const FormBody: React.FC = () => {
 
       await loadUserDrafts();
     } catch (err) {
-      console.error("Save draft error:", err);
       Swal.fire({
         icon: "error",
         title: "Failed to Save Draft",
@@ -600,10 +779,14 @@ const FormBody: React.FC = () => {
       });
     } finally {
       setIsSavingDraft(false);
+      setIsFormLocked(false);
     }
   };
 
-  const validateFormFields = (): boolean => {
+  const validateFormFields = (): {
+    isValid: boolean;
+    errorMessages: string[];
+  } => {
     const newErrors = {
       contractTitle: "",
       receiverName: "",
@@ -616,51 +799,61 @@ const FormBody: React.FC = () => {
     };
 
     let hasErrors = false;
+    const errorMessages: string[] = [];
 
     if (!form.contractTitle.trim()) {
       newErrors.contractTitle = "Contract title is required.";
       hasErrors = true;
+      errorMessages.push("• Contract title is required");
     }
 
     if (!form.receiverName.trim()) {
       newErrors.receiverName = "Signer full name is required.";
       hasErrors = true;
+      errorMessages.push("• Signer full name is required");
     }
 
     if (!form.receiverEmail.trim()) {
       newErrors.receiverEmail = "Signee email is required.";
       hasErrors = true;
+      errorMessages.push("• Signee email is required");
     } else if (form.receiverEmail.trim() === userData?.email) {
       newErrors.receiverEmail =
         "Sorry, the signee email address cannot be the same as the initiator's email address.";
       hasErrors = true;
+      errorMessages.push("• Signee email cannot be the same as your email");
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.receiverEmail)) {
       newErrors.receiverEmail = "Invalid email format.";
       hasErrors = true;
+      errorMessages.push("• Invalid email format");
     }
 
     if (!form.contractContent.trim()) {
       newErrors.contractContent = "Contract content cannot be empty.";
       hasErrors = true;
+      errorMessages.push("• Contract content cannot be empty");
     }
 
     if (!form.ageConsent) {
       newErrors.ageConsent = "You must confirm you are 18 years or older.";
       hasErrors = true;
+      errorMessages.push("• You must confirm you are 18 years or older");
     }
 
     if (!form.termsConsent) {
       newErrors.termsConsent = "You must agree to the contract terms.";
       hasErrors = true;
+      errorMessages.push("• You must agree to the contract terms");
     }
 
     if (!form.contractDate) {
       newErrors.contractDate = "Contract date is required.";
       hasErrors = true;
+      errorMessages.push("• Contract date is required");
     }
 
     setErrors(newErrors);
-    return !hasErrors;
+    return { isValid: !hasErrors, errorMessages };
   };
 
   const validateSignature = (): boolean => {
@@ -697,34 +890,46 @@ const FormBody: React.FC = () => {
   };
 
   const validateInputs = (): boolean => {
-    // First validate form fields
-    const formValid = validateFormFields();
+    const { isValid: formValid, errorMessages } = validateFormFields();
 
     if (!formValid) {
-      // Show form field errors in SweetAlert
-      const errorMessages = [];
-      if (errors.contractTitle) errorMessages.push(errors.contractTitle);
-      if (errors.receiverName) errorMessages.push(errors.receiverName);
-      if (errors.receiverEmail) errorMessages.push(errors.receiverEmail);
-      if (errors.contractContent) errorMessages.push(errors.contractContent);
-      if (errors.contractDate) errorMessages.push(errors.contractDate);
-      if (errors.ageConsent) errorMessages.push(errors.ageConsent);
-      if (errors.termsConsent) errorMessages.push(errors.termsConsent);
+      setIsProcessingPin(false);
+      setIsFormLocked(false);
+      setIsSubmitting(false);
+      setIsOpen(false);
 
-      if (errorMessages.length > 0) {
-        Swal.fire({
-          icon: "error",
-          title: "Please fix the following errors:",
-          html: errorMessages.map((msg) => `• ${msg}`).join("<br>"),
-          confirmButtonColor: "#C29307",
-        });
-      }
-
+      Swal.fire({
+        icon: "error",
+        title: "Validation Error",
+        html: `
+          <div class="text-left">
+            <p class="font-semibold mb-2">Please fix the following errors:</p>
+            <ul class="list-disc pl-4 space-y-1">
+              ${errorMessages.map((msg) => `<li>${msg}</li>`).join("")}
+            </ul>
+          </div>
+        `,
+        confirmButtonColor: "#C29307",
+        confirmButtonText: "OK",
+        width: 500,
+        customClass: {
+          popup: "rounded-lg",
+          title: "text-xl font-bold",
+          htmlContainer: "text-gray-600",
+        },
+      });
       return false;
     }
 
-    // Then validate signature
-    return validateSignature();
+    const signatureValid = validateSignature();
+    if (!signatureValid) {
+      setIsProcessingPin(false);
+      setIsFormLocked(false);
+      setIsSubmitting(false);
+      setIsOpen(false);
+      return false;
+    }
+    return true;
   };
 
   const uploadAttachmentFiles = async (): Promise<
@@ -793,7 +998,6 @@ const FormBody: React.FC = () => {
 
       const attachmentsData = isDraft ? [] : await uploadAttachmentFiles();
 
-      // Make sure contractId is included
       const contractIdToUse = form.contractId || generateContractId();
 
       const payload = {
@@ -929,7 +1133,6 @@ const FormBody: React.FC = () => {
         throw new Error(data.error || "Refund failed");
       }
     } catch (err) {
-      console.error("Refund failed:", err);
       Swal.fire({
         icon: "warning",
         title: "Refund Failed",
@@ -939,9 +1142,6 @@ const FormBody: React.FC = () => {
   };
 
   const processPaymentAndSubmit = async () => {
-    setLoading(true);
-    setIsOpen(false);
-
     try {
       const paymentSuccess = await handleDeduct();
 
@@ -951,18 +1151,19 @@ const FormBody: React.FC = () => {
           setGeneratedSigningLink(result.signingLink || "");
           setSavedContractId(result.contractId || "");
 
-          // Trigger confetti when showing success modal
           triggerContractConfetti();
 
-          // Add a small delay for better UX
+          // FINALLY reset submitting state ONLY when deduction succeeded
+          setIsSubmitting(false);
+          setIsFormLocked(false);
+          setIsProcessingPin(false);
+          setIsOpen(false);
+          setPin(Array(inputCount).fill(""));
+
           setTimeout(() => {
             setShowSuccessModal(true);
           }, 300);
 
-          setIncludeLawyerSignature(false);
-          setCreatorSignature(null);
-
-          // Reset form
           setForm({
             receiverName: "",
             receiverEmail: "",
@@ -975,43 +1176,51 @@ const FormBody: React.FC = () => {
             status: "pending",
             contractId: generateContractId(),
             contractType: "custom",
-            contractDate: new Date().toISOString().split('T')[0],
+            contractDate: new Date().toISOString().split("T")[0],
           });
           setAttachments([]);
           setHasUnsavedChanges(false);
+          setIncludeLawyerSignature(false);
+          setCreatorSignature(null);
         } else {
           await handleRefund();
+          // Keep submitting state true even on save contract failure
+          // because deduction succeeded
+          setIsSubmitting(false);
+          setIsFormLocked(false);
+          setIsProcessingPin(false);
+          setIsOpen(false);
+          setPin(Array(inputCount).fill(""));
         }
+      } else {
+        // Payment failed, reset states
+        setIsSubmitting(false);
+        setIsFormLocked(false);
+        setIsProcessingPin(false);
+        setIsOpen(false);
+        setPin(Array(inputCount).fill(""));
       }
     } catch (error) {
-      console.error("Error in process:", error);
+      // Any error, reset states
+      setIsSubmitting(false);
+      setIsFormLocked(false);
+      setIsProcessingPin(false);
+      setIsOpen(false);
+      setPin(Array(inputCount).fill(""));
       Swal.fire({
         icon: "error",
         title: "Processing Failed",
         text: "Failed to process payment. Please try again.",
         confirmButtonColor: "#C29307",
       });
-    } finally {
-      setLoading(false);
-      setIsSending(false);
-      // Reset PIN
-      setPin(Array(inputCount).fill(""));
     }
   };
 
   const handleCreatorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isFormLocked) return;
     const name = e.target.value;
     setLocalCreatorName(name);
     setCreatorName(name);
-  };
-
-  const handleSendForSignature = () => {
-    if (!validateInputs()) {
-      return;
-    }
-
-    setIsSending(true);
-    setShowContractSummary(true);
   };
 
   const handleSummaryConfirm = (options?: {
@@ -1022,13 +1231,18 @@ const FormBody: React.FC = () => {
       setIncludeLawyerSignature(options.includeLawyerSignature);
     }
     setIsOpen(true);
-    setIsSending(false);
+    // Keep isSubmitting as true when moving to PIN popup
+    setIsProcessingPin(true);
   };
 
   const handleSummaryBack = () => {
     setShowContractSummary(false);
-    setIsSending(false);
-    setLoading(false);
+    // User cancelled from contract summary, reset all states
+    setIsSubmitting(false);
+    setIsFormLocked(false);
+    setIsProcessingPin(false);
+    setIsOpen(false);
+    setPin(Array(inputCount).fill(""));
   };
 
   const handleCopySigningLink = () => {
@@ -1047,15 +1261,60 @@ const FormBody: React.FC = () => {
   };
 
   const handleSubmit = async (isDraft: boolean = false) => {
+    // Prevent multiple submissions
+    if (isSubmitting || isFormLocked || isProcessingPin || isSavingDraft) {
+      return;
+    }
+
     if (isDraft) {
       await handleSaveDraft();
       return;
     }
 
-    handleSendForSignature();
+    // Set submitting state immediately
+    setIsSubmitting(true);
+    setIsFormLocked(true);
+
+    try {
+      const inputsValid = validateInputs();
+      
+      if (!inputsValid) {
+        setIsSubmitting(false);
+        setIsFormLocked(false);
+        return;
+      }
+
+      // Only proceed if validation passed
+      setShowContractSummary(true);
+      // Don't reset isSubmitting - keep it true until deduction succeeds
+    } catch (error) {
+      console.error("Submit error:", error);
+      setIsSubmitting(false);
+      setIsFormLocked(false);
+      setIsProcessingPin(false);
+      setIsOpen(false);
+      setPin(Array(inputCount).fill(""));
+      
+      Swal.fire({
+        icon: "error",
+        title: "Submission Error",
+        text: "An error occurred while processing your request.",
+        confirmButtonColor: "#C29307",
+      });
+    }
   };
 
   const resetForm = () => {
+    if (isFormLocked) {
+      Swal.fire({
+        icon: "warning",
+        title: "Form is Processing",
+        text: "Cannot clear form while submission is in progress.",
+        confirmButtonColor: "#C29307",
+      });
+      return;
+    }
+
     Swal.fire({
       title: "Clear Form?",
       text: "This will remove all current form data, including uploaded attachments.",
@@ -1079,7 +1338,7 @@ const FormBody: React.FC = () => {
           status: "pending",
           contractId: generateContractId(),
           contractType: "custom",
-          contractDate: new Date().toISOString().split('T')[0],
+          contractDate: new Date().toISOString().split("T")[0],
         });
         setAttachments([]);
         setIncludeLawyerSignature(false);
@@ -1119,6 +1378,7 @@ const FormBody: React.FC = () => {
   };
 
   const handleFormChange = (field: keyof FormState, value: any) => {
+    if (isFormLocked) return;
     setForm((prev) => ({ ...prev, [field]: value }));
     const errorField = field as keyof typeof errors;
     if (errors[errorField]) {
@@ -1127,10 +1387,21 @@ const FormBody: React.FC = () => {
   };
 
   const handleSelectChange = (value: string) => {
+    if (isFormLocked) return;
     handleFormChange("contractTitle", value);
   };
 
   const handleFileUpload = (file: File) => {
+    if (isFormLocked) {
+      Swal.fire({
+        icon: "warning",
+        title: "Form is Processing",
+        text: "Cannot upload files while submission is in progress.",
+        confirmButtonColor: "#C29307",
+      });
+      return;
+    }
+
     let previewUrl: string | undefined;
     if (file.type.startsWith("image/")) {
       previewUrl = URL.createObjectURL(file);
@@ -1158,6 +1429,16 @@ const FormBody: React.FC = () => {
   };
 
   const handleRemoveAttachment = (index: number) => {
+    if (isFormLocked) {
+      Swal.fire({
+        icon: "warning",
+        title: "Form is Processing",
+        text: "Cannot remove attachments while submission is in progress.",
+        confirmButtonColor: "#C29307",
+      });
+      return;
+    }
+
     const attachmentToRemove = attachments[index];
 
     if (attachmentToRemove.previewUrl) {
@@ -1168,9 +1449,13 @@ const FormBody: React.FC = () => {
     setHasUnsavedChanges(true);
   };
 
-  const handleLawyerToggle = useCallback((checked: boolean) => {
-    setIncludeLawyerSignature(checked);
-  }, []);
+  const handleLawyerToggle = useCallback(
+    (checked: boolean) => {
+      if (isFormLocked) return;
+      setIncludeLawyerSignature(checked);
+    },
+    [isFormLocked]
+  );
 
   useEffect(() => {
     return () => {
@@ -1188,9 +1473,13 @@ const FormBody: React.FC = () => {
         <PinPopOver
           setIsOpen={(newValue) => {
             setIsOpen(newValue);
-            // When PinPopOver closes, reset isSending
+
             if (!newValue) {
-              setIsSending(false);
+              // User closed PIN popup, reset all states
+              setIsSubmitting(false);
+              setIsFormLocked(false);
+              setIsProcessingPin(false);
+              setPin(Array(inputCount).fill(""));
             }
           }}
           isOpen={isOpen}
@@ -1223,6 +1512,15 @@ const FormBody: React.FC = () => {
         dateCreated={new Date(form.contractDate).toLocaleDateString()}
         attachments={attachments}
         currentLawyerSignature={includeLawyerSignature}
+        onClose={() => {
+          setShowContractSummary(false);
+          // User closed contract summary, reset all states
+          setIsSubmitting(false);
+          setIsFormLocked(false);
+          setIsProcessingPin(false);
+          setIsOpen(false);
+          setPin(Array(inputCount).fill(""));
+        }}
       />
 
       {showSuccessModal && (
@@ -1273,6 +1571,12 @@ const FormBody: React.FC = () => {
               <Button
                 onClick={() => {
                   setShowSuccessModal(false);
+                  setIsSubmitting(false);
+                  setIsFormLocked(false);
+                  setIsProcessingPin(false);
+                  setIsOpen(false);
+                  setPin(Array(inputCount).fill(""));
+                  setShowContractSummary(false);
                   window.location.reload();
                 }}
                 variant="outline"
@@ -1287,7 +1591,8 @@ const FormBody: React.FC = () => {
                 <strong>Contract ID:</strong> {savedContractId}
               </p>
               <p className="text-sm text-gray-700 text-center mt-1">
-                <strong>Contract Date:</strong> {new Date(form.contractDate).toLocaleDateString()}
+                <strong>Contract Date:</strong>{" "}
+                {new Date(form.contractDate).toLocaleDateString()}
               </p>
               {attachments.length > 0 && (
                 <p className="text-sm text-gray-700 text-center mt-1">
@@ -1320,7 +1625,18 @@ const FormBody: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.back()}
+                onClick={() => {
+                  if (isFormLocked) {
+                    Swal.fire({
+                      icon: "warning",
+                      title: "Form is Processing",
+                      text: "Cannot navigate away while submission is in progress.",
+                      confirmButtonColor: "#C29307",
+                    });
+                    return;
+                  }
+                  router.back();
+                }}
                 className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -1372,6 +1688,15 @@ const FormBody: React.FC = () => {
                   ✓ Signed
                 </Badge>
               )}
+              {isSubmitting && (
+                <Badge
+                  variant="outline"
+                  className="bg-red-50 text-red-700 border-red-200"
+                >
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Processing...
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -1382,6 +1707,15 @@ const FormBody: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
+                    if (isFormLocked) {
+                      Swal.fire({
+                        icon: "warning",
+                        title: "Form is Processing",
+                        text: "Cannot view drafts while submission is in progress.",
+                        confirmButtonColor: "#C29307",
+                      });
+                      return;
+                    }
                     if (drafts.length > 0) {
                       showDraftsList(drafts);
                     } else {
@@ -1414,7 +1748,10 @@ const FormBody: React.FC = () => {
 
             <Tabs
               value={activeTab}
-              onValueChange={setActiveTab}
+              onValueChange={(value) => {
+                if (isFormLocked) return;
+                setActiveTab(value);
+              }}
               className="w-full"
             >
               <TabsList className="grid w-full grid-cols-2 mb-8">
@@ -1436,11 +1773,58 @@ const FormBody: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => setActiveTab("preview")}
-                      disabled={!form.contractContent}
+                      disabled={!form.contractContent || isFormLocked}
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Preview
                     </Button>
+                  </div>
+
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">
+                          Your Saved Signature
+                        </p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Load your saved signature to use in this contract
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={loadSignatureManually}
+                        disabled={
+                          !userData?.id || !!creatorSignature || isFormLocked
+                        }
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                      >
+                        {creatorSignature ? (
+                          <>
+                            <Check className="h-4 w-4 mr-2" />
+                            Signature Loaded
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4 mr-2" />
+                            Load Saved Signature
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {creatorSignature && (
+                      <div className="mt-3 p-3 bg-white border border-green-200 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
+                            <Check className="h-4 w-4 text-green-600" />
+                          </div>
+                          <p className="text-sm text-green-700">
+                            Signature loaded successfully! Switch to Preview tab
+                            to see it.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="w-full">
@@ -1517,7 +1901,7 @@ const FormBody: React.FC = () => {
                             handleFormChange("contractDate", e.target.value)
                           }
                           className="w-full"
-                          max={new Date().toISOString().split('T')[0]}
+                          max={new Date().toISOString().split("T")[0]}
                         />
                         {errors.contractDate && (
                           <p className="text-xs text-red-500 mt-1">
@@ -1577,7 +1961,6 @@ const FormBody: React.FC = () => {
                     )}
                   </div>
 
-                  {/* PAYMENT TERMS TEXT AREA */}
                   <div className="mt-6">
                     <div className="flex justify-between items-center mb-2">
                       <Label className="block text-xs font-medium text-gray-600">
@@ -1594,7 +1977,7 @@ const FormBody: React.FC = () => {
                           handleFormChange("paymentTerms", e.target.value)
                         }
                         placeholder="Specify payment terms, schedules, amounts, methods, and deadlines if applicable..."
-                        className="w-full h-20 p-4 text-sm resize-none border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#C29307] focus:border-transparent"
+                        className="w-full h-20 p-4 text-sm resize-none border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#C29307] focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                         rows={6}
                       />
                     </div>
@@ -1629,34 +2012,6 @@ const FormBody: React.FC = () => {
                       </p>
                     )}
                   </div>
-
-                  {/* Lawyer Toggle */}
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-[#FCF9F2] w-full">
-                    <div className="space-y-1">
-                      <div className="flex items-center">
-                        <Label
-                          htmlFor="lawyer-toggle"
-                          className="cursor-pointer text-gray-700"
-                        >
-                          Would you like to add a lawyer's signature to this
-                          contract for an additional fee of ₦10,000, making the
-                          total cost ₦11,000?
-                        </Label>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        <strong>PLEASE NOTE:</strong> An agreement between two
-                        people is legally binding EVEN WITHOUT A LAWYER'S
-                        SIGNATURE, adding a lawyer's signature just makes it
-                        more official and more weighty.
-                      </p>
-                    </div>
-                    <Switch
-                      id="lawyer-toggle"
-                      checked={includeLawyerSignature}
-                      onCheckedChange={handleLawyerToggle}
-                      className="data-[state=checked]:bg-[#C29307] flex-shrink-0"
-                    />
-                  </div>
                 </section>
 
                 <div className="flex gap-3 pt-4 border-t">
@@ -1666,8 +2021,9 @@ const FormBody: React.FC = () => {
                     size="lg"
                     className="flex-1 hover:bg-blue-50"
                     disabled={
-                      isSending ||
-                      loading ||
+                      isSubmitting ||
+                      isFormLocked ||
+                      isProcessingPin ||
                       isSavingDraft ||
                       (!form.contractTitle.trim() &&
                         !form.contractContent.trim())
@@ -1688,10 +2044,12 @@ const FormBody: React.FC = () => {
                   <Button
                     onClick={() => handleSubmit(false)}
                     size="lg"
-                    className="flex-1 bg-[#C29307] text-white hover:bg-[#b38606]"
-                    disabled={isSending || loading || isSavingDraft}
+                    className="flex-1 bg-[#C29307] text-white hover:bg-[#b38606] disabled:opacity-70 disabled:cursor-not-allowed"
+                    disabled={
+                      isSubmitting || isFormLocked || isProcessingPin || isSavingDraft
+                    }
                   >
-                    {isSending ? (
+                    {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Processing...
@@ -1721,9 +2079,12 @@ const FormBody: React.FC = () => {
                   creatorName={creatorName}
                   onCreatorNameChange={setCreatorName}
                   creatorSignature={creatorSignature}
-                  onSignatureChange={setCreatorSignature}
                   localCreatorName={localCreatorName}
                   setLocalCreatorName={setLocalCreatorName}
+                  saveSignatureForFuture={saveSignatureForFuture}
+                  onSaveSignatureToggle={handleSaveSignatureToggle}
+                  onSignatureChange={handleSignatureChange}
+                  onLoadSavedSignature={loadSignatureManually}
                 />
               </TabsContent>
             </Tabs>

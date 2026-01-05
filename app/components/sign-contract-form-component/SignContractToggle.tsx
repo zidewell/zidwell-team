@@ -7,9 +7,10 @@ type SignContractToggleProps = {
     setAgeConsent: (value: boolean) => void;
     termsConsent: boolean;
     setTermsConsent: (value: boolean) => void;
+ 
 };
 
-const SignContractToggle: React.FC<SignContractToggleProps> = ({ ageConsent, setAgeConsent, termsConsent, setTermsConsent }) => {
+const SignContractToggle: React.FC<SignContractToggleProps> = ({ ageConsent, setAgeConsent, termsConsent, setTermsConsent,  }) => {
     return (
         <>
             <div className="flex items-center justify-between p-4 border border-border rounded-lg">

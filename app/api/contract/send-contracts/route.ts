@@ -8,24 +8,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Helper function to convert HTML to plain text
-function htmlToPlainText(html: string): string {
-  if (!html) return "";
-  
-  return html
-    .replace(/<[^>]*>/g, '') // Remove HTML tags
-    .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
-    .replace(/&amp;/g, '&') // Replace &amp; with &
-    .replace(/&lt;/g, '<') // Replace &lt; with <
-    .replace(/&gt;/g, '>') // Replace &gt; with >
-    .replace(/&quot;/g, '"') // Replace &quot; with "
-    .replace(/&#39;/g, "'") // Replace &#39; with '
-    .replace(/&#x27;/g, "'") // Replace &#x27; with '
-    .replace(/&#x2F;/g, '/') // Replace &#x2F; with /
-    .replace(/\s+/g, ' ') // Collapse multiple spaces
-    .trim();
-}
-
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -42,11 +24,14 @@ export async function POST(req: NextRequest) {
     const userId = body.userId;
     const contractTitle =
       body.contract_title || body.contractTitle || "Untitled Contract";
+
+    // Get contract content as HTML (DO NOT CONVERT TO PLAIN TEXT)
+    const contractContent =
+      body.contract_content || body.contractContent || body.contract_text || "";
     
-    // Get contract content and convert to plain text
-    const contractContent = body.contract_content || body.contractContent || body.contract_text || "";
-    const contractText = htmlToPlainText(contractContent);
-    
+    // Store HTML directly
+    const contractText = contractContent;
+
     const receiverEmail =
       body.receiver_email || body.receiverEmail || body.signee_email || "";
     const receiverName =
@@ -62,10 +47,14 @@ export async function POST(req: NextRequest) {
     const ageConsent = body.age_consent || body.ageConsent || false;
     const termsConsent = body.terms_consent || body.termsConsent || false;
     const contractIdFromBody = body.contract_id || body.contractId || "";
-     const contractDate = body.contract_date || body.contractDate || new Date().toISOString().split('T')[0];
-  
+    const contractDate =
+      body.contract_date ||
+      body.contractDate ||
+      new Date().toISOString().split("T")[0];
+
+    // Get payment terms as HTML (DO NOT CONVERT TO PLAIN TEXT)
     const paymentTermsContent = body.payment_terms || body.paymentTerms || "";
-    const paymentTerms = htmlToPlainText(paymentTermsContent);
+    const paymentTerms = paymentTermsContent; // Store as HTML
 
     if (!userId) {
       return NextResponse.json(
@@ -96,8 +85,9 @@ export async function POST(req: NextRequest) {
       age_consent: ageConsent,
       terms_consent: termsConsent,
       contract_id: contractIdFromBody,
-       contract_date: contractDate,
-      payment_terms: paymentTerms,
+      contract_date: contractDate,
+      payment_terms: paymentTerms, // Store as HTML
+      contract_html: contractContent, // Store original HTML for reference
     };
 
     // Add attachments to metadata if they exist
@@ -187,13 +177,13 @@ export async function POST(req: NextRequest) {
 
       const updateData: any = {
         contract_title: contractTitle,
-        contract_text: contractText,
+        contract_text: contractText, // Store HTML
         signee_email: receiverEmail,
         signee_name: receiverName,
         phone_number: receiverPhone,
         status: "pending",
         signing_link: signingLink,
-        is_draft: false, 
+        is_draft: false,
         metadata: metadata,
         age_consent: ageConsent,
         terms_consent: termsConsent,
@@ -201,7 +191,7 @@ export async function POST(req: NextRequest) {
         creator_name: creatorName,
         creator_signature: creatorSignature,
         updated_at: now,
-        sent_at: now
+        sent_at: now,
       };
 
       // Update token if needed
@@ -233,7 +223,7 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         token: token,
         contract_title: contractTitle,
-        contract_text: contractText,
+        contract_text: contractText, // Store HTML
         initiator_email: body.initiator_email || body.initiatorEmail || "",
         initiator_name: body.initiator_name || body.initiatorName || "",
         signee_email: receiverEmail,
@@ -274,6 +264,9 @@ export async function POST(req: NextRequest) {
       console.log("New contract created. ID:", result.id, "is_draft:", isDraft);
     }
 
+    const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+    const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
+
     // Send email notification if not a draft
     if (!isDraft && receiverEmail) {
       try {
@@ -282,7 +275,6 @@ export async function POST(req: NextRequest) {
           to: receiverEmail,
           subject: `Contract for Signature: ${contractTitle}`,
           html: `
-           
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -304,7 +296,8 @@ export async function POST(req: NextRequest) {
         }
         
         .email-container {
-          
+            max-width: 600px;
+            margin: 0 auto;
             background: #ffffff;
             overflow: hidden;
         }
@@ -348,109 +341,30 @@ export async function POST(req: NextRequest) {
         .font-semibold { font-weight: 600 !important; }
         .font-bold { font-weight: 700 !important; }
         
-        /* Header */
-        .email-header {
-            background: #073b2a;
-            padding: 30px 20px;
-            text-align: center;
-        }
-        
-        .brand-logo {
-            color: #c9a227;
-            font-size: 36px;
-            letter-spacing: 2px;
-            margin: 0;
-            font-weight: 700;
-        }
-        
-        /* Footer Styling */
-        .email-footer {
-            background-color: #073b2a;
-            padding: 25px 20px;
-            color: #ffffff;
-        }
-        
-        .footer-services {
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 600;
-            text-align: center;
-            margin: 0 0 25px 0;
-        }
-        
-        .social-grid {
-            font-size: 14px;
-            line-height: 1.8;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .social-item {
-            display: flex;
-            align-items: center;
-        }
-        
-        .social-icon {
-            color: #c9a227;
-            font-size: 20px;
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
-        }
-        
-        .disclaimer {
-            max-width: 360px;
-            font-size: 13px;
-            text-align: right;
-            color: #e5e7eb;
-            line-height: 1.5;
-        }
-        
         /* Mobile Responsive */
         @media screen and (max-width: 600px) {
             .content-section {
                 padding: 30px 20px !important;
             }
             
-            .email-header {
-                padding: 20px 15px !important;
-            }
-            
-            .email-footer {
-                padding: 20px 15px !important;
-            }
-            
             .action-button {
                 padding: 12px 24px !important;
                 font-size: 14px !important;
-            }
-            
-            .social-grid {
-                grid-template-columns: 1fr !important;
-            }
-            
-            .disclaimer {
-                text-align: left !important;
-                max-width: 100% !important;
             }
         }
     </style>
 </head>
 <body style="margin:0; padding:0; background-color:#f9fafb;">
     <div class="email-container">
-        <!-- ================= HEADER ================= -->
-        <div class="email-header">
-            <h1 class="brand-logo">ZIDWELL</h1>
-        </div>
+        <!-- ================= CUSTOM HEADER ================= -->
+        <img src="${headerImageUrl}" alt="Zidwell Header" style="width: 100%; max-width: 600px; display: block; margin-bottom: 20px;" />
 
         <!-- ================= CONTENT ================= -->
         <div class="content-section">
             <!-- Status Header -->
             <div>
                 <h1 style="margin: 0; font-size: 28px; font-weight: 600; color: black; text-align: center;">Contract for Your Signature</h1>
-                <p style="margin: 10px 0 10px 0; opacity: 0.9; color: black;text-align: center;">Action Required: Review and Sign</p>
+                <p style="margin: 10px 0 10px 0; opacity: 0.9; color: white; text-align: center;">Action Required: Review and Sign</p>
             </div>
             
             <!-- Contract Information -->
@@ -462,7 +376,9 @@ export async function POST(req: NextRequest) {
                     Hello <strong>${receiverName}</strong>,
                 </p>
                 <p class="text-base text-secondary" style="margin: 0;">
-                    You have received a contract for your review and signature from <strong>${creatorName || "the contract creator"}</strong>.
+                    You have received a contract for your review and signature from <strong>${
+                      creatorName || "the contract creator"
+                    }</strong>.
                 </p>
             </div>
             
@@ -472,7 +388,9 @@ export async function POST(req: NextRequest) {
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
                     <div>
                         <div class="text-sm text-accent font-semibold" style="margin-bottom: 5px;">SENDER</div>
-                        <div class="text-base">${creatorName || "Contract Creator"}</div>
+                        <div class="text-base">${
+                          creatorName || "Contract Creator"
+                        }</div>
                     </div>
                     <div>
                         <div class="text-sm text-accent font-semibold" style="margin-bottom: 5px;">RECIPIENT</div>
@@ -521,69 +439,17 @@ export async function POST(req: NextRequest) {
             </div>
         </div>
 
-        <!-- ================= FOOTER ================= -->
-        <div class="email-footer">
-            <h1 style="margin:0; color:#c9a227; font-size:42px; letter-spacing:3px; text-align: center;">
-                ZIDWELL
-            </h1>
-            
-            <h3 class="footer-services">
-                PAYMENTS | INVOICES | RECEIPTS | CONTRACTS | TAX MANAGEMENT | FINANCIAL WELLNESS | COMMUNITY
-            </h3>
-            
-            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:20px; align-items: center;">
-
-                <!-- Social Links with Unicode Icons -->
-                <div class="social-grid">
-                    <div class="social-item">
-                        <span class="social-icon">📷</span>
-                        <span>@zidwellfinance</span>
-                    </div>
-
-                    <div class="social-item">
-                        <span class="social-icon">📘</span>
-                        <span>@zidwell</span>
-                    </div>
-
-                    <div class="social-item">
-                        <span class="social-icon">💼</span>
-                        <span>@zidwell</span>
-                    </div>
-
-                    <div class="social-item">
-                        <span class="social-icon">💬</span>
-                        <span>+234 706 917 5399</span>
-                    </div>
-                </div>
-
-                <!-- Disclaimer -->
-                <div class="disclaimer">
-                    <p style="margin:6px 0; line-height:1.5; color:#e5e7eb;">
-                        <strong style="color:#ffffff;">Disclaimer:</strong>
-                        Please do not share your personal details such as BVN, password,
-                        or OTP code with anyone.
-                    </p>
-                </div>
-
-            </div>
-            
-            <!-- Copyright -->
-            <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <p style="margin: 0; font-size: 12px; color: #e5e7eb;">
-                    © ${new Date().getFullYear()} Zidwell Finance. All rights reserved.
-                </p>
-            </div>
-        </div>
+        <!-- ================= CUSTOM FOOTER ================= -->
+        <img src="${footerImageUrl}" alt="Zidwell Footer" style="width: 100%; max-width: 600px; display: block; margin-top: 20px;" />
 
     </div>
 </body>
 </html>
-  
-          `,
+`,
         };
 
-        await transporter.sendMail(mailOptions);
-        console.log("Notification email sent to:", receiverEmail);
+        // await transporter.sendMail(mailOptions);
+        // console.log("Notification email sent to:", receiverEmail);
       } catch (emailError) {
         console.error("Failed to send email:", emailError);
         // Don't fail the whole request if email fails
@@ -600,7 +466,7 @@ export async function POST(req: NextRequest) {
       signingLink: result.signing_link,
       verificationCode: result.verification_code,
       isDraft,
-      isUpdate: !!existingDraft, 
+      isUpdate: !!existingDraft,
     });
   } catch (error: any) {
     console.error("Error processing contract:", error);
@@ -680,14 +546,13 @@ export async function GET(req: NextRequest) {
 
     if (error) throw error;
 
-
     const contracts =
       data?.map((contract) => ({
         id: contract.id,
         contract_id: contract.metadata?.contract_id || contract.id,
         contract_title: contract.contract_title,
-        contract_content: contract.contract_text,
-        contract_text: contract.contract_text,
+        contract_content: contract.contract_text, // This is now HTML
+        contract_text: contract.contract_text, // This is now HTML
         contract_type: contract.contract_type || "custom",
         receiver_name: contract.signee_name || "",
         receiver_email: contract.signee_email || "",

@@ -10,6 +10,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const baseUrl =
+  process.env.NODE_ENV === "development"
+    ? process.env.NEXT_PUBLIC_DEV_URL
+    : process.env.NEXT_PUBLIC_BASE_URL;
+
 function generateContractHTML(
   contract: any,
   signeeName: string,
@@ -107,14 +112,18 @@ function generateContractHTML(
     (typeof contract.metadata === 'object' && contract.metadata?.lawyer_signature) ||
     (typeof contract.metadata === 'string' && JSON.parse(contract.metadata || '{}')?.lawyer_signature);
 
-  // Parse terms from contract_text
+  // Parse terms from contract_text (which now contains HTML)
   const parseTerms = () => {
     if (!contract.contract_text) return null;
     
+    // Return HTML content directly since we're storing HTML now
     return contract.contract_text;
   };
 
   const contractContent = parseTerms();
+
+  const headerImageUrl = `${baseUrl}/zidwell-header.png`;
+  const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
   return `
 <!DOCTYPE html>
@@ -137,6 +146,20 @@ function generateContractHTML(
             background: #ffffff;
             max-width: 100%;
             min-height: 100vh;
+        }
+        
+        /* Header Image */
+        .header-image {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto 20px;
+        }
+        
+        /* Footer Image */
+        .footer-image {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto 0;
         }
         
         /* Header */
@@ -163,7 +186,9 @@ function generateContractHTML(
         }
         
         /* Party Information */
-    \
+        .party-info {
+            margin-bottom: 30px;
+        }
         
         .party-row {
             display: flex;
@@ -221,10 +246,9 @@ function generateContractHTML(
             margin-bottom: 40px;
         }
         
-        .term-item {
+        .term-content {
             font-size: 14px;
             line-height: 1.7;
-            margin-bottom: 12px;
             color: #4b5563;
             text-align: justify;
         }
@@ -235,10 +259,9 @@ function generateContractHTML(
             page-break-inside: avoid;
         }
         
-        .payment-term-item {
+        .payment-term-content {
             font-size: 14px;
             line-height: 1.7;
-            margin-bottom: 8px;
             color: #4b5563;
             text-align: justify;
         }
@@ -421,13 +444,24 @@ function generateContractHTML(
                 line-height: 1.5;
             }
             
+            /* Header and Footer Images for Print */
+            .header-image {
+                max-width: 100% !important;
+                margin-bottom: 15px !important;
+            }
+            
+            .footer-image {
+                max-width: 100% !important;
+                margin-top: 15px !important;
+            }
+            
             /* Allow natural page breaks */
             .terms-section {
                 page-break-inside: auto;
                 margin-bottom: 20px;
             }
             
-            .term-item {
+            .term-content {
                 page-break-inside: auto;
                 orphans: 3;
                 widows: 3;
@@ -523,6 +557,11 @@ function generateContractHTML(
     </style>
 </head>
 <body>
+    <!-- Header Image -->
+    <div style="text-align: center;">
+        <img src="${headerImageUrl}" alt="Zidwell Header" class="header-image" />
+    </div>
+    
     <div class="content-flow">
         <!-- Header -->
         <div class="header">
@@ -558,7 +597,7 @@ function generateContractHTML(
         </div>
         
         <div class="terms-section">
-            <div class="term-item" style="white-space: pre-wrap; text-align: justify; line-height: 1.6;">
+            <div class="term-content">
                 ${contractContent || "No contract terms specified."}
             </div>
         </div>
@@ -573,7 +612,7 @@ function generateContractHTML(
             </div>
             
             <div class="terms-section">
-                <div class="payment-term-item" style="white-space: pre-wrap; text-align: justify; line-height: 1.6;">
+                <div class="payment-term-content">
                     ${paymentTerms}
                 </div>
             </div>
@@ -706,6 +745,11 @@ function generateContractHTML(
               minute: "2-digit",
             })}
         </div>
+    </div>
+    
+    <!-- Footer Image -->
+    <div style="text-align: center; margin-top: 40px;">
+        <img src="${footerImageUrl}" alt="Zidwell Footer" class="footer-image" />
     </div>
 </body>
 </html>`;
@@ -1020,12 +1064,7 @@ export async function POST(request: Request) {
         .font-semibold { font-weight: 600; }
         .font-bold { font-weight: 700; }
         
-        /* Header */
-        .email-header {
-            background: #073b2a;
-            padding: 30px 20px;
-            text-align: center;
-        }
+      
         
         .brand-logo {
             color: #c9a227;
@@ -1035,48 +1074,10 @@ export async function POST(request: Request) {
             font-weight: 700;
         }
         
-        /* Footer Styling */
-        .email-footer {
-            background-color: #073b2a;
-            padding: 25px 20px;
-            color: #ffffff;
-        }
+     
+      
         
-        .footer-services {
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 600;
-            text-align: center;
-            margin: 0 0 25px 0;
-        }
-        
-        .social-grid {
-            font-size: 14px;
-            line-height: 1.8;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .social-item {
-            display: flex;
-            align-items: center;
-        }
-        
-        .social-icon {
-            color: #c9a227;
-            font-size: 20px;
-            margin-right: 10px;
-        }
-        
-        .disclaimer {
-            max-width: 360px;
-            font-size: 13px;
-            text-align: right;
-            color: #e5e7eb;
-            line-height: 1.5;
-        }
+       
         
         /* Mobile Responsive */
         @media (max-width: 600px) {
@@ -1089,43 +1090,20 @@ export async function POST(request: Request) {
                 gap: 15px;
             }
             
-            .footer-container {
-                flex-direction: column;
-                gap: 25px;
-            }
-            
-            .social-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .disclaimer {
-                text-align: left;
-                max-width: 100%;
-            }
-
-            .img-header{
-                width: 100%;
-                height: auto;
-                }
+         
+         
         }
     </style>
 </head>
 <body>
-   <div class="img-header">
-            <img src="./ZIDWELL HEADER.png" alt="">
-        </div>
-
+  
     <div class="email-container">
-        <!-- Header -->
-        <div class="email-header">
-            <h1 class="brand-logo">ZIDWELL</h1>
-        </div>
-
+      
         <!-- Content -->
         <div class="content-section">
             <!-- Status Header -->
-            <div style="text-align: center; margin-bottom: 30px;">
-                <div style="display: inline-block; background: #f0fff4; padding: 20px 40px; border-radius: 12px; border: 2px solid #38a169;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="display: inline-block; background: #f0fff4; padding: 10px 30px; border-radius: 12px; border: 2px solid #38a169;">
                     <div style="font-size: 48px; color: #38a169; margin-bottom: 15px;">✓</div>
                     <div class="text-xl font-bold text-success">Contract Successfully Signed</div>
                     <p class="text-secondary" style="margin-top: 10px;">Digital signatures verified and secured</p>
@@ -1202,59 +1180,6 @@ export async function POST(request: Request) {
             </div>
         </div>
 
-        <!-- ================= FOOTER ================= -->
-        <div class="email-footer">
-            <h1 style="margin:0; color:#c9a227; font-size:42px; letter-spacing:3px; text-align: center;">
-                ZIDWELL
-            </h1>
-            
-            <h3 class="footer-services">
-                PAYMENTS | INVOICES | RECEIPTS | CONTRACTS | TAX MANAGEMENT | FINANCIAL WELLNESS | COMMUNITY
-            </h3>
-            
-            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:20px; align-items: center;">
-
-                <!-- Social Links -->
-                <div class="social-grid">
-                    <div class="social-item">
-                        <i class="fa-brands fa-instagram social-icon"></i>
-                        <span>@zidwellfinance</span>
-                    </div>
-
-                    <div class="social-item">
-                        <i class="fa-brands fa-facebook social-icon"></i>
-                        <span>@zidwell</span>
-                    </div>
-
-                    <div class="social-item">
-                        <i class="fa-brands fa-linkedin social-icon"></i>
-                        <span>@zidwell</span>
-                    </div>
-
-                    <div class="social-item">
-                        <i class="fa-brands fa-whatsapp social-icon"></i>
-                        <span>+234 706 917 5399</span>
-                    </div>
-                </div>
-
-                <!-- Disclaimer -->
-                <div class="disclaimer">
-                    <p style="margin:6px 0; line-height:1.5; color:#e5e7eb;">
-                        <strong style="color:#ffffff;">Disclaimer:</strong>
-                        Please do not share your personal details such as BVN, password,
-                        or OTP code with anyone.
-                    </p>
-                </div>
-
-            </div>
-            
-            <!-- Copyright -->
-            <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
-                <p style="margin: 0; font-size: 12px; color: #e5e7eb;">
-                    © ${new Date().getFullYear()} Zidwell Finance. All rights reserved.
-                </p>
-            </div>
-        </div>
 
     </div>
 </body>

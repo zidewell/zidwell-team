@@ -74,7 +74,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
   // Format date like "31st December 2025"
   const formatDate = (dateString: string) => {
     if (!dateString) return "Date not specified";
-    
+
     const date = new Date(dateString);
     const day = date.getDate();
     const month = date.toLocaleDateString("en-US", { month: "long" });
@@ -101,18 +101,18 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
   // Get payment terms from metadata
   const getPaymentTerms = () => {
     if (!contract.metadata) return null;
-    
+
     // Try to parse metadata if it's a string
     let metadataObj = contract.metadata;
-    if (typeof contract.metadata === 'string') {
+    if (typeof contract.metadata === "string") {
       try {
         metadataObj = JSON.parse(contract.metadata);
       } catch (e) {
-        console.error('Failed to parse metadata:', e);
+        console.error("Failed to parse metadata:", e);
         return null;
       }
     }
-    
+
     return metadataObj?.payment_terms || null;
   };
 
@@ -173,9 +173,13 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                 dangerouslySetInnerHTML={{ __html: contract.content }}
               />
             ) : (
-              // Render plain text
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                {contract.content}
+              // Render plain text with proper formatting
+              <div className="whitespace-pre-line text-sm leading-relaxed space-y-4">
+                {contract.content.split("\n").map((paragraph, index) => (
+                  <p key={index} className="mb-4 last:mb-0">
+                    {paragraph}
+                  </p>
+                ))}
               </div>
             )
           ) : (
@@ -309,8 +313,6 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
           </div>
         </div>
 
-       
-
         {/* Action Buttons - Only show if not signed */}
         {contract.status !== "signed" && (
           <div className="mt-12 p-8 border border-gray-200 rounded-lg bg-gray-50">
@@ -318,7 +320,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
               Review & Sign Contract
             </h3>
 
-            <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+            <div className="grid md:grid-cols-1 gap-6 max-w-2xl mx-auto">
               <Button
                 onClick={handleSign}
                 className="h-auto py-4 flex items-center justify-center gap-3 bg-[#C29307] hover:bg-[#b38606] text-white"
@@ -330,7 +332,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                 </div>
               </Button>
 
-              <Button
+              {/* <Button
                 onClick={handleReject}
                 variant="outline"
                 className="h-auto py-4 flex items-center justify-center gap-3"
@@ -340,7 +342,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                   <div className="font-semibold">Suggest Edits</div>
                   <div className="text-xs opacity-90">Request changes</div>
                 </div>
-              </Button>
+              </Button> */}
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-300">
@@ -373,7 +375,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
           </div>
         )}
 
-         {/* Footer */}
+        {/* Footer */}
         <div className="text-center text-xs text-gray-500 pt-6 border-t border-gray-200">
           THIS CONTRACT WAS CREATED AND SIGNED ON ZIDWELL.COM
           <br />

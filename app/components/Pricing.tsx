@@ -14,12 +14,6 @@ const plans = [
       "Invoices/payment links: 10 free monthly then ₦100/1 + 2% per paid invoice (the payee pays this not you) capped at N2000",
       "Receipts: 10 free monthly then ₦100/1",
       "Simple Contracts: ₦1,000 each",
-<<<<<<< HEAD
-      "Lawyer-signed Contracts: ₦10,000 each",
-      "Tax Filing Support: 3% of monthly revenue",
-      "Cashback: ₦20 per ₦2,500 spent",
-      "Referral Rewards: ₦20 per signup",
-=======
       "Simple Contracts with a lawyer's signature: ₦11,000 each (binding with or without a lawyer)",
       "Tax Filing Support:",
       "  • Annual returns ₦80k or Zidwell elite plan",
@@ -34,7 +28,6 @@ const plans = [
       "Cashback: ₦20 back for every ₦2,500 spent on data, airtime, cable and electricity bill payment",
       "Referral Rewards: ₦20 for signups done with your referral code",
       "Referral Transaction Rewards: ₦20 for every ₦10,000 spent by the person you referred",
->>>>>>> fa815ffaf16f3689f1fe15a81ad9aa34f05247dd
     ],
     cta: "Get Started Free",
     highlight: false,

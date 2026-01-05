@@ -38,6 +38,7 @@ interface ContractSummaryProps {
   confirmContract: boolean;
   onBack: () => void;
   onConfirm: (options?: { includeLawyerSignature: boolean }) => void;
+  onClose?: () => void; // Add this line
   contractType?: string;
   dateCreated?: string;
   status?: string;
@@ -59,11 +60,12 @@ export default function ContractSummary({
   contractDate,
   onBack,
   onConfirm,
+  onClose, // Add this line
   contractType = "Service Agreement",
   dateCreated = new Date().toLocaleDateString(),
   status = "pending",
   attachments = [],
-  currentLawyerSignature = false, // Default to false
+  currentLawyerSignature = false,
 }: ContractSummaryProps) {
   const [includeLawyerSignature, setIncludeLawyerSignature] = useState(
     currentLawyerSignature
@@ -105,6 +107,17 @@ export default function ContractSummary({
     onBack();
   };
 
+  // Handle clicking on backdrop
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleBack();
+      // Also call onClose if provided
+      if (onClose) {
+        onClose();
+      }
+    }
+  };
+
   return (
     <AnimatePresence>
       {confirmContract && (
@@ -115,7 +128,7 @@ export default function ContractSummary({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={handleBack}
+            onClick={handleBackdropClick} // Updated to use new handler
           />
 
           {/* 📄 Modal Container */}
@@ -138,88 +151,6 @@ export default function ContractSummary({
                   </div>
                   <div className="text-sm text-gray-600 mt-1">
                     {contractType}
-                  </div>
-                </div>
-              </div>
-
-              {/* Lawyer Signature Toggle */}
-              <div
-                className={`border rounded-lg p-4 ${
-                  includeLawyerSignature
-                    ? "border-[#C29307] bg-[#C29307]/5"
-                    : "border-gray-200 bg-gray-50"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`p-2 rounded ${
-                        includeLawyerSignature ? "bg-[#C29307]" : "bg-gray-300"
-                      }`}
-                    >
-                      <Scale
-                        className={`h-5 w-5 ${
-                          includeLawyerSignature
-                            ? "text-white"
-                            : "text-gray-500"
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">
-                        Lawyer Signature
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        Add legal witness for authenticity
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-gray-900">
-                      ₦10,000
-                    </div>
-                    <div className="text-xs text-gray-500">additional</div>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <Label
-                        htmlFor="lawyer-toggle"
-                        className="text-sm font-medium text-gray-700 mb-2 block"
-                      >
-                        {includeLawyerSignature
-                          ? "Enabled"
-                          : "Enable Lawyer Signature"}
-                      </Label>
-                      {includeLawyerSignature && (
-                        <div className="mt-2 space-y-2">
-                          <div className="flex items-center gap-2 text-xs text-[#C29307]">
-                            <div className="h-2 w-2 rounded-full bg-[#C29307]"></div>
-                            <span>Official lawyer signature & seal</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-[#C29307]">
-                            <div className="h-2 w-2 rounded-full bg-[#C29307]"></div>
-                            <span>Enhanced legal standing</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-[#C29307]">
-                            <div className="h-2 w-2 rounded-full bg-[#C29307]"></div>
-                            <span>Professional notarization</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0 ml-4">
-                      <Switch
-                        id="lawyer-toggle"
-                        checked={includeLawyerSignature}
-                        onCheckedChange={handleToggleLawyerSignature}
-                        className={`${
-                          includeLawyerSignature ? "!bg-[#C29307]" : ""
-                        } data-[state=checked]:bg-[#C29307]`}
-                      />
-                    </div>
                   </div>
                 </div>
               </div>
@@ -381,7 +312,10 @@ export default function ContractSummary({
               <div className="flex gap-3 pt-4 border-t">
                 <Button
                   variant="outline"
-                  onClick={handleBack}
+                  onClick={() => {
+                    handleBack();
+                    if (onClose) onClose(); // Call onClose when back button is clicked
+                  }}
                   className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                 >
                   Back to Edit

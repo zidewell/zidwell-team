@@ -49,8 +49,7 @@ import {
   FileCheck,
   FileClock,
   Percent,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
+  File,
 } from "lucide-react";
 import {
   Tabs,
@@ -84,6 +83,7 @@ const CHART_COLORS = {
   invoices: "#8b5cf6",
   revenue: "#f59e0b",
   contract_revenue: "#8b5cf6",
+  invoice_revenue: "#8b5cf6",
   pie: ["#10b981", "#ef4444", "#3b82f6", "#8b5cf6", "#f59e0b", "#84cc16"],
   website: "#3b82f6",
   signups: "#10b981",
@@ -93,7 +93,7 @@ const CHART_COLORS = {
     transfers: "#3b82f6",
     bill_payment: "#10b981",
     invoice: "#8b5cf6",
-    contract: "#8b5cf6", // Changed to match contract theme
+    contract: "#8b5cf6",
     platform: "#84cc16",
   },
 };
@@ -349,6 +349,7 @@ export default function AdminDashboard() {
     if (metricsError) console.error("Metrics error:", metricsError);
   }, [paginatedError, summaryError, metricsError]);
 
+  console.log("Summary Data:", summaryData);
   const totalInflow = Number(summaryData?.totalInflow ?? 0);
   const totalOutflow = Number(summaryData?.totalOutflow ?? 0);
   const mainWalletBalance = Number(summaryData?.mainWalletBalance ?? 0);
@@ -381,17 +382,29 @@ export default function AdminDashboard() {
       ? ((signedContracts / totalContracts) * 100).toFixed(1)
       : "0";
 
-  const avgContractFee = contractPaymentsCount > 0 
-    ? (contractFees / contractPaymentsCount).toFixed(2)
-    : "0";
+  const avgContractFee =
+    contractPaymentsCount > 0
+      ? (contractFees / contractPaymentsCount).toFixed(2)
+      : "0";
 
-  const contractRevenueShare = totalAppRevenue > 0
-    ? ((contractFees / totalAppRevenue) * 100).toFixed(1)
-    : "0";
+  const contractRevenueShare =
+    totalAppRevenue > 0
+      ? ((contractFees / totalAppRevenue) * 100).toFixed(1)
+      : "0";
 
-  const avgContractValue = signedContracts > 0
-    ? (totalContractAmount / signedContracts).toFixed(2)
-    : "0";
+  const invoiceRevenueShare =
+    totalAppRevenue > 0
+      ? ((invoiceFees / totalAppRevenue) * 100).toFixed(1)
+      : "0";
+
+  const avgContractValue =
+    signedContracts > 0
+      ? (totalContractAmount / signedContracts).toFixed(2)
+      : "0";
+
+  // Invoice-specific calculations
+  const invoicePaymentRate =
+    totalInvoices > 0 ? ((paidInvoices / totalInvoices) * 100).toFixed(1) : "0";
 
   const getMetricValue = (
     metric: keyof MetricsData,
@@ -416,6 +429,7 @@ export default function AdminDashboard() {
   const prevPaidInvoices = Number(summaryData?.prevPaidInvoices ?? 0);
   const prevUnpaidInvoices = Number(summaryData?.prevUnpaidInvoices ?? 0);
   const prevContractFees = Number(summaryData?.prevContractFees ?? 0);
+  const prevInvoiceFees = Number(summaryData?.prevInvoiceFees ?? 0);
 
   const calculateGrowth = (current: number, previous: number): number => {
     if (previous === 0) return current > 0 ? 100 : 0;
@@ -429,6 +443,7 @@ export default function AdminDashboard() {
     prevTotalAppRevenue
   );
   const contractRevenueGrowth = calculateGrowth(contractFees, prevContractFees);
+  const invoiceRevenueGrowth = calculateGrowth(invoiceFees, prevInvoiceFees);
   const contractsGrowth = calculateGrowth(totalContracts, prevTotalContracts);
   const pendingContractsGrowth = calculateGrowth(
     pendingContracts,
@@ -471,20 +486,20 @@ export default function AdminDashboard() {
       value: transactionFees,
       color: CHART_COLORS.revenue_breakdown.transfers,
     },
-    { 
-      name: "Platform Fees", 
-      value: platformFees, 
-      color: CHART_COLORS.revenue_breakdown.platform 
+    {
+      name: "Platform Fees",
+      value: platformFees,
+      color: CHART_COLORS.revenue_breakdown.platform,
     },
-    { 
-      name: "Invoice Fees", 
-      value: invoiceFees, 
-      color: CHART_COLORS.revenue_breakdown.invoice 
+    {
+      name: "Invoice Fees",
+      value: invoiceFees,
+      color: CHART_COLORS.revenue_breakdown.invoice,
     },
-    { 
-      name: "Contract Fees", 
-      value: contractFees, 
-      color: CHART_COLORS.revenue_breakdown.contract 
+    {
+      name: "Contract Fees",
+      value: contractFees,
+      color: CHART_COLORS.revenue_breakdown.contract,
     },
   ].filter((item) => item.value > 0);
 
@@ -711,6 +726,18 @@ export default function AdminDashboard() {
     return formatNumber(getMetricValue(metric, period));
   };
 
+  const calculateContractRevenueGrowth = (): number => {
+    const currentRevenue =
+      metricsData?.revenue_breakdown?.[range]?.contract || 0;
+    const prevRevenue = prevContractFees; // From summaryData
+
+    if (prevRevenue === 0 && currentRevenue > 0) return 100;
+
+    if (prevRevenue === 0 && currentRevenue === 0) return 0;
+
+    return ((currentRevenue - prevRevenue) / prevRevenue) * 100;
+  };
+
   return (
     <AdminLayout>
       <div className="px-4 py-6 space-y-8">
@@ -831,51 +858,60 @@ export default function AdminDashboard() {
                 title="Main Wallet Balance"
                 value={formatCurrency(mainWalletBalance)}
                 icon={<Wallet className="w-5 h-5 text-blue-600" />}
+                className="border-l-4 border-l-blue-500"
                 subtitle="Total user wallet balances"
               />
               <KPICard
                 title="Admin Wallet (Nomba)"
                 value={formatCurrency(nombaBalanceRaw)}
                 icon={<CreditCard className="w-5 h-5 text-purple-600" />}
+                className="border-l-4 border-l-purple-500"
                 subtitle="Nomba account balance"
               />
             </div>
 
-            {/* Third Row: Platform Metrics - INCLUDING CONTRACT REVENUE */}
+            {/* Third Row: Platform Revenue Metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Total App Revenue"
-                value={formatCurrency(totalAppRevenue)}
+                value={formatCurrency(nombaBalanceRaw - mainWalletBalance)}
                 growth={<GrowthIndicator value={appRevenueGrowth} />}
                 icon={<DollarSign className="w-5 h-5 text-amber-600" />}
                 className="border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-white"
-                subtitle="Total platform earnings"
+                subtitle="Net platform earnings"
               />
               <KPICard
                 title="Contract Revenue"
-                value={formatCurrency(contractFees)}
-                growth={<GrowthIndicator value={contractRevenueGrowth} />}
+                value={formatCurrency(
+                  metricsData?.revenue_breakdown?.[range]?.contract || 0
+                )}
+                growth={
+                  <GrowthIndicator value={calculateContractRevenueGrowth()} />
+                }
                 icon={<FileSignature className="w-5 h-5 text-indigo-600" />}
                 className="border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50 to-white"
-                subtitle="Revenue from contracts"
+                subtitle={`Revenue from contracts (${
+                  range === "total" ? "all time" : range
+                })`}
               />
               <KPICard
-                title="Contract Revenue Share"
-                value={`${contractRevenueShare}%`}
-                icon={<Percent className="w-5 h-5 text-purple-600" />}
-                className="border-l-4 border-l-purple-500"
-                subtitle="% of total revenue"
+                title="Invoice Revenue"
+                value={formatCurrency(invoiceFees)}
+                growth={<GrowthIndicator value={invoiceRevenueGrowth} />}
+                icon={<File className="w-5 h-5 text-purple-600" />}
+                className="border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-white"
+                subtitle="Revenue from invoices"
               />
               <KPICard
-                title="Avg. Contract Fee"
-                value={formatCurrency(avgContractFee)}
-                icon={<DollarSign className="w-5 h-5 text-blue-600" />}
-                className="border-l-4 border-l-blue-500"
-                subtitle={`${contractPaymentsCount} payments`}
+                title="Total Users"
+                value={totalUsers.toLocaleString()}
+                icon={<Users className="w-5 h-5 text-green-600" />}
+                className="border-l-4 border-l-green-500"
+                subtitle="Registered users"
               />
             </div>
 
-            {/* Fourth Row: Contract & Invoice Metrics */}
+            {/* Fourth Row: Contract & Invoice Performance */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Total Contracts"
@@ -886,57 +922,26 @@ export default function AdminDashboard() {
                 subtitle="Contracts issued"
               />
               <KPICard
-                title="Signed Contracts"
-                value={formatNumber(signedContracts)}
-                growth={<GrowthIndicator value={signedContractsGrowth} />}
-                icon={<FileCheck className="w-5 h-5 text-green-600" />}
-                className="border-l-4 border-l-green-500"
-                subtitle="Successfully signed"
-              />
-              <KPICard
-                title="Pending Contracts"
-                value={formatNumber(pendingContracts)}
-                growth={<GrowthIndicator value={pendingContractsGrowth} />}
-                icon={<FileClock className="w-5 h-5 text-amber-600" />}
-                className="border-l-4 border-l-amber-500"
-                subtitle="Awaiting signature"
-              />
-              <KPICard
                 title="Contract Sign Rate"
                 value={`${contractSignRate}%`}
-                icon={<FileText className="w-5 h-5 text-purple-600" />}
+                icon={<Percent className="w-5 h-5 text-purple-600" />}
                 className="border-l-4 border-l-purple-500"
                 subtitle="Success rate"
               />
-            </div>
-
-            {/* Fifth Row: Additional Contract Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
-                title="Total Contract Value"
-                value={formatCurrency(totalContractAmount)}
-                icon={<FileText className="w-5 h-5 text-green-600" />}
+                title="Total Invoices"
+                value={formatNumber(totalInvoices)}
+                growth={<GrowthIndicator value={invoicesGrowth} />}
+                icon={<File className="w-5 h-5 text-indigo-600" />}
+                className="border-l-4 border-l-indigo-500"
+                subtitle="Invoices issued"
+              />
+              <KPICard
+                title="Invoice Payment Rate"
+                value={`${invoicePaymentRate}%`}
+                icon={<Percent className="w-5 h-5 text-green-600" />}
                 className="border-l-4 border-l-green-500"
-                subtitle="Value of all contracts"
-              />
-              <KPICard
-                title="Avg. Contract Value"
-                value={formatCurrency(avgContractValue)}
-                icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
-                className="border-l-4 border-l-blue-500"
-                subtitle="Average per contract"
-              />
-              <KPICard
-                title="Total Users"
-                value={totalUsers.toLocaleString()}
-                icon={<Users className="w-5 h-5 text-green-600" />}
-                subtitle="Registered users"
-              />
-              <KPICard
-                title="Total Transactions"
-                value={totalTransactions.toLocaleString()}
-                icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
-                subtitle="All transactions"
+                subtitle="Paid invoices"
               />
             </div>
 
@@ -981,6 +986,13 @@ export default function AdminDashboard() {
                       stroke={CHART_COLORS.contract_revenue}
                       strokeWidth={2}
                       name="Contract Revenue"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="invoice"
+                      stroke={CHART_COLORS.invoice_revenue}
+                      strokeWidth={2}
+                      name="Invoice Revenue"
                     />
                     <defs>
                       <linearGradient
@@ -1362,8 +1374,8 @@ export default function AdminDashboard() {
                 Contract Analytics
               </h3>
 
-              {/* Contract Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {/* Contract Stats Cards - REDUCED TO 3 CARDS */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="bg-blue-50 p-6 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1398,47 +1410,30 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="bg-amber-50 p-6 rounded-xl">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm text-amber-700 mb-1">
-                        Pending Contracts
-                      </div>
-                      <div className="text-2xl font-bold text-amber-900">
-                        {formatNumber(pendingContracts)}
-                      </div>
-                    </div>
-                    <FileClock className="w-8 h-8 text-amber-600" />
-                  </div>
-                  <div className="mt-2 text-xs text-amber-600">
-                    Awaiting signature
-                  </div>
-                </div>
-
                 <div className="bg-purple-50 p-6 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="text-sm text-purple-700 mb-1">
-                        Sign Rate
+                        Contract Revenue
                       </div>
                       <div className="text-2xl font-bold text-purple-900">
-                        {contractSignRate}%
+                        {formatCurrency(contractFees)}
                       </div>
                     </div>
-                    <FileText className="w-8 h-8 text-purple-600" />
+                    <DollarSign className="w-8 h-8 text-purple-600" />
                   </div>
                   <div className="mt-2 text-xs text-purple-600">
-                    Success rate
+                    Revenue from contracts
                   </div>
                 </div>
               </div>
 
-              {/* CONTRACT REVENUE SECTION */}
+              {/* Contract Revenue Section - MORE PROMINENT */}
               <div className="mb-8">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                  Contract Revenue
+                  Contract Revenue Details
                 </h4>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                   <div className="bg-indigo-50 p-6 rounded-xl">
                     <div className="flex items-center justify-between">
@@ -1450,7 +1445,7 @@ export default function AdminDashboard() {
                           {formatCurrency(contractFees)}
                         </div>
                       </div>
-                      <DollarSign className="w-8 h-8 text-indigo-600" />
+                      <FileSignature className="w-8 h-8 text-indigo-600" />
                     </div>
                     <div className="mt-2">
                       <GrowthIndicator value={contractRevenueGrowth} />
@@ -1459,7 +1454,7 @@ export default function AdminDashboard() {
                       Revenue from contract fees
                     </div>
                   </div>
-                  
+
                   <div className="bg-green-50 p-6 rounded-xl">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1476,7 +1471,7 @@ export default function AdminDashboard() {
                       Total value of signed contracts
                     </div>
                   </div>
-                  
+
                   <div className="bg-blue-50 p-6 rounded-xl">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1608,14 +1603,6 @@ export default function AdminDashboard() {
                         {contractRevenueShare}%
                       </div>
                     </div>
-                    <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-lg">
-                      <div className="text-sm font-medium text-indigo-700">
-                        Avg. Contract Fee
-                      </div>
-                      <div className="text-lg font-bold text-indigo-900">
-                        {formatCurrency(avgContractFee)}
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1634,25 +1621,27 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
-                {allTimeRanges.map((period) => (
-                  <div key={period} className="bg-green-50 p-4 rounded-lg">
-                    <div className="text-sm text-green-700 mb-1 capitalize">
-                      {period === "total"
-                        ? "All Time"
-                        : period.replace("days", " Days")}
+                {allTimeRanges.map((period) => {
+                  const revenue = metricsData?.revenue_breakdown?.[period];
+                  return (
+                    <div key={period} className="bg-green-50 p-4 rounded-lg">
+                      <div className="text-sm text-green-700 mb-1 capitalize">
+                        {period === "total"
+                          ? "All Time"
+                          : period.replace("days", " Days")}
+                      </div>
+                      <div className="text-xl font-bold text-green-900">
+                        {formatCurrency(revenue?.total || 0)}
+                      </div>
+                      <div className="text-xs text-green-600 mt-1">
+                        Contract: {formatCurrency(revenue?.contract || 0)}
+                      </div>
+                      <div className="text-xs text-indigo-600 mt-1">
+                        Invoice: {formatCurrency(revenue?.invoice || 0)}
+                      </div>
                     </div>
-                    <div className="text-xl font-bold text-green-900">
-                      {formatCurrency(
-                        getMetricValue("revenue_breakdown", period)
-                      )}
-                    </div>
-                    <div className="text-xs text-green-600 mt-1">
-                      Contract: {formatCurrency(
-                        metricsData?.revenue_breakdown?.[period]?.contract || 0
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="h-[400px] mb-8">
@@ -1694,9 +1683,9 @@ export default function AdminDashboard() {
                       name="Bill Payment"
                     />
                     <Bar dataKey="invoice" fill="#8b5cf6" name="Invoice" />
-                    <Bar 
-                      dataKey="contract" 
-                      fill={CHART_COLORS.contract_revenue} 
+                    <Bar
+                      dataKey="contract"
+                      fill={CHART_COLORS.contract_revenue}
                       name="Contract"
                       radius={[4, 4, 0, 0]}
                     />
@@ -1860,7 +1849,9 @@ export default function AdminDashboard() {
                             Fee: {formatCurrency(tx.fee)}
                           </div>
                         )}
-                        {(tx.type?.toLowerCase() || "").includes("contract") && (
+                        {(tx.type?.toLowerCase() || "").includes(
+                          "contract"
+                        ) && (
                           <div className="text-xs text-indigo-600 mt-1">
                             Contract Fee
                           </div>
@@ -1953,36 +1944,30 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Contract Revenue Share</div>
+              <div className="text-sm text-gray-500">Contract Revenue</div>
               <div className="text-2xl font-bold text-gray-900">
-                {contractRevenueShare}%
+                {formatCurrency(contractFees)}
               </div>
             </div>
             <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Avg. Transaction Value</div>
+              <div className="text-sm text-gray-500">Invoice Revenue</div>
               <div className="text-2xl font-bold text-gray-900">
-                {totalTransactions > 0
-                  ? formatCurrency(
-                      (totalInflow + totalOutflow) / totalTransactions
-                    )
-                  : formatCurrency(0)}
+                {formatCurrency(invoiceFees)}
               </div>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
             <div className="text-sm text-gray-600">
-              <span className="font-medium">Revenue Sources:</span>
-              {revenueBreakdownData.length > 0
-                ? revenueBreakdownData.map((r) => ` ${r.name}`).join(", ")
-                : " None detected"}
+              <span className="font-medium">Total App Revenue:</span>{" "}
+              {formatCurrency(nombaBalanceRaw - mainWalletBalance)}
             </div>
             <div className="text-sm text-gray-600">
               <span className="font-medium">Contract Sign Rate:</span>{" "}
               {contractSignRate}%
             </div>
             <div className="text-sm text-gray-600">
-              <span className="font-medium">Contract Revenue:</span>{" "}
-              {formatCurrency(contractFees)}
+              <span className="font-medium">Invoice Payment Rate:</span>{" "}
+              {invoicePaymentRate}%
             </div>
           </div>
         </div>

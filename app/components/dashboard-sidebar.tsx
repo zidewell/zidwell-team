@@ -244,14 +244,14 @@ export default function DashboardSidebar() {
               isActive={pathname === "/dashboard/services/create-receipt"}
             />
 
-            <NavItem
+            {/* <NavItem
               item={{
                 name: "Create Agreement",
                 href: "/dashboard/services/contract",
                 icon: FileText,
               }}
               isActive={pathname === "/dashboard/services/contract"}
-            />
+            /> */}
 
             <NavItem
               item={{

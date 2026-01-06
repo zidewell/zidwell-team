@@ -57,6 +57,7 @@ function parseRangeToDates(
   range: string | null
 ): { start: string; end: string } | null {
   if (!range || range === "total") return null;
+  
   const now = new Date();
   let start = new Date(now);
   let end = new Date(now);
@@ -80,6 +81,16 @@ function parseRangeToDates(
       start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
       break;
+    case "90days":
+      start.setDate(now.getDate() - 90);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      break;
+    case "180days":
+      start.setDate(now.getDate() - 180);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      break;
     case "year":
       start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
       end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
@@ -87,6 +98,7 @@ function parseRangeToDates(
     default:
       return null;
   }
+  
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
@@ -94,7 +106,9 @@ function buildMonthLabelsFromRange(
   rangeDates: { start: string; end: string } | null
 ): string[] {
   const labels: string[] = [];
+  
   if (!rangeDates) {
+    // For "total" range, show last 12 months
     const now = new Date();
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -106,13 +120,24 @@ function buildMonthLabelsFromRange(
     const start = new Date(rangeDates.start);
     const end = new Date(rangeDates.end);
     const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+    
+    // For custom ranges (like 90days, 180days), we might have fewer months
     while (cur <= end) {
       labels.push(
         cur.toLocaleString("default", { month: "short", year: "numeric" })
       );
       cur.setMonth(cur.getMonth() + 1);
     }
+    
+    // Ensure we have at least one label
+    if (labels.length === 0) {
+      const singleMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+      labels.push(
+        singleMonth.toLocaleString("default", { month: "short", year: "numeric" })
+      );
+    }
   }
+  
   return labels;
 }
 

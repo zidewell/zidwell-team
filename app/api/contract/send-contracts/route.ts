@@ -267,7 +267,6 @@ export async function POST(req: NextRequest) {
     const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
-    // Send email notification if not a draft
     if (!isDraft && receiverEmail) {
       try {
         const mailOptions = {
@@ -448,11 +447,11 @@ export async function POST(req: NextRequest) {
 `,
         };
 
-        // await transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
         // console.log("Notification email sent to:", receiverEmail);
       } catch (emailError) {
         console.error("Failed to send email:", emailError);
-        // Don't fail the whole request if email fails
+        
       }
     }
 

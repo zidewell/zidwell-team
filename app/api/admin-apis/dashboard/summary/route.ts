@@ -169,7 +169,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   let txQuery = supabaseAdmin
     .from("transactions")
     .select(
-      "id, amount, type, status, created_at, description, fee, total_deduction"
+      "id, amount, type, status, created_at, description, fee, total_deduction, external_response, user_id"
     )
     .order("created_at", { ascending: false });
 
@@ -283,11 +283,11 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
 
   let contractsQuery = supabaseAdmin
     .from("contracts")
-    .select("id, status, created_at");
+    .select("id, status, created_at, contract_date");
   if (rangeDates) {
     contractsQuery = contractsQuery
-      .gte("created_at", rangeDates.start)
-      .lte("created_at", rangeDates.end);
+      .gte("contract_date", rangeDates.start.split('T')[0])
+      .lte("contract_date", rangeDates.end.split('T')[0]);
   }
   const { data: contractsDataRaw } = await contractsQuery;
   const contractsData = contractsDataRaw || [];
@@ -303,7 +303,8 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
   const monthLabels = buildMonthLabelsFromRange(rangeDates);
   const monthlyContractsMap: Record<string, number> = {};
   contractsData.forEach((c: any) => {
-    const d = new Date(c.created_at);
+    const dateField = c.contract_date || c.created_at;
+    const d = new Date(dateField);
     if (isNaN(d.getTime())) return;
     const key = d.toLocaleString("default", {
       month: "short",
@@ -369,7 +370,128 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     0
   );
 
-  const combinedAppRevenue = totalFeesFromColumn + totalPlatformFees;
+  // ENHANCED CONTRACT REVENUE CALCULATION
+  let contractPaymentsQuery = supabaseAdmin
+    .from("contract_payments")
+    .select("amount, fee_amount, platform_fee, status, created_at")
+    .eq("status", "completed");
+
+  if (rangeDates) {
+    contractPaymentsQuery = contractPaymentsQuery
+      .gte("created_at", rangeDates.start)
+      .lte("created_at", rangeDates.end);
+  }
+
+  const { data: contractPaymentsRaw, error: contractPaymentsError } = await contractPaymentsQuery;
+  let contractPayments = contractPaymentsRaw || [];
+  let totalContractRevenue = 0;
+  let totalContractAmount = 0;
+  let contractPaymentsCount = 0;
+
+  if (contractPaymentsError && contractPaymentsError.code === '42P01') {
+    // Table doesn't exist, get contract revenue from transactions table
+    const contractTransactions = successfulTransactions.filter((t: any) => {
+      const typeLower = (t.type || "").toString().toLowerCase();
+      return typeLower.includes("contract");
+    });
+    
+    totalContractRevenue = contractTransactions.reduce((s: number, t: any) => {
+      // Try to get fee from fee column first, then from total_deduction
+      const fee = Number(t.fee ?? 0);
+      const deduction = Number(t.total_deduction ?? 0);
+      
+      // Also check external_response for contract-specific fees
+      let contractFee = fee > 0 ? fee : deduction;
+      
+      if (t.external_response) {
+        try {
+          const externalResponse = typeof t.external_response === 'string' 
+            ? JSON.parse(t.external_response)
+            : t.external_response;
+          
+          if (externalResponse && externalResponse.fee_breakdown) {
+            // Use contract fee from fee_breakdown if available
+            const feeFromJson = Number(externalResponse.fee_breakdown.total) || 0;
+            const baseFee = Number(externalResponse.fee_breakdown.base_fee) || 0;
+            const lawyerFee = Number(externalResponse.fee_breakdown.lawyer_fee) || 0;
+            
+            if (feeFromJson > 0) {
+              contractFee = feeFromJson;
+            } else if (baseFee > 0 || lawyerFee > 0) {
+              contractFee = baseFee + lawyerFee;
+            }
+          }
+        } catch (err) {
+          // JSON parsing failed, skip this
+        }
+      }
+      
+      return s + contractFee;
+    }, 0);
+    
+    totalContractAmount = contractTransactions.reduce((s: number, t: any) => {
+      const amount = Number(t.amount ?? 0);
+      
+      // Check external_response for total_amount if available
+      if (t.external_response) {
+        try {
+          const externalResponse = typeof t.external_response === 'string' 
+            ? JSON.parse(t.external_response)
+            : t.external_response;
+          
+          if (externalResponse && externalResponse.total_amount) {
+            const jsonAmount = Number(externalResponse.total_amount) || 0;
+            if (jsonAmount > 0) {
+              return s + jsonAmount;
+            }
+          }
+        } catch (err) {
+          // JSON parsing failed, use regular amount
+        }
+      }
+      
+      return s + amount;
+    }, 0);
+    
+    contractPaymentsCount = contractTransactions.length;
+  } else {
+    // Use contract_payments table data
+    totalContractRevenue = contractPayments.reduce((s: number, p: any) => {
+      const fee = Number(p.fee_amount ?? p.platform_fee ?? 0);
+      return s + fee;
+    }, 0);
+    
+    totalContractAmount = contractPayments.reduce((s: number, p: any) => {
+      return s + Number(p.amount ?? 0);
+    }, 0);
+    
+    contractPaymentsCount = contractPayments.length;
+  }
+
+  // Also process any contract transactions that might not be in contract_payments
+  const contractTransactions = successfulTransactions.filter((t: any) => {
+    const typeLower = (t.type || "").toString().toLowerCase();
+    return typeLower.includes("contract");
+  });
+
+  contractTransactions.forEach((t: any) => {
+    // Check if this transaction is already accounted for
+    const isAlreadyCounted = contractPayments.some((p: any) => 
+      Math.abs(p.amount - Number(t.amount)) < 0.01
+    );
+    
+    if (!isAlreadyCounted) {
+      // Add fee if not already counted
+      const fee = Number(t.fee ?? 0);
+      if (fee > 0) {
+        totalContractRevenue += fee;
+        contractPaymentsCount += 1;
+      }
+    }
+  });
+
+  // Update combined app revenue to include contract revenue
+  const combinedAppRevenue = totalFeesFromColumn + totalPlatformFees + totalContractRevenue;
 
   const monthlyInvoicesMap: Record<string, { count: number; revenue: number }> =
     {};
@@ -413,6 +535,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
 
   const monthlyRevenueMap: Record<string, number> = {};
 
+  // Add transaction fees
   successfulTransactions.forEach((t: any) => {
     const feeAmount = Number(t.fee ?? 0);
     if (feeAmount > 0) {
@@ -426,6 +549,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
+  // Add deductions
   successfulTransactions.forEach((t: any) => {
     const deductionAmount = Number(t.total_deduction ?? 0);
     if (deductionAmount > 0) {
@@ -439,6 +563,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
+  // Add invoice platform fees
   invoicePayments.forEach((p: any) => {
     const platformFee = Number(p.platform_fee ?? 0);
     if (platformFee > 0) {
@@ -452,6 +577,7 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     }
   });
 
+  // Add invoice fees
   invoicesData.forEach((inv: any) => {
     const invoiceFee = Number(inv.fee_amount ?? 0);
     if (invoiceFee > 0) {
@@ -462,6 +588,34 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
         year: "numeric",
       });
       monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + invoiceFee;
+    }
+  });
+
+  // Add contract payments to monthly revenue
+  contractPayments.forEach((p: any) => {
+    const contractFee = Number(p.fee_amount ?? p.platform_fee ?? 0);
+    if (contractFee > 0) {
+      const d = new Date(p.created_at);
+      if (isNaN(d.getTime())) return;
+      const key = d.toLocaleString("default", {
+        month: "short",
+        year: "numeric",
+      });
+      monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + contractFee;
+    }
+  });
+
+  // Also add contract fees from transactions
+  contractTransactions.forEach((t: any) => {
+    const feeAmount = Number(t.fee ?? 0);
+    if (feeAmount > 0) {
+      const d = new Date(t.created_at);
+      if (isNaN(d.getTime())) return;
+      const key = d.toLocaleString("default", {
+        month: "short",
+        year: "numeric",
+      });
+      monthlyRevenueMap[key] = (monthlyRevenueMap[key] ?? 0) + feeAmount;
     }
   });
 
@@ -477,6 +631,76 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
       return null;
     }
   });
+
+  // Get previous period data for growth calculations
+  let prevTotalContracts = 0;
+  let prevPendingContracts = 0;
+  let prevSignedContracts = 0;
+  let prevContractFees = 0;
+  
+  if (rangeDates) {
+    // Calculate previous period for growth comparisons
+    const prevStart = new Date(rangeDates.start);
+    const prevEnd = new Date(rangeDates.end);
+    const duration = prevEnd.getTime() - prevStart.getTime();
+    
+    // Set previous period to same duration before the current start
+    prevStart.setTime(prevStart.getTime() - duration);
+    prevEnd.setTime(prevEnd.getTime() - duration);
+    
+    // Get previous contracts count
+    const prevContractsQuery = supabaseAdmin
+      .from("contracts")
+      .select("status, contract_date")
+      .gte("contract_date", prevStart.toISOString().split('T')[0])
+      .lte("contract_date", prevEnd.toISOString().split('T')[0]);
+    
+    const { data: prevContractsData } = await prevContractsQuery;
+    const prevContracts = prevContractsData || [];
+    prevTotalContracts = prevContracts.length;
+    prevPendingContracts = prevContracts.filter((c: any) => (c.status ?? "pending") === "pending").length;
+    prevSignedContracts = prevContracts.filter((c: any) => (c.status ?? "").toLowerCase() === "signed").length;
+    
+    // Get previous contract fees
+    const prevContractTxQuery = supabaseAdmin
+      .from("transactions")
+      .select("fee, type, status, created_at, external_response")
+      .gte("created_at", prevStart.toISOString())
+      .lte("created_at", prevEnd.toISOString())
+      .eq("status", "success");
+    
+    const { data: prevContractTxData } = await prevContractTxQuery;
+    const prevContractTransactions = (prevContractTxData || []).filter((t: any) => {
+      const typeLower = (t.type || "").toString().toLowerCase();
+      return typeLower.includes("contract");
+    });
+    
+    prevContractFees = prevContractTransactions.reduce((s: number, t: any) => {
+      const fee = Number(t.fee ?? 0);
+      if (t.external_response) {
+        try {
+          const externalResponse = typeof t.external_response === 'string' 
+            ? JSON.parse(t.external_response)
+            : t.external_response;
+          
+          if (externalResponse && externalResponse.fee_breakdown) {
+            const feeFromJson = Number(externalResponse.fee_breakdown.total) || 0;
+            const baseFee = Number(externalResponse.fee_breakdown.base_fee) || 0;
+            const lawyerFee = Number(externalResponse.fee_breakdown.lawyer_fee) || 0;
+            
+            if (feeFromJson > 0) {
+              return s + feeFromJson;
+            } else if (baseFee > 0 || lawyerFee > 0) {
+              return s + baseFee + lawyerFee;
+            }
+          }
+        } catch (err) {
+          // JSON parsing failed, use regular fee
+        }
+      }
+      return s + fee;
+    }, 0);
+  }
 
   const response = {
     totalInflow,
@@ -501,6 +725,9 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     transactionFees: totalFeesFromColumn,
     platformFees: totalPlatformFees,
     invoiceFees: totalInvoiceFees,
+    contractFees: totalContractRevenue,
+    totalContractAmount,
+    contractPaymentsCount,
     monthlyAppRevenue,
     transactionStatus: {
       success: successfulTransactions.length,
@@ -510,6 +737,13 @@ async function getCachedSummaryData(rangeParam: string): Promise<any> {
     successfulTransactions: successfulTransactions.length,
     failedTransactions: failedTransactions.length,
     pendingTransactions: pendingTransactions.length,
+    
+    // Previous period data for growth calculations
+    prevTotalContracts,
+    prevPendingContracts,
+    prevSignedContracts,
+    prevContractFees,
+    
     _fromCache: false,
   };
 

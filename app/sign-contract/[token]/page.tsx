@@ -41,6 +41,7 @@ export default async function page({
     createdAt: contractData.created_at,
     verificationCode: contractData.verification_code,
     signeeSignature: contractData.signee_signature_image || null,
+     contractDate: contractData.contract_date || contractData.created_at,
     metadata: contractData.metadata || {},
   };
 

@@ -38,6 +38,7 @@ import { Label } from "@/app/components/ui/label";
 import Loader from "@/app/components/Loader";
 import PinPopOver from "@/app/components/PinPopOver";
 import ContractSummary from "@/app/components/sign-contract-form-component/ContractSummary";
+import { Input } from "@/app/components/ui/input";
 
 type Contract = {
   id: string;
@@ -79,6 +80,7 @@ type FormState = {
   status: "pending" | "draft" | "signed";
   contractId: string;
   contractType: string;
+  contractDate: string;
 };
 
 type AttachmentFile = {
@@ -106,6 +108,7 @@ export default function EditContractPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isFormLocked, setIsFormLocked] = useState(false);
   
   // Payment states - matching the FormBody logic
   const inputCount = 4;
@@ -119,6 +122,7 @@ export default function EditContractPage({
   const [creatorName, setCreatorName] = useState("");
   const [creatorSignature, setCreatorSignature] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("create");
+  const [localCreatorName, setLocalCreatorName] = useState("");
 
   const [errors, setErrors] = useState({
     contractTitle: "",
@@ -140,6 +144,7 @@ export default function EditContractPage({
     status: "pending",
     contractId: "",
     contractType: "custom",
+    contractDate: new Date().toISOString().split("T")[0],
   });
 
   // Payment constants
@@ -184,6 +189,7 @@ export default function EditContractPage({
         status: contract.status || "pending",
         contractId: contract.id || contract.token || "",
         contractType: contract.contract_type || "custom",
+        contractDate: contract.contract_date || new Date().toISOString().split("T")[0],
       };
       
       setForm(formData);
@@ -191,8 +197,11 @@ export default function EditContractPage({
       // Set additional state
       if (contract.creator_name) {
         setCreatorName(contract.creator_name);
+        setLocalCreatorName(contract.creator_name);
       } else if (userData?.firstName && userData?.lastName) {
-        setCreatorName(`${userData.firstName} ${userData.lastName}`);
+        const fullName = `${userData.firstName} ${userData.lastName}`;
+        setCreatorName(fullName);
+        setLocalCreatorName(fullName);
       }
       
       if (contract.creator_signature) {
@@ -412,6 +421,7 @@ export default function EditContractPage({
         id: contractId,
         contract_title: form.contractTitle,
         contract_text: form.contractContent,
+        contract_date: form.contractDate,
         signee_name: form.receiverName,
         signee_email: form.receiverEmail,
         phone_number: form.receiverPhone ? parseFloat(form.receiverPhone.replace(/\D/g, '')) : null,
@@ -449,6 +459,7 @@ export default function EditContractPage({
   const processPaymentAndUpdate = async () => {
     setSaving(true);
     setIsOpen(false);
+    setIsFormLocked(true);
 
     try {
       const paymentSuccess = await handleDeduct();
@@ -474,15 +485,20 @@ export default function EditContractPage({
             showConfirmButton: false,
           }).then(() => {
             setHasUnsavedChanges(false);
+            setIsFormLocked(false);
             router.push("/dashboard/services/contract");
           });
         } else {
           // If update fails, refund the payment
           await handleRefund();
+          setIsFormLocked(false);
         }
+      } else {
+        setIsFormLocked(false);
       }
     } catch (error) {
       console.error("Error in process:", error);
+      setIsFormLocked(false);
       Swal.fire({
         icon: "error",
         title: "Processing Failed",
@@ -498,6 +514,8 @@ export default function EditContractPage({
   };
 
   const handleSendForSignature = () => {
+    if (isFormLocked || isSending) return;
+    
     if (!validateFormFields()) {
       const errorMessages = [];
       if (errors.contractTitle) errorMessages.push(errors.contractTitle);
@@ -520,6 +538,7 @@ export default function EditContractPage({
 
     setIsSending(true);
     setShowContractSummary(true);
+    setIsFormLocked(true);
   };
 
   // Same summary handling as FormBody
@@ -532,10 +551,11 @@ export default function EditContractPage({
   const handleSummaryBack = () => {
     setShowContractSummary(false);
     setIsSending(false);
-    setSaving(false);
+    setIsFormLocked(false);
   };
 
   const handleFormChange = (field: keyof FormState, value: any) => {
+    if (isFormLocked || isSigned) return;
     setForm((prev) => ({ ...prev, [field]: value }));
     const errorField = field as keyof typeof errors;
     if (errors[errorField]) {
@@ -544,10 +564,21 @@ export default function EditContractPage({
   };
 
   const handleSelectChange = (value: string) => {
+    if (isFormLocked || isSigned) return;
     handleFormChange("contractTitle", value);
   };
 
   const resetForm = () => {
+    if (isFormLocked) {
+      Swal.fire({
+        icon: "warning",
+        title: "Form is Processing",
+        text: "Cannot reset form while processing is in progress.",
+        confirmButtonColor: "#C29307",
+      });
+      return;
+    }
+
     Swal.fire({
       title: "Reset Changes?",
       text: "This will discard all unsaved changes and reload the original contract.",
@@ -575,6 +606,16 @@ export default function EditContractPage({
   };
 
   const handleCancel = () => {
+    if (isFormLocked) {
+      Swal.fire({
+        icon: "warning",
+        title: "Form is Processing",
+        text: "Cannot cancel while processing is in progress.",
+        confirmButtonColor: "#C29307",
+      });
+      return;
+    }
+
     if (hasUnsavedChanges) {
       Swal.fire({
         title: "Discard Changes?",
@@ -593,6 +634,13 @@ export default function EditContractPage({
     } else {
       router.push("/dashboard/services/contract");
     }
+  };
+
+  const handleCreatorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isFormLocked || isSigned) return;
+    const name = e.target.value;
+    setLocalCreatorName(name);
+    setCreatorName(name);
   };
 
   if (loading) {
@@ -615,6 +663,7 @@ export default function EditContractPage({
             // When PinPopOver closes, reset isSending
             if (!newValue) {
               setIsSending(false);
+              setIsFormLocked(false);
             }
           }}
           isOpen={isOpen}
@@ -629,6 +678,7 @@ export default function EditContractPage({
       <ContractSummary
         contractTitle={form.contractTitle}
         contractContent={form.contractContent}
+        contractDate={form.contractDate}
         initiatorName={`${userData?.firstName || ""} ${
           userData?.lastName || ""
         }`}
@@ -641,7 +691,7 @@ export default function EditContractPage({
         onBack={handleSummaryBack}
         onConfirm={handleSummaryConfirm}
         contractType="Contract Update"
-        dateCreated={new Date().toLocaleDateString()}
+        dateCreated={new Date(form.contractDate).toLocaleDateString()}
         attachments={attachments}
         currentLawyerSignature={includeLawyerSignature}
         // isUpdate={true}
@@ -656,6 +706,7 @@ export default function EditContractPage({
                 size="sm"
                 onClick={handleCancel}
                 className="text-[#C29307] hover:bg-white/10 text-sm md:text-base"
+                disabled={isFormLocked}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 <span className="hidden md:block">Back to Contracts</span>
@@ -709,6 +760,15 @@ export default function EditContractPage({
               >
                 {form.status.charAt(0).toUpperCase() + form.status.slice(1)}
               </Badge>
+              {isFormLocked && (
+                <Badge
+                  variant="outline"
+                  className="bg-red-50 text-red-700 border-red-200"
+                >
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Processing...
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -730,7 +790,7 @@ export default function EditContractPage({
                   variant="outline"
                   size="sm"
                   onClick={resetForm}
-                  disabled={!hasUnsavedChanges}
+                  disabled={!hasUnsavedChanges || isFormLocked || isSigned}
                   className="text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Reset Changes
@@ -743,15 +803,18 @@ export default function EditContractPage({
 
             <Tabs
               value={activeTab}
-              onValueChange={setActiveTab}
+              onValueChange={(value) => {
+                if (isFormLocked) return;
+                setActiveTab(value);
+              }}
               className="w-full"
             >
               <TabsList className="grid w-full grid-cols-2 mb-8">
-                <TabsTrigger value="create" className="gap-2">
+                <TabsTrigger value="create" className="gap-2" disabled={isFormLocked}>
                   <Edit className="h-4 w-4" />
                   Edit Contract
                 </TabsTrigger>
-                <TabsTrigger value="preview" className="gap-2">
+                <TabsTrigger value="preview" className="gap-2" disabled={isFormLocked}>
                   <Eye className="h-4 w-4" />
                   Preview
                 </TabsTrigger>
@@ -765,75 +828,75 @@ export default function EditContractPage({
                       variant="ghost"
                       size="sm"
                       onClick={() => setActiveTab("preview")}
-                      disabled={!form.contractContent}
+                      disabled={!form.contractContent || isFormLocked}
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Preview
                     </Button>
                   </div>
 
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-end">
-                      <div className="w-full">
-                        <Label className="block text-xs font-medium text-gray-600 mb-2">
-                          Template <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                          value={form.contractTitle}
-                          onValueChange={handleSelectChange}
-                          // disabled={isSigned}
-                        >
-                          <SelectTrigger className="h-11">
-                            <SelectValue placeholder="Select or type a contract title" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contractTitles.map((title) => (
-                              <SelectItem key={title} value={title}>
-                                {title}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.contractTitle && (
-                          <p className="text-xs text-red-500 mt-1">
-                            {errors.contractTitle}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="block text-xs font-medium text-gray-600 mb-2">
-                        Contract Title <span className="text-red-500">*</span>
+                  <div className="flex md:flex-row flex-col gap-3">
+                    <div className="space-y-2 w-full">
+                      <Label
+                        htmlFor="creator-name"
+                        className="text-gray-700 font-medium"
+                      >
+                        PARTY A (Creator) *
                       </Label>
-                      <SignContractSelect
-                        setContractTitle={(value) =>
-                          handleFormChange("contractTitle", value)
-                        }
-                        setContractContent={(value) =>
-                          handleFormChange("contractContent", value)
-                        }
-                        // disabled={isSigned}
+                      <Input
+                        id="creator-name"
+                        value={localCreatorName}
+                        onChange={handleCreatorNameChange}
+                        placeholder="Enter your full legal name as it should appear on the contract"
+                        // disabled={isFormLocked || isSigned}
                       />
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <SignContractInput
-                        label="Signer Full Name*"
-                        placeholder="John Doe"
-                        id={"receiver-name"}
+                    <div className="space-y-2 w-full">
+                      <Label
+                        htmlFor="receiver-name"
+                        className="text-gray-700 font-medium"
+                      >
+                        PARTY B (Signee) *
+                      </Label>
+                      <Input
+                        id="receiver-name"
                         value={form.receiverName}
-                        onchange={(e) =>
+                        onChange={(e) =>
                           handleFormChange("receiverName", e.target.value)
                         }
-                        // disabled={isSigned}
+                        placeholder="John Doe"
+                        // disabled={isFormLocked || isSigned}
                       />
                       {errors.receiverName && (
                         <p className="text-xs text-red-500 mt-1">
                           {errors.receiverName}
                         </p>
                       )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <div className="space-y-1">
+                        <Label
+                          htmlFor="contract-date"
+                          className="text-xs font-medium text-gray-600"
+                        >
+                          Contract Date*
+                        </Label>
+                        <Input
+                          id="contract-date"
+                          type="date"
+                          value={form.contractDate}
+                          onChange={(e) =>
+                            handleFormChange("contractDate", e.target.value)
+                          }
+                          className="w-full"
+                          max={new Date().toISOString().split("T")[0]}
+                          // disabled={isFormLocked || isSigned}
+                        />
+                      </div>
                     </div>
                     <div>
                       <SignContractInput
@@ -844,7 +907,7 @@ export default function EditContractPage({
                         onchange={(e) =>
                           handleFormChange("receiverEmail", e.target.value)
                         }
-                        // disabled={isSigned}
+                        // disabled={isFormLocked || isSigned}
                       />
                       {errors.receiverEmail && (
                         <p className="text-xs text-red-500 mt-1">
@@ -861,8 +924,29 @@ export default function EditContractPage({
                         onchange={(e) =>
                           handleFormChange("receiverPhone", e.target.value)
                         }
-                        // disabled={isSigned}
+                        // disabled={isFormLocked || isSigned}
                       />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <div className="w-full">
+                      <Label className="block text-xs font-medium text-gray-600 mb-2">
+                        Contract Title <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        value={form.contractTitle}
+                        onChange={(e: any) =>
+                          handleFormChange("contractTitle", e.target.value)
+                        }
+                        placeholder="Enter contract title"
+                        // disabled={isFormLocked || isSigned}
+                      />
+                      {errors.contractTitle && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {errors.contractTitle}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -880,7 +964,7 @@ export default function EditContractPage({
                       onChange={(value) =>
                         handleFormChange("contractContent", value)
                       }
-                      // disabled={isSigned}
+                      // disabled={isFormLocked || isSigned}
                     />
                     {errors.contractContent && (
                       <p className="text-xs text-red-500 mt-1">
@@ -933,7 +1017,7 @@ export default function EditContractPage({
                       handleFormChange("termsConsent", value)
                     }
                     termsConsent={form.termsConsent}
-                    // disabled={isSigned}
+                    // disabled={isFormLocked || isSigned}
                   />
                   <div className="space-y-2">
                     {errors.ageConsent && (
@@ -955,7 +1039,7 @@ export default function EditContractPage({
                     variant="outline"
                     size="lg"
                     className="flex-1"
-                    disabled={saving || isSending}
+                    disabled={saving || isSending || isFormLocked}
                   >
                     Cancel
                   </Button>
@@ -963,7 +1047,7 @@ export default function EditContractPage({
                     onClick={handleSendForSignature}
                     size="lg"
                     className="flex-1 bg-[#C29307] text-white hover:bg-[#b38606]"
-                    disabled={saving || isSending || isSigned}
+                    disabled={saving || isSending || isFormLocked || isSigned}
                   >
                     {isSending ? (
                       <>
@@ -984,6 +1068,7 @@ export default function EditContractPage({
                 <PreviewTab
                   contractTitle={form.contractTitle}
                   contractContent={form.contractContent}
+                  contractDate={form.contractDate}
                   receiverName={form.receiverName}
                   receiverEmail={form.receiverEmail}
                   receiverPhone={form.receiverPhone}
@@ -995,6 +1080,10 @@ export default function EditContractPage({
                   onCreatorNameChange={setCreatorName}
                   creatorSignature={creatorSignature}
                   onSignatureChange={setCreatorSignature}
+                  localCreatorName={localCreatorName}
+                  setLocalCreatorName={setLocalCreatorName}
+                  // isUpdate={true}
+                  // disabled={isFormLocked || isSigned}
                 />
               </TabsContent>
             </Tabs>

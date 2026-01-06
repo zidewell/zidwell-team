@@ -48,8 +48,16 @@ import {
   FileSignature,
   FileCheck,
   FileClock,
+  Percent,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
 
 const fetcher = (url: string) =>
   fetch(url).then(async (r) => {
@@ -60,7 +68,14 @@ const fetcher = (url: string) =>
     return r.json();
   });
 
-type RangeOption = "total" | "today" | "week" | "month" | "90days" | "180days" | "year";
+type RangeOption =
+  | "total"
+  | "today"
+  | "week"
+  | "month"
+  | "90days"
+  | "180days"
+  | "year";
 
 const CHART_COLORS = {
   inflow: "#10b981",
@@ -68,6 +83,7 @@ const CHART_COLORS = {
   contracts: "#3b82f6",
   invoices: "#8b5cf6",
   revenue: "#f59e0b",
+  contract_revenue: "#8b5cf6",
   pie: ["#10b981", "#ef4444", "#3b82f6", "#8b5cf6", "#f59e0b", "#84cc16"],
   website: "#3b82f6",
   signups: "#10b981",
@@ -77,8 +93,9 @@ const CHART_COLORS = {
     transfers: "#3b82f6",
     bill_payment: "#10b981",
     invoice: "#8b5cf6",
-    contract: "#ef4444"
-  }
+    contract: "#8b5cf6", // Changed to match contract theme
+    platform: "#84cc16",
+  },
 };
 
 interface GrowthIndicatorProps {
@@ -166,6 +183,7 @@ interface MetricsData {
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     };
     today: {
       total: number;
@@ -173,6 +191,7 @@ interface MetricsData {
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     };
     week: {
       total: number;
@@ -180,6 +199,7 @@ interface MetricsData {
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     };
     month: {
       total: number;
@@ -187,6 +207,7 @@ interface MetricsData {
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     };
     "90days": {
       total: number;
@@ -194,6 +215,7 @@ interface MetricsData {
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     };
     "180days": {
       total: number;
@@ -201,6 +223,7 @@ interface MetricsData {
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     };
     year: {
       total: number;
@@ -208,48 +231,56 @@ interface MetricsData {
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     };
-    daily: Array<{ 
-      date: string; 
+    daily: Array<{
+      date: string;
       total: number;
       transfers: number;
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     }>;
-    weekly: Array<{ 
-      week: string; 
+    weekly: Array<{
+      week: string;
       total: number;
       transfers: number;
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     }>;
-    monthly: Array<{ 
-      month: string; 
+    monthly: Array<{
+      month: string;
       total: number;
       transfers: number;
       bill_payment: number;
       invoice: number;
       contract: number;
+      platform: number;
     }>;
   };
 }
 
-const getSafeData = <T,>(data: T | undefined, path: string, defaultValue: any = []): any => {
+const getSafeData = <T,>(
+  data: T | undefined,
+  path: string,
+  defaultValue: any = []
+): any => {
   if (!data) return defaultValue;
-  
+
   try {
-    const keys = path.split('.');
+    const keys = path.split(".");
     let current: any = data;
-    
+
     for (const key of keys) {
       if (current[key] === undefined || current[key] === null) {
         return defaultValue;
       }
       current = current[key];
     }
-    
+
     return current;
   } catch {
     return defaultValue;
@@ -280,16 +311,20 @@ export default function AdminDashboard() {
     setPage(1);
   }, [range, isClient]);
 
-  const { data: summaryData, error: summaryError, isLoading: summaryLoading } = useSWR<any>(
-    `/api/admin-apis/dashboard/summary?range=${range}`,
-    fetcher,
-    {
-      refreshInterval: 300000,
-      revalidateOnFocus: true,
-    }
-  );
+  const {
+    data: summaryData,
+    error: summaryError,
+    isLoading: summaryLoading,
+  } = useSWR<any>(`/api/admin-apis/dashboard/summary?range=${range}`, fetcher, {
+    refreshInterval: 300000,
+    revalidateOnFocus: true,
+  });
 
-  const { data: metricsData, error: metricsError, isLoading: metricsLoading } = useSWR<MetricsData>(
+  const {
+    data: metricsData,
+    error: metricsError,
+    isLoading: metricsLoading,
+  } = useSWR<MetricsData>(
     `/api/admin-apis/dashboard/metrics?range=${range}`,
     fetcher,
     {
@@ -298,13 +333,18 @@ export default function AdminDashboard() {
     }
   );
 
-  const { data: paginatedData, error: paginatedError, isLoading: transactionsLoading } = useSWR<any>(
+  const {
+    data: paginatedData,
+    error: paginatedError,
+    isLoading: transactionsLoading,
+  } = useSWR<any>(
     `/api/admin-apis/transactions?page=${page}&range=${range}`,
     fetcher
   );
 
   useEffect(() => {
-    if (paginatedError) console.error("Paginated transactions error:", paginatedError);
+    if (paginatedError)
+      console.error("Paginated transactions error:", paginatedError);
     if (summaryError) console.error("Summary error:", summaryError);
     if (metricsError) console.error("Metrics error:", metricsError);
   }, [paginatedError, summaryError, metricsError]);
@@ -317,6 +357,9 @@ export default function AdminDashboard() {
   const transactionFees = Number(summaryData?.transactionFees ?? 0);
   const platformFees = Number(summaryData?.platformFees ?? 0);
   const invoiceFees = Number(summaryData?.invoiceFees ?? 0);
+  const contractFees = Number(summaryData?.contractFees ?? 0);
+  const totalContractAmount = Number(summaryData?.totalContractAmount ?? 0);
+  const contractPaymentsCount = Number(summaryData?.contractPaymentsCount ?? 0);
   const totalContracts = Number(summaryData?.totalContractsIssued ?? 0);
   const pendingContracts = Number(summaryData?.pendingContracts ?? 0);
   const signedContracts = Number(summaryData?.signedContracts ?? 0);
@@ -325,23 +368,41 @@ export default function AdminDashboard() {
   const unpaidInvoices = Number(summaryData?.pendingInvoices ?? 0);
   const totalInvoiceRevenue = Number(summaryData?.totalInvoiceRevenue ?? 0);
   const totalTransactions = Number(summaryData?.totalTransactions ?? 0);
-  const successfulTransactions = Number(summaryData?.successfulTransactions ?? 0);
+  const successfulTransactions = Number(
+    summaryData?.successfulTransactions ?? 0
+  );
   const failedTransactions = Number(summaryData?.failedTransactions ?? 0);
   const pendingTransactions = Number(summaryData?.pendingTransactions ?? 0);
   const totalUsers = Number(summaryData?.totalUsers ?? 0);
 
   // Contract-specific calculations
-  const contractSignRate = totalContracts > 0 
-    ? ((signedContracts / totalContracts) * 100).toFixed(1)
+  const contractSignRate =
+    totalContracts > 0
+      ? ((signedContracts / totalContracts) * 100).toFixed(1)
+      : "0";
+
+  const avgContractFee = contractPaymentsCount > 0 
+    ? (contractFees / contractPaymentsCount).toFixed(2)
     : "0";
 
-  const getMetricValue = (metric: keyof MetricsData, period: RangeOption): number => {
+  const contractRevenueShare = totalAppRevenue > 0
+    ? ((contractFees / totalAppRevenue) * 100).toFixed(1)
+    : "0";
+
+  const avgContractValue = signedContracts > 0
+    ? (totalContractAmount / signedContracts).toFixed(2)
+    : "0";
+
+  const getMetricValue = (
+    metric: keyof MetricsData,
+    period: RangeOption
+  ): number => {
     if (!metricsData) return 0;
-    
-    if (metric === 'revenue_breakdown') {
+
+    if (metric === "revenue_breakdown") {
       return metricsData[metric]?.[period]?.total || 0;
     }
-    
+
     return metricsData[metric]?.[period] || 0;
   };
 
@@ -354,6 +415,7 @@ export default function AdminDashboard() {
   const prevTotalInvoices = Number(summaryData?.prevTotalInvoices ?? 0);
   const prevPaidInvoices = Number(summaryData?.prevPaidInvoices ?? 0);
   const prevUnpaidInvoices = Number(summaryData?.prevUnpaidInvoices ?? 0);
+  const prevContractFees = Number(summaryData?.prevContractFees ?? 0);
 
   const calculateGrowth = (current: number, previous: number): number => {
     if (previous === 0) return current > 0 ? 100 : 0;
@@ -362,13 +424,26 @@ export default function AdminDashboard() {
 
   const inflowGrowth = calculateGrowth(totalInflow, prevTotalInflow);
   const outflowGrowth = calculateGrowth(totalOutflow, prevTotalOutflow);
-  const appRevenueGrowth = calculateGrowth(totalAppRevenue, prevTotalAppRevenue);
+  const appRevenueGrowth = calculateGrowth(
+    totalAppRevenue,
+    prevTotalAppRevenue
+  );
+  const contractRevenueGrowth = calculateGrowth(contractFees, prevContractFees);
   const contractsGrowth = calculateGrowth(totalContracts, prevTotalContracts);
-  const pendingContractsGrowth = calculateGrowth(pendingContracts, prevPendingContracts);
-  const signedContractsGrowth = calculateGrowth(signedContracts, prevSignedContracts);
+  const pendingContractsGrowth = calculateGrowth(
+    pendingContracts,
+    prevPendingContracts
+  );
+  const signedContractsGrowth = calculateGrowth(
+    signedContracts,
+    prevSignedContracts
+  );
   const invoicesGrowth = calculateGrowth(totalInvoices, prevTotalInvoices);
   const paidInvoicesGrowth = calculateGrowth(paidInvoices, prevPaidInvoices);
-  const unpaidInvoicesGrowth = calculateGrowth(unpaidInvoices, prevUnpaidInvoices);
+  const unpaidInvoicesGrowth = calculateGrowth(
+    unpaidInvoices,
+    prevUnpaidInvoices
+  );
 
   const monthlyTransactions = summaryData?.monthlyTransactions ?? [];
   const monthlyInvoices = summaryData?.monthlyInvoices ?? [];
@@ -391,26 +466,67 @@ export default function AdminDashboard() {
   ].filter((item) => item.value > 0);
 
   const revenueBreakdownData = [
-    { name: "Transaction Fees", value: transactionFees, color: CHART_COLORS.revenue },
-    { name: "Platform Fees", value: platformFees, color: "#84cc16" },
-    { name: "Invoice Fees", value: invoiceFees, color: "#8b5cf6" },
+    {
+      name: "Transaction Fees",
+      value: transactionFees,
+      color: CHART_COLORS.revenue_breakdown.transfers,
+    },
+    { 
+      name: "Platform Fees", 
+      value: platformFees, 
+      color: CHART_COLORS.revenue_breakdown.platform 
+    },
+    { 
+      name: "Invoice Fees", 
+      value: invoiceFees, 
+      color: CHART_COLORS.revenue_breakdown.invoice 
+    },
+    { 
+      name: "Contract Fees", 
+      value: contractFees, 
+      color: CHART_COLORS.revenue_breakdown.contract 
+    },
   ].filter((item) => item.value > 0);
 
   const getRevenueBreakdownPieData = () => {
     if (!metricsData?.revenue_breakdown) return [];
-    
+
     const currentRevenue = metricsData.revenue_breakdown[range];
     if (!currentRevenue) return [];
-    
+
     return [
-      { name: "Transfers", value: currentRevenue.transfers, color: CHART_COLORS.revenue_breakdown.transfers },
-      { name: "Bill Payment", value: currentRevenue.bill_payment, color: CHART_COLORS.revenue_breakdown.bill_payment },
-      { name: "Invoice", value: currentRevenue.invoice, color: CHART_COLORS.revenue_breakdown.invoice },
-      { name: "Contract", value: currentRevenue.contract, color: CHART_COLORS.revenue_breakdown.contract },
-    ].filter(item => item.value > 0);
+      {
+        name: "Transfers",
+        value: currentRevenue.transfers,
+        color: CHART_COLORS.revenue_breakdown.transfers,
+      },
+      {
+        name: "Bill Payment",
+        value: currentRevenue.bill_payment,
+        color: CHART_COLORS.revenue_breakdown.bill_payment,
+      },
+      {
+        name: "Invoice",
+        value: currentRevenue.invoice,
+        color: CHART_COLORS.revenue_breakdown.invoice,
+      },
+      {
+        name: "Contract",
+        value: currentRevenue.contract || 0,
+        color: CHART_COLORS.revenue_breakdown.contract,
+      },
+      {
+        name: "Platform",
+        value: currentRevenue.platform || 0,
+        color: CHART_COLORS.revenue_breakdown.platform,
+      },
+    ].filter((item) => item.value > 0);
   };
 
-  const recentActivity = summaryData?.latestTransactions?.slice(0, 5) ?? paginatedData?.transactions?.slice(0, 5) ?? [];
+  const recentActivity =
+    summaryData?.latestTransactions?.slice(0, 5) ??
+    paginatedData?.transactions?.slice(0, 5) ??
+    [];
   const hasNextPage = paginatedData?.transactions?.length === PAGE_LIMIT;
   const hasPrevPage = page > 1;
 
@@ -427,7 +543,9 @@ export default function AdminDashboard() {
   };
 
   const refresh = async () => {
-    await mutate(`/api/admin-apis/dashboard/summary?range=${range}&nocache=true`);
+    await mutate(
+      `/api/admin-apis/dashboard/summary?range=${range}&nocache=true`
+    );
     await mutate(`/api/admin-apis/dashboard/metrics?range=${range}`);
     await mutate(`/api/admin-apis/transactions?page=${page}&range=${range}`);
   };
@@ -464,7 +582,7 @@ export default function AdminDashboard() {
   const formatCurrencyShort = (value: number) => {
     const numValue = Number(value);
     if (numValue === 0) return "₦0";
-    
+
     if (numValue >= 1000000000) {
       return `₦${(numValue / 1000000000).toFixed(1)}B`;
     }
@@ -478,17 +596,32 @@ export default function AdminDashboard() {
   };
 
   const formatNumber = (value: number) => {
-    return new Intl.NumberFormat('en-NG').format(value);
+    return new Intl.NumberFormat("en-NG").format(value);
   };
 
-  const websiteMonthlyData = getSafeData(metricsData, 'website.monthly', []);
-  const signupsMonthlyData = getSafeData(metricsData, 'signups.monthly', []);
-  const activeUsersMonthlyData = getSafeData(metricsData, 'active_users.monthly', []);
-  const transactionVolumeMonthlyData = getSafeData(metricsData, 'transaction_volume.monthly', []);
-  const revenueBreakdownMonthlyData = getSafeData(metricsData, 'revenue_breakdown.monthly', []);
+  const websiteMonthlyData = getSafeData(metricsData, "website.monthly", []);
+  const signupsMonthlyData = getSafeData(metricsData, "signups.monthly", []);
+  const activeUsersMonthlyData = getSafeData(
+    metricsData,
+    "active_users.monthly",
+    []
+  );
+  const transactionVolumeMonthlyData = getSafeData(
+    metricsData,
+    "transaction_volume.monthly",
+    []
+  );
+  const revenueBreakdownMonthlyData = getSafeData(
+    metricsData,
+    "revenue_breakdown.monthly",
+    []
+  );
 
   useEffect(() => {
-    if (transactionVolumeMonthlyData && transactionVolumeMonthlyData.length > 0) {
+    if (
+      transactionVolumeMonthlyData &&
+      transactionVolumeMonthlyData.length > 0
+    ) {
     }
   }, [transactionVolumeMonthlyData]);
 
@@ -534,7 +667,9 @@ export default function AdminDashboard() {
       <AdminLayout>
         <div className="px-4 py-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-700">Failed to load dashboard data. Please try refreshing the page.</p>
+            <p className="text-red-700">
+              Failed to load dashboard data. Please try refreshing the page.
+            </p>
             <button
               onClick={refresh}
               className="mt-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium transition-colors"
@@ -548,11 +683,29 @@ export default function AdminDashboard() {
   }
 
   const revenueBreakdownPieData = getRevenueBreakdownPieData();
-  const allTimeRanges: RangeOption[] = ['total', 'today', 'week', 'month', '90days', '180days', 'year'];
-  const specificTimeRanges: Exclude<RangeOption, 'total'>[] = ['today', 'week', 'month', '90days', '180days', 'year'];
+  const allTimeRanges: RangeOption[] = [
+    "total",
+    "today",
+    "week",
+    "month",
+    "90days",
+    "180days",
+    "year",
+  ];
+  const specificTimeRanges: Exclude<RangeOption, "total">[] = [
+    "today",
+    "week",
+    "month",
+    "90days",
+    "180days",
+    "year",
+  ];
 
-  const getDisplayValueForPeriod = (metric: keyof MetricsData, period: RangeOption): string => {
-    if (metric === 'transaction_volume') {
+  const getDisplayValueForPeriod = (
+    metric: keyof MetricsData,
+    period: RangeOption
+  ): string => {
+    if (metric === "transaction_volume") {
       return formatCurrency(getMetricValue(metric, period));
     }
     return formatNumber(getMetricValue(metric, period));
@@ -619,31 +772,41 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Website Visits"
-                value={formatNumber(getMetricValue('website', range))}
+                value={formatNumber(getMetricValue("website", range))}
                 icon={<Eye className="w-5 h-5 text-blue-600" />}
                 className="border-l-4 border-l-blue-500"
-                subtitle={`Total visits (${range === 'total' ? 'all time' : range})`}
+                subtitle={`Total visits (${
+                  range === "total" ? "all time" : range
+                })`}
               />
               <KPICard
                 title="New Signups"
-                value={formatNumber(getMetricValue('signups', range))}
+                value={formatNumber(getMetricValue("signups", range))}
                 icon={<UserPlus className="w-5 h-5 text-green-600" />}
                 className="border-l-4 border-l-green-500"
-                subtitle={`New users (${range === 'total' ? 'all time' : range})`}
+                subtitle={`New users (${
+                  range === "total" ? "all time" : range
+                })`}
               />
               <KPICard
                 title="Active Users"
-                value={formatNumber(getMetricValue('active_users', range))}
+                value={formatNumber(getMetricValue("active_users", range))}
                 icon={<Activity className="w-5 h-5 text-purple-600" />}
                 className="border-l-4 border-l-purple-500"
-                subtitle={`Active users (${range === 'total' ? 'all time' : range})`}
+                subtitle={`Active users (${
+                  range === "total" ? "all time" : range
+                })`}
               />
               <KPICard
                 title="Transaction Volume"
-                value={formatCurrency(getMetricValue('transaction_volume', range))}
+                value={formatCurrency(
+                  getMetricValue("transaction_volume", range)
+                )}
                 icon={<DollarSign className="w-5 h-5 text-amber-600" />}
                 className="border-l-4 border-l-amber-500"
-                subtitle={`Cash processed (${range === 'total' ? 'all time' : range})`}
+                subtitle={`Cash processed (${
+                  range === "total" ? "all time" : range
+                })`}
               />
             </div>
 
@@ -678,37 +841,41 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {/* Third Row: Platform Metrics */}
+            {/* Third Row: Platform Metrics - INCLUDING CONTRACT REVENUE */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Total App Revenue"
-                value={formatCurrency(nombaBalanceRaw - mainWalletBalance)}
+                value={formatCurrency(totalAppRevenue)}
                 growth={<GrowthIndicator value={appRevenueGrowth} />}
                 icon={<DollarSign className="w-5 h-5 text-amber-600" />}
-                className="border-l-4 border-l-[#C29307] bg-gradient-to-r from-amber-50 to-white"
+                className="border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-white"
                 subtitle="Total platform earnings"
               />
               <KPICard
-                title="Total Users"
-                value={totalUsers.toLocaleString()}
-                icon={<Users className="w-5 h-5 text-green-600" />}
-                subtitle="Registered users"
+                title="Contract Revenue"
+                value={formatCurrency(contractFees)}
+                growth={<GrowthIndicator value={contractRevenueGrowth} />}
+                icon={<FileSignature className="w-5 h-5 text-indigo-600" />}
+                className="border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50 to-white"
+                subtitle="Revenue from contracts"
               />
               <KPICard
-                title="Total Transactions"
-                value={totalTransactions.toLocaleString()}
-                icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
-                subtitle="All transactions"
+                title="Contract Revenue Share"
+                value={`${contractRevenueShare}%`}
+                icon={<Percent className="w-5 h-5 text-purple-600" />}
+                className="border-l-4 border-l-purple-500"
+                subtitle="% of total revenue"
               />
               <KPICard
-                title="Invoice Revenue"
-                value={formatCurrency(invoiceFees)}
-                icon={<Receipt className="w-5 h-5 text-violet-600" />}
-                subtitle="Revenue from invoices"
+                title="Avg. Contract Fee"
+                value={formatCurrency(avgContractFee)}
+                icon={<DollarSign className="w-5 h-5 text-blue-600" />}
+                className="border-l-4 border-l-blue-500"
+                subtitle={`${contractPaymentsCount} payments`}
               />
             </div>
 
-            {/* Fourth Row: Contract Metrics */}
+            {/* Fourth Row: Contract & Invoice Metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard
                 title="Total Contracts"
@@ -743,56 +910,99 @@ export default function AdminDashboard() {
               />
             </div>
 
+            {/* Fifth Row: Additional Contract Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KPICard
+                title="Total Contract Value"
+                value={formatCurrency(totalContractAmount)}
+                icon={<FileText className="w-5 h-5 text-green-600" />}
+                className="border-l-4 border-l-green-500"
+                subtitle="Value of all contracts"
+              />
+              <KPICard
+                title="Avg. Contract Value"
+                value={formatCurrency(avgContractValue)}
+                icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+                className="border-l-4 border-l-blue-500"
+                subtitle="Average per contract"
+              />
+              <KPICard
+                title="Total Users"
+                value={totalUsers.toLocaleString()}
+                icon={<Users className="w-5 h-5 text-green-600" />}
+                subtitle="Registered users"
+              />
+              <KPICard
+                title="Total Transactions"
+                value={totalTransactions.toLocaleString()}
+                icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+                subtitle="All transactions"
+              />
+            </div>
+
             {/* Charts Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    Website Traffic Trend
+                    Revenue Trend by Source
                   </h3>
-                  <div className="text-sm text-gray-500">Filtered: {range === 'total' ? 'All time' : range}</div>
+                  <div className="text-sm text-gray-500">
+                    Filtered: {range === "total" ? "All time" : range}
+                  </div>
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={websiteMonthlyData}>
+                  <ComposedChart data={revenueBreakdownMonthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                     <XAxis
                       dataKey="month"
                       tick={{ fontSize: 12 }}
                       tickLine={false}
                     />
-                    <YAxis
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                    />
+                    <YAxis tick={{ fontSize: 12 }} tickLine={false} />
                     <Tooltip
                       formatter={(value: number) => [
-                        formatNumber(value),
-                        "Visits",
+                        formatCurrency(value),
+                        "Revenue",
                       ]}
                       labelFormatter={(label) => `Month: ${label}`}
                     />
                     <Area
                       type="monotone"
-                      dataKey="count"
-                      stroke={CHART_COLORS.website}
-                      fill="url(#colorWebsite)"
+                      dataKey="total"
+                      stroke={CHART_COLORS.revenue}
+                      fill="url(#colorRevenue)"
                       strokeWidth={2}
+                      name="Total Revenue"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="contract"
+                      stroke={CHART_COLORS.contract_revenue}
+                      strokeWidth={2}
+                      name="Contract Revenue"
                     />
                     <defs>
-                      <linearGradient id="colorWebsite" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient
+                        id="colorRevenue"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
                         <stop
                           offset="5%"
-                          stopColor={CHART_COLORS.website}
+                          stopColor={CHART_COLORS.revenue}
                           stopOpacity={0.8}
                         />
                         <stop
                           offset="95%"
-                          stopColor={CHART_COLORS.website}
+                          stopColor={CHART_COLORS.revenue}
                           stopOpacity={0}
                         />
                       </linearGradient>
                     </defs>
-                  </AreaChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
@@ -838,44 +1048,68 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </div>
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  <div className="bg-indigo-50 p-3 rounded-lg">
+                    <div className="text-xs text-indigo-700 mb-1">
+                      Contract Revenue
+                    </div>
+                    <div className="text-lg font-bold text-indigo-900">
+                      {formatCurrency(contractFees)}
+                    </div>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <div className="text-xs text-green-700 mb-1">
+                      Revenue Share
+                    </div>
+                    <div className="text-lg font-bold text-green-900">
+                      {contractRevenueShare}%
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="traffic" className="space-y-8">
+            {/* Existing traffic tab content remains the same */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
                 Website Traffic Analytics
               </h3>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
                 {allTimeRanges.map((period) => (
                   <div key={period} className="bg-blue-50 p-4 rounded-lg">
                     <div className="text-sm text-blue-700 mb-1 capitalize">
-                      {period === 'total' ? 'All Time' : period.replace('days', ' Days')}
+                      {period === "total"
+                        ? "All Time"
+                        : period.replace("days", " Days")}
                     </div>
                     <div className="text-xl font-bold text-blue-900">
-                      {formatNumber(getMetricValue('website', period))}
+                      {formatNumber(getMetricValue("website", period))}
                     </div>
                   </div>
                 ))}
               </div>
-              
+
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={websiteMonthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip 
-                      formatter={(value: number) => [formatNumber(value), 'Visits']}
+                    <Tooltip
+                      formatter={(value: number) => [
+                        formatNumber(value),
+                        "Visits",
+                      ]}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="count" 
-                      fill="#93c5fd" 
-                      stroke="#3b82f6" 
-                      name="Website Visits" 
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      fill="#93c5fd"
+                      stroke="#3b82f6"
+                      name="Website Visits"
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -884,6 +1118,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="users" className="space-y-8">
+            {/* Existing users tab content remains the same */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white p-6 rounded-2xl shadow-sm border">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
@@ -893,10 +1128,12 @@ export default function AdminDashboard() {
                   {allTimeRanges.slice(0, 4).map((period) => (
                     <div key={period} className="bg-green-50 p-3 rounded-lg">
                       <div className="text-xs text-green-700 mb-1 capitalize">
-                        {period === 'total' ? 'All Time' : period.replace('days', ' Days')}
+                        {period === "total"
+                          ? "All Time"
+                          : period.replace("days", " Days")}
                       </div>
                       <div className="text-lg font-bold text-green-900">
-                        {formatNumber(getMetricValue('signups', period))}
+                        {formatNumber(getMetricValue("signups", period))}
                       </div>
                     </div>
                   ))}
@@ -905,10 +1142,12 @@ export default function AdminDashboard() {
                   {allTimeRanges.slice(4).map((period) => (
                     <div key={period} className="bg-green-50 p-3 rounded-lg">
                       <div className="text-xs text-green-700 mb-1 capitalize">
-                        {period === 'total' ? 'All Time' : period.replace('days', ' Days')}
+                        {period === "total"
+                          ? "All Time"
+                          : period.replace("days", " Days")}
                       </div>
                       <div className="text-lg font-bold text-green-900">
-                        {formatNumber(getMetricValue('signups', period))}
+                        {formatNumber(getMetricValue("signups", period))}
                       </div>
                     </div>
                   ))}
@@ -918,12 +1157,17 @@ export default function AdminDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value: number) => [formatNumber(value), 'Signups']} />
+                    <Tooltip
+                      formatter={(value: number) => [
+                        formatNumber(value),
+                        "Signups",
+                      ]}
+                    />
                     <Bar dataKey="count" fill="#10b981" name="Signups" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              
+
               <div className="bg-white p-6 rounded-2xl shadow-sm border">
                 <h3 className="text-lg font-semibold text-gray-900 mb-6">
                   Active Users
@@ -932,10 +1176,12 @@ export default function AdminDashboard() {
                   {allTimeRanges.slice(0, 4).map((period) => (
                     <div key={period} className="bg-purple-50 p-3 rounded-lg">
                       <div className="text-xs text-purple-700 mb-1 capitalize">
-                        {period === 'total' ? 'All Time' : period.replace('days', ' Days')}
+                        {period === "total"
+                          ? "All Time"
+                          : period.replace("days", " Days")}
                       </div>
                       <div className="text-lg font-bold text-purple-900">
-                        {formatNumber(getMetricValue('active_users', period))}
+                        {formatNumber(getMetricValue("active_users", period))}
                       </div>
                     </div>
                   ))}
@@ -944,10 +1190,12 @@ export default function AdminDashboard() {
                   {allTimeRanges.slice(4).map((period) => (
                     <div key={period} className="bg-purple-50 p-3 rounded-lg">
                       <div className="text-xs text-purple-700 mb-1 capitalize">
-                        {period === 'total' ? 'All Time' : period.replace('days', ' Days')}
+                        {period === "total"
+                          ? "All Time"
+                          : period.replace("days", " Days")}
                       </div>
                       <div className="text-lg font-bold text-purple-900">
-                        {formatNumber(getMetricValue('active_users', period))}
+                        {formatNumber(getMetricValue("active_users", period))}
                       </div>
                     </div>
                   ))}
@@ -957,13 +1205,18 @@ export default function AdminDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value: number) => [formatNumber(value), 'Active Users']} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#8b5cf6" 
+                    <Tooltip
+                      formatter={(value: number) => [
+                        formatNumber(value),
+                        "Active Users",
+                      ]}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#8b5cf6"
                       strokeWidth={2}
-                      name="Active Users" 
+                      name="Active Users"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -972,18 +1225,24 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-8">
+            {/* Existing transactions tab content remains the same */}
             <div className="bg-white p-6 rounded-2xl shadow-sm border">
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
                 Transaction Volume
               </h3>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
                 {allTimeRanges.map((period) => {
-                  const periodValue = getMetricValue('transaction_volume', period);
+                  const periodValue = getMetricValue(
+                    "transaction_volume",
+                    period
+                  );
                   return (
                     <div key={period} className="bg-amber-50 p-4 rounded-lg">
                       <div className="text-sm text-amber-700 mb-1 capitalize">
-                        {period === 'total' ? 'All Time' : period.replace('days', ' Days')}
+                        {period === "total"
+                          ? "All Time"
+                          : period.replace("days", " Days")}
                       </div>
                       <div className="text-xl font-bold text-amber-900">
                         {formatCurrencyShort(periodValue)}
@@ -992,23 +1251,24 @@ export default function AdminDashboard() {
                   );
                 })}
               </div>
-              
+
               <div className="h-[400px]">
-                {transactionVolumeMonthlyData && transactionVolumeMonthlyData.length > 0 ? (
+                {transactionVolumeMonthlyData &&
+                transactionVolumeMonthlyData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={transactionVolumeMonthlyData}
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                      <XAxis 
-                        dataKey="month" 
+                      <XAxis
+                        dataKey="month"
                         tick={{ fontSize: 12 }}
                         angle={0}
                         textAnchor="middle"
                         height={60}
                       />
-                      <YAxis 
+                      <YAxis
                         tickFormatter={(value: number) => {
                           const numValue = Number(value);
                           if (numValue >= 1000000) {
@@ -1020,22 +1280,22 @@ export default function AdminDashboard() {
                         }}
                         tick={{ fontSize: 12 }}
                       />
-                      <Tooltip 
+                      <Tooltip
                         formatter={(value: any) => {
                           const numValue = Number(value);
-                          return [formatCurrency(numValue), 'Volume'];
+                          return [formatCurrency(numValue), "Volume"];
                         }}
                         labelFormatter={(label) => `Month: ${label}`}
                         contentStyle={{
-                          backgroundColor: 'white',
-                          border: '1px solid #e5e7eb',
-                          borderRadius: '8px',
+                          backgroundColor: "white",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "8px",
                         }}
                       />
                       <Legend />
-                      <Bar 
-                        dataKey="amount" 
-                        name="Transaction Volume" 
+                      <Bar
+                        dataKey="amount"
+                        name="Transaction Volume"
                         fill="#f59e0b"
                         radius={[4, 4, 0, 0]}
                       />
@@ -1044,35 +1304,51 @@ export default function AdminDashboard() {
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-gray-400">
                     <BarChart3 size={48} className="mb-4" />
-                    <p>No transaction volume data available for the selected range</p>
-                    <p className="text-sm mt-2">Try selecting a different time range</p>
+                    <p>
+                      No transaction volume data available for the selected
+                      range
+                    </p>
+                    <p className="text-sm mt-2">
+                      Try selecting a different time range
+                    </p>
                   </div>
                 )}
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-1">Total Transactions</div>
+                  <div className="text-sm text-gray-600 mb-1">
+                    Total Transactions
+                  </div>
                   <div className="text-2xl font-bold text-gray-900">
                     {formatNumber(totalTransactions)}
                   </div>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="text-sm text-green-600 mb-1">Successful Transactions</div>
+                  <div className="text-sm text-green-600 mb-1">
+                    Successful Transactions
+                  </div>
                   <div className="text-2xl font-bold text-green-900">
                     {formatNumber(successfulTransactions)}
                   </div>
                   <div className="text-sm text-green-700 mt-1">
-                    {totalTransactions > 0 
-                      ? `${((successfulTransactions / totalTransactions) * 100).toFixed(1)}% success rate`
-                      : '0% success rate'}
+                    {totalTransactions > 0
+                      ? `${(
+                          (successfulTransactions / totalTransactions) *
+                          100
+                        ).toFixed(1)}% success rate`
+                      : "0% success rate"}
                   </div>
                 </div>
                 <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="text-sm text-blue-600 mb-1">Average Transaction Value</div>
+                  <div className="text-sm text-blue-600 mb-1">
+                    Average Transaction Value
+                  </div>
                   <div className="text-2xl font-bold text-blue-900">
-                    {successfulTransactions > 0 
-                      ? formatCurrency((totalInflow + totalOutflow) / successfulTransactions)
+                    {successfulTransactions > 0
+                      ? formatCurrency(
+                          (totalInflow + totalOutflow) / successfulTransactions
+                        )
                       : formatCurrency(0)}
                   </div>
                 </div>
@@ -1085,13 +1361,15 @@ export default function AdminDashboard() {
               <h3 className="text-lg font-semibold text-gray-900 mb-6">
                 Contract Analytics
               </h3>
-              
+
               {/* Contract Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 <div className="bg-blue-50 p-6 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm text-blue-700 mb-1">Total Contracts</div>
+                      <div className="text-sm text-blue-700 mb-1">
+                        Total Contracts
+                      </div>
                       <div className="text-2xl font-bold text-blue-900">
                         {formatNumber(totalContracts)}
                       </div>
@@ -1099,14 +1377,16 @@ export default function AdminDashboard() {
                     <FileSignature className="w-8 h-8 text-blue-600" />
                   </div>
                   <div className="mt-2 text-xs text-blue-600">
-                    Contracts issued ({range === 'total' ? 'all time' : range})
+                    Contracts issued ({range === "total" ? "all time" : range})
                   </div>
                 </div>
-                
+
                 <div className="bg-green-50 p-6 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm text-green-700 mb-1">Signed Contracts</div>
+                      <div className="text-sm text-green-700 mb-1">
+                        Signed Contracts
+                      </div>
                       <div className="text-2xl font-bold text-green-900">
                         {formatNumber(signedContracts)}
                       </div>
@@ -1117,11 +1397,13 @@ export default function AdminDashboard() {
                     Successfully signed
                   </div>
                 </div>
-                
+
                 <div className="bg-amber-50 p-6 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm text-amber-700 mb-1">Pending Contracts</div>
+                      <div className="text-sm text-amber-700 mb-1">
+                        Pending Contracts
+                      </div>
                       <div className="text-2xl font-bold text-amber-900">
                         {formatNumber(pendingContracts)}
                       </div>
@@ -1132,11 +1414,13 @@ export default function AdminDashboard() {
                     Awaiting signature
                   </div>
                 </div>
-                
+
                 <div className="bg-purple-50 p-6 rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm text-purple-700 mb-1">Sign Rate</div>
+                      <div className="text-sm text-purple-700 mb-1">
+                        Sign Rate
+                      </div>
                       <div className="text-2xl font-bold text-purple-900">
                         {contractSignRate}%
                       </div>
@@ -1148,7 +1432,70 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-              
+
+              {/* CONTRACT REVENUE SECTION */}
+              <div className="mb-8">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                  Contract Revenue
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="bg-indigo-50 p-6 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-indigo-700 mb-1">
+                          Total Contract Revenue
+                        </div>
+                        <div className="text-2xl font-bold text-indigo-900">
+                          {formatCurrency(contractFees)}
+                        </div>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-indigo-600" />
+                    </div>
+                    <div className="mt-2">
+                      <GrowthIndicator value={contractRevenueGrowth} />
+                    </div>
+                    <div className="mt-2 text-xs text-indigo-600">
+                      Revenue from contract fees
+                    </div>
+                  </div>
+                  
+                  <div className="bg-green-50 p-6 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-green-700 mb-1">
+                          Total Contract Value
+                        </div>
+                        <div className="text-2xl font-bold text-green-900">
+                          {formatCurrency(totalContractAmount)}
+                        </div>
+                      </div>
+                      <FileText className="w-8 h-8 text-green-600" />
+                    </div>
+                    <div className="mt-2 text-xs text-green-600">
+                      Total value of signed contracts
+                    </div>
+                  </div>
+                  
+                  <div className="bg-blue-50 p-6 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm text-blue-700 mb-1">
+                          Avg. Fee per Contract
+                        </div>
+                        <div className="text-2xl font-bold text-blue-900">
+                          {formatCurrency(avgContractFee)}
+                        </div>
+                      </div>
+                      <BarChart3 className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <div className="mt-2 text-xs text-blue-600">
+                      Average fee per contract
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Contract Trends Chart */}
               <div className="h-[400px] mb-8">
                 <ResponsiveContainer width="100%" height="100%">
@@ -1156,27 +1503,30 @@ export default function AdminDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip 
-                      formatter={(value: number) => [formatNumber(value), 'Contracts']}
+                    <Tooltip
+                      formatter={(value: number) => [
+                        formatNumber(value),
+                        "Contracts",
+                      ]}
                     />
                     <Legend />
-                    <Bar 
-                      dataKey="count" 
-                      name="Contracts Issued" 
+                    <Bar
+                      dataKey="count"
+                      name="Contracts Issued"
                       fill="#3b82f6"
                       radius={[4, 4, 0, 0]}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#10b981" 
+                    <Line
+                      type="monotone"
+                      dataKey="count"
+                      stroke="#10b981"
                       strokeWidth={2}
-                      name="Trend" 
+                      name="Trend"
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
-              
+
               {/* Contract Status Distribution */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl border">
@@ -1192,7 +1542,11 @@ export default function AdminDashboard() {
                             cx="50%"
                             cy="50%"
                             labelLine={false}
-                            label={(entry: any) => `${entry.name}: ${((entry.percent || 0) * 100).toFixed(1)}%`}
+                            label={(entry: any) =>
+                              `${entry.name}: ${(
+                                (entry.percent || 0) * 100
+                              ).toFixed(1)}%`
+                            }
                             outerRadius={80}
                             fill="#8884d8"
                             dataKey="value"
@@ -1201,7 +1555,12 @@ export default function AdminDashboard() {
                               <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value: number) => [formatNumber(value), 'Contracts']} />
+                          <Tooltip
+                            formatter={(value: number) => [
+                              formatNumber(value),
+                              "Contracts",
+                            ]}
+                          />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
@@ -1211,38 +1570,50 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="bg-white p-6 rounded-xl border">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">
                     Contract Performance
                   </h4>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div className="text-sm font-medium text-gray-700">Total Contracts</div>
+                      <div className="text-sm font-medium text-gray-700">
+                        Total Contracts
+                      </div>
                       <div className="text-lg font-bold text-gray-900">
                         {formatNumber(totalContracts)}
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                      <div className="text-sm font-medium text-green-700">Signed Rate</div>
+                      <div className="text-sm font-medium text-green-700">
+                        Signed Rate
+                      </div>
                       <div className="text-lg font-bold text-green-900">
                         {contractSignRate}%
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                      <div className="text-sm font-medium text-blue-700">Monthly Average</div>
+                      <div className="text-sm font-medium text-blue-700">
+                        Contract Revenue
+                      </div>
                       <div className="text-lg font-bold text-blue-900">
-                        {monthlyContracts.length > 0 
-                          ? formatNumber(monthlyContracts.reduce((sum, m) => sum + m.count, 0) / monthlyContracts.length)
-                          : 0}
+                        {formatCurrency(contractFees)}
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                      <div className="text-sm font-medium text-purple-700">Peak Month</div>
+                      <div className="text-sm font-medium text-purple-700">
+                        Revenue Share
+                      </div>
                       <div className="text-lg font-bold text-purple-900">
-                        {monthlyContracts.length > 0 
-                          ? formatNumber(Math.max(...monthlyContracts.map(m => m.count)))
-                          : 0}
+                        {contractRevenueShare}%
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-indigo-50 rounded-lg">
+                      <div className="text-sm font-medium text-indigo-700">
+                        Avg. Contract Fee
+                      </div>
+                      <div className="text-lg font-bold text-indigo-900">
+                        {formatCurrency(avgContractFee)}
                       </div>
                     </div>
                   </div>
@@ -1258,57 +1629,82 @@ export default function AdminDashboard() {
                   Revenue Analysis by Feature
                 </h3>
                 <div className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(getMetricValue('revenue_breakdown', range))}
+                  {formatCurrency(getMetricValue("revenue_breakdown", range))}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-8">
                 {allTimeRanges.map((period) => (
                   <div key={period} className="bg-green-50 p-4 rounded-lg">
                     <div className="text-sm text-green-700 mb-1 capitalize">
-                      {period === 'total' ? 'All Time' : period.replace('days', ' Days')}
+                      {period === "total"
+                        ? "All Time"
+                        : period.replace("days", " Days")}
                     </div>
                     <div className="text-xl font-bold text-green-900">
-                      {formatCurrency(getMetricValue('revenue_breakdown', period))}
+                      {formatCurrency(
+                        getMetricValue("revenue_breakdown", period)
+                      )}
+                    </div>
+                    <div className="text-xs text-green-600 mt-1">
+                      Contract: {formatCurrency(
+                        metricsData?.revenue_breakdown?.[period]?.contract || 0
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-              
+
               <div className="h-[400px] mb-8">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={revenueBreakdownMonthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                     <XAxis dataKey="month" />
-                    <YAxis tickFormatter={(value: number) => `₦${value/1000}k`} />
-                    <Tooltip 
+                    <YAxis
+                      tickFormatter={(value: number) => `₦${value / 1000}k`}
+                    />
+                    <Tooltip
                       formatter={(value: number, name: string) => {
                         const featureNames: Record<string, string> = {
-                          total: 'Total Revenue',
-                          transfers: 'Transfers',
-                          bill_payment: 'Bill Payment',
-                          invoice: 'Invoice',
-                          contract: 'Contract'
+                          total: "Total Revenue",
+                          transfers: "Transfers",
+                          bill_payment: "Bill Payment",
+                          invoice: "Invoice",
+                          contract: "Contract",
+                          platform: "Platform",
                         };
-                        return [formatCurrency(value), featureNames[name] || name];
+                        return [
+                          formatCurrency(value),
+                          featureNames[name] || name,
+                        ];
                       }}
                     />
                     <Legend />
-                    <Area 
-                      type="monotone" 
-                      dataKey="total" 
-                      fill="#dcfce7" 
-                      stroke="#16a34a" 
-                      name="Total Revenue" 
+                    <Area
+                      type="monotone"
+                      dataKey="total"
+                      fill="#dcfce7"
+                      stroke="#16a34a"
+                      name="Total Revenue"
                     />
                     <Bar dataKey="transfers" fill="#3b82f6" name="Transfers" />
-                    <Bar dataKey="bill_payment" fill="#10b981" name="Bill Payment" />
+                    <Bar
+                      dataKey="bill_payment"
+                      fill="#10b981"
+                      name="Bill Payment"
+                    />
                     <Bar dataKey="invoice" fill="#8b5cf6" name="Invoice" />
-                    <Bar dataKey="contract" fill="#ef4444" name="Contract" />
+                    <Bar 
+                      dataKey="contract" 
+                      fill={CHART_COLORS.contract_revenue} 
+                      name="Contract"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar dataKey="platform" fill="#84cc16" name="Platform" />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
-              
+
               {revenueBreakdownPieData.length > 0 && (
                 <div className="mt-8">
                   <h4 className="text-lg font-semibold text-gray-900 mb-4">
@@ -1323,33 +1719,50 @@ export default function AdminDashboard() {
                             cx="50%"
                             cy="50%"
                             labelLine={false}
-                            label={(entry: any) => `${entry.name}: ${((entry.percent || 0) * 100).toFixed(1)}%`}
+                            label={(entry: any) =>
+                              `${entry.name}: ${(
+                                (entry.percent || 0) * 100
+                              ).toFixed(1)}%`
+                            }
                             outerRadius={80}
                             fill="#8884d8"
                             dataKey="value"
                           >
                             {revenueBreakdownPieData.map((entry, index) => (
-                              <Cell 
-                                key={`cell-${index}`} 
-                                fill={entry.color || '#8884d8'} 
+                              <Cell
+                                key={`cell-${index}`}
+                                fill={entry.color || "#8884d8"}
                               />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                          <Tooltip
+                            formatter={(value: any) =>
+                              formatCurrency(Number(value))
+                            }
+                          />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                    
+
                     <div className="space-y-3">
                       {revenueBreakdownPieData.map((entry) => {
-                        const totalRevenue = getMetricValue('revenue_breakdown', range);
-                        const percentage = totalRevenue > 0 ? (entry.value / totalRevenue) * 100 : 0;
-                        
+                        const totalRevenue = getMetricValue(
+                          "revenue_breakdown",
+                          range
+                        );
+                        const percentage =
+                          totalRevenue > 0
+                            ? (entry.value / totalRevenue) * 100
+                            : 0;
+
                         return (
-                          <div key={entry.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div
+                            key={entry.name}
+                            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                          >
                             <div className="flex items-center gap-3">
-                              <div 
-                                className="w-3 h-3 rounded-full" 
+                              <div
+                                className="w-3 h-3 rounded-full"
                                 style={{ backgroundColor: entry.color }}
                               />
                               <span className="text-sm font-medium text-gray-700 capitalize">
@@ -1357,7 +1770,9 @@ export default function AdminDashboard() {
                               </span>
                             </div>
                             <div className="text-right">
-                              <div className="font-bold">{formatCurrency(entry.value)}</div>
+                              <div className="font-bold">
+                                {formatCurrency(entry.value)}
+                              </div>
                               <div className="text-xs text-gray-500">
                                 {percentage.toFixed(1)}%
                               </div>
@@ -1445,6 +1860,11 @@ export default function AdminDashboard() {
                             Fee: {formatCurrency(tx.fee)}
                           </div>
                         )}
+                        {(tx.type?.toLowerCase() || "").includes("contract") && (
+                          <div className="text-xs text-indigo-600 mt-1">
+                            Contract Fee
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
                         {tx.description || "—"}
@@ -1466,8 +1886,10 @@ export default function AdminDashboard() {
                                 ) ||
                                 (tx.type?.toLowerCase() || "").includes("sent")
                               ? "bg-red-100 text-red-800"
-                              : (tx.type?.toLowerCase() || "").includes("contract")
-                              ? "bg-blue-100 text-blue-800"
+                              : (tx.type?.toLowerCase() || "").includes(
+                                  "contract"
+                                )
+                              ? "bg-indigo-100 text-indigo-800"
                               : "bg-gray-100 text-gray-800"
                           }`}
                         >
@@ -1531,15 +1953,13 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Avg. Revenue per User</div>
+              <div className="text-sm text-gray-500">Contract Revenue Share</div>
               <div className="text-2xl font-bold text-gray-900">
-                {totalUsers > 0 && totalAppRevenue > 0
-                  ? formatCurrency(totalAppRevenue / totalUsers)
-                  : formatCurrency(0)}
+                {contractRevenueShare}%
               </div>
             </div>
             <div className="bg-white p-4 rounded-xl border">
-              <div className="text-sm text-gray-500">Transaction Value</div>
+              <div className="text-sm text-gray-500">Avg. Transaction Value</div>
               <div className="text-2xl font-bold text-gray-900">
                 {totalTransactions > 0
                   ? formatCurrency(
@@ -1561,8 +1981,8 @@ export default function AdminDashboard() {
               {contractSignRate}%
             </div>
             <div className="text-sm text-gray-600">
-              <span className="font-medium">Last Updated:</span>{" "}
-              {new Date().toLocaleTimeString()}
+              <span className="font-medium">Contract Revenue:</span>{" "}
+              {formatCurrency(contractFees)}
             </div>
           </div>
         </div>

@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     const result = await transporter.sendMail(mailOptions);
 
-    // Log notification for audit purposes
+    // // Log notification for audit purposes
     console.log(`Email notification sent: ${type} to ${user.email}`, result.messageId);
 
     return NextResponse.json({

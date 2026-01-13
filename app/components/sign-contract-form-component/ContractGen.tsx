@@ -48,15 +48,7 @@ export default function ContractGen({ loading, contracts }: { loading: boolean; 
         </div>
       </div>
 
-      {typeof window !== "undefined" && window.location.hostname.includes("zidwell.com") ? (
-        <Image
-          src={"/coming-soon.png"}
-          alt="coming soon"
-          className="w-full object-contain"
-          width={500}
-          height={500}
-        />
-      ) : (
+
         <div className="space-y-6">
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -138,7 +130,7 @@ export default function ContractGen({ loading, contracts }: { loading: boolean; 
 
           <ContractList contracts={filteredContracts} loading={loading} />
         </div>
-      )}
+    
     </div>
   );
 }

@@ -1,18 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   FileText,
   Trash2,
   Edit,
   FileText as FileIcon,
-  Download,
-  Printer,
 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Label } from "@/app/components/ui/label";
-import { Input } from "@/app/components/ui/input";
-import { Switch } from "@/app/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -20,8 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/app/components/ui/card";
-import Swal from "sweetalert2";
-
+import { Switch } from "@/app/components/ui/switch";
+import { SignaturePad } from "../SignaturePad"; 
 interface AttachmentFile {
   file: File;
   name: string;
@@ -49,7 +45,7 @@ interface PreviewTabProps {
   onSignatureChange?: (signature: string | null) => void;
   saveSignatureForFuture?: boolean;
   onSaveSignatureToggle?: (save: boolean) => void;
-  onLoadSavedSignature?: () => void; // Add this prop
+  onLoadSavedSignature?: () => void;
 }
 
 const PreviewTab: React.FC<PreviewTabProps> = ({
@@ -71,182 +67,29 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
   setLocalCreatorName,
   saveSignatureForFuture = false,
   onSaveSignatureToggle,
-  onLoadSavedSignature, // Destructure this prop
+  onLoadSavedSignature,
 }) => {
-  const [isDrawing, setIsDrawing] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [localSignature, setLocalSignature] = useState(creatorSignature);
-  const [canvasSize, setCanvasSize] = useState({ width: 400, height: 150 });
-  const [isSavingSignature, setIsSavingSignature] = useState(false);
 
   // Update local signature when creatorSignature changes
   useEffect(() => {
     setLocalSignature(creatorSignature);
   }, [creatorSignature]);
 
-  // Update canvas size based on container
-  useEffect(() => {
-    const updateCanvasSize = () => {
-      if (containerRef.current) {
-        const containerWidth = containerRef.current.clientWidth;
-        const width = Math.min(400, containerWidth);
-        const height = Math.max(120, width * 0.35);
-        setCanvasSize({ width, height });
-      }
-    };
-
-    updateCanvasSize();
-    window.addEventListener("resize", updateCanvasSize);
-    return () => window.removeEventListener("resize", updateCanvasSize);
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Clear the canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Set canvas background
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Set drawing styles
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#000000";
-
-    // If there's a saved signature, draw it
-    if (localSignature) {
-      console.log("Drawing saved signature on canvas:", localSignature);
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        console.log("Signature drawn successfully on canvas");
-      };
-      img.onerror = (err) => {
-        console.error("Failed to load signature image:", err);
-      };
-      img.src = localSignature;
-    } else {
-      console.log("No local signature to draw");
-    }
-  }, [localSignature, canvasSize]);
-
-  useEffect(() => {
-    if (creatorSignature && creatorSignature !== localSignature) {
-      setLocalSignature(creatorSignature);
-    }
-  }, [creatorSignature]);
-
-  const getCanvasCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
-
-    if ("touches" in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    // Calculate scale factors
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
-
-    return { x, y };
-  };
-
-  const startDrawing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    setIsDrawing(true);
-
-    const { x, y } = getCanvasCoordinates(e);
-
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  }, []);
-
-  const draw = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
-      e.preventDefault();
-      if (!isDrawing) return;
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      const { x, y } = getCanvasCoordinates(e);
-
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    },
-    [isDrawing]
-  );
-
-  const stopDrawing = useCallback(() => {
-    if (!isDrawing) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.closePath();
-    setIsDrawing(false);
-
-    // Save the signature
-    const dataUrl = canvas.toDataURL("image/png");
-    setLocalSignature(dataUrl);
-    onSignatureChange?.(dataUrl);
-
+  const handleSignatureChange = (signature: string) => {
+    setLocalSignature(signature);
+    onSignatureChange?.(signature);
+    
     // If save signature toggle is enabled, trigger the save
     if (saveSignatureForFuture && onSaveSignatureToggle) {
-      // This will trigger the parent component to save the signature
       onSaveSignatureToggle(saveSignatureForFuture);
     }
-  }, [
-    isDrawing,
-    onSignatureChange,
-    saveSignatureForFuture,
-    onSaveSignatureToggle,
-  ]);
+  };
 
-  const clearSignature = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+  const clearSignature = () => {
     setLocalSignature(null);
     onSignatureChange?.(null);
-  }, [onSignatureChange]);
+  };
 
   // Handle save signature toggle change
   const handleSaveSignatureToggle = (save: boolean) => {
@@ -255,7 +98,6 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
 
       // If turning on and there's a signature, trigger save
       if (save && localSignature) {
-        // The parent component will handle the saving
         onSignatureChange?.(localSignature);
       }
     }
@@ -429,7 +271,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                     </div>
 
                     {/* Lawyer Signature (Conditional) */}
-                    {includeLawyerSignature && ( // Use the prop directly
+                    {includeLawyerSignature && (
                       <div className="space-y-4">
                         <div className="border-t border-gray-300 pt-4">
                           <div className="flex items-center mb-4">
@@ -552,44 +394,23 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                     Add Your Signature
                   </h4>
                   <p className="text-sm text-gray-600">
-                    Draw your signature to complete the contract
+                    Draw or upload your signature to complete the contract
                   </p>
                 </div>
                 {localSignature && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        // Clear just the canvas but keep the signature data
-                        const canvas = canvasRef.current;
-                        if (canvas) {
-                          const ctx = canvas.getContext("2d");
-                          if (ctx) {
-                            ctx.clearRect(0, 0, canvas.width, canvas.height);
-                            ctx.fillStyle = "white";
-                            ctx.fillRect(0, 0, canvas.width, canvas.height);
-                          }
-                        }
-                      }}
-                      className="border-gray-300 text-gray-700 hover:bg-gray-100 w-full sm:w-auto"
-                    >
-                      Clear Canvas
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearSignature}
-                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Clear Signature
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearSignature}
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear Signature
+                  </Button>
                 )}
               </div>
 
-              {/* Load Saved Signature Button - Updated */}
+              {/* Load Saved Signature Button */}
               {onLoadSavedSignature && !localSignature && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
                   <div className="flex items-center justify-between">
@@ -615,41 +436,13 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
               )}
 
               <div className="space-y-6">
-                <div className="space-y-3">
-                  <Label className="text-gray-700 font-medium">
-                    Draw Your Signature *
-                  </Label>
-                  <div
-                    ref={containerRef}
-                    className="bg-white rounded-lg border-2 border-dashed border-gray-300 overflow-hidden max-w-lg"
-                  >
-                    <canvas
-                      ref={canvasRef}
-                      width={canvasSize.width}
-                      height={canvasSize.height}
-                      className="cursor-crosshair touch-none block w-full h-auto"
-                      style={{
-                        width: "100%",
-                        height: "auto",
-                        maxHeight: "150px",
-                      }}
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={stopDrawing}
-                      onMouseLeave={stopDrawing}
-                      onTouchStart={startDrawing}
-                      onTouchMove={draw}
-                      onTouchEnd={stopDrawing}
-                    />
-                  </div>
-                  <div className="flex items-start text-xs text-gray-500">
-                    <div className="h-2 w-2 bg-gray-400 rounded-full mr-2 mt-1 flex-shrink-0"></div>
-                    <p>
-                      Click and drag to draw your signature, or use your finger
-                      on touch devices
-                    </p>
-                  </div>
-                </div>
+                {/* Signature Pad Component */}
+                <SignaturePad
+                  value={localSignature || ""}
+                  onChange={handleSignatureChange}
+                  label="Your Signature"
+                  disabled={false}
+                />
 
                 {/* Save Signature Toggle */}
                 {onSaveSignatureToggle && (

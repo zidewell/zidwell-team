@@ -21,7 +21,7 @@ export async function POST(req: Request) {
       pin, 
       isInvoiceCreation = false, 
       service, 
-      include_lawyer_signature = false // Add lawyer signature parameter
+      include_lawyer_signature = false 
     } = body;
 
     // Validate required fields
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Fetch user data including free invoice count
+    // Fetch user data
     const { data: user, error: fetchError } = await supabase
       .from("users")
       .select(
@@ -68,24 +68,32 @@ export async function POST(req: Request) {
 
     // ✅ Handle Invoice Creation with Free Trial
     if (isInvoiceCreation) {
-      // Check if user has free invoices left
+      // Get current counts
       const freeInvoicesLeft = user.free_invoices_left || FREE_INVOICES_LIMIT;
       const totalInvoicesCreated = user.total_invoices_created || 0;
-
+      
+      // FIX: Calculate how many free invoices the user should have based on total created
+      // If total_invoices_created already tracks all invoices, calculate remaining free ones
+      const remainingFreeInvoices = Math.max(0, FREE_INVOICES_LIMIT - totalInvoicesCreated);
+      
       console.log(
-        `User ${userId} has ${freeInvoicesLeft} free invoices left, created ${totalInvoicesCreated} total invoices`
+        `User ${userId}: free_invoices_left=${freeInvoicesLeft}, total_created=${totalInvoicesCreated}, remaining_free=${remainingFreeInvoices}`
       );
 
-      if (freeInvoicesLeft > 0) {
-        // User has free invoices remaining - use one
+      // FIXED LOGIC: Check if user still has any free invoices available
+      if (remainingFreeInvoices > 0) {
+        // User still has free invoices available
+        console.log(`User has ${remainingFreeInvoices} free invoices remaining`);
+        
+        // Update both counts
         const newFreeCount = Math.max(0, freeInvoicesLeft - 1);
         const newTotalCount = totalInvoicesCreated + 1;
-
+        
         console.log(
-          `Using free invoice. New counts: free=${newFreeCount}, total=${newTotalCount}`
+          `Using free invoice. New counts: free_invoices_left=${newFreeCount}, total_invoices_created=${newTotalCount}`
         );
 
-        // Update user's free invoice count
+        // Update user's invoice counts
         const { error: updateError } = await supabase
           .from("users")
           .update({
@@ -105,7 +113,7 @@ export async function POST(req: Request) {
           );
         }
 
-       
+        // Record the free transaction
         const reference = `FREE-INV-${crypto.randomUUID().slice(0, 8)}`;
         const { error: transactionError } = await supabase
           .from("transactions")
@@ -123,6 +131,8 @@ export async function POST(req: Request) {
               invoice_count: newTotalCount,
               free_invoices_left: newFreeCount,
               total_invoices_created: newTotalCount,
+              free_invoices_limit: FREE_INVOICES_LIMIT,
+              free_invoices_used: FREE_INVOICES_LIMIT - newFreeCount,
             },
           });
 
@@ -141,31 +151,35 @@ export async function POST(req: Request) {
           charged: false,
           isTrial: true,
           amount: 0,
-          newWalletBalance: user.wallet_balance, 
+          newWalletBalance: user.wallet_balance,
+          hasFreeInvoices: newFreeCount > 0,
         });
       } else {
-        // No free invoices left - charge the user ₦100
+        // No free invoices left - user must pay
         console.log(
-          `No free invoices left for user ${userId}. Charging ₦${INVOICE_PRICE}`
+          `User ${userId} has exceeded ${FREE_INVOICES_LIMIT} free invoices. Charging ₦${INVOICE_PRICE}`
         );
-        amount = INVOICE_PRICE;
-
+        
         // Check if user has sufficient balance
-        if (user.wallet_balance < amount) {
+        if (user.wallet_balance < INVOICE_PRICE) {
           return NextResponse.json(
             {
-              error: `Insufficient balance. You need ₦${amount} to create an invoice.`,
+              error: `Insufficient balance. You need ₦${INVOICE_PRICE} to create an invoice (free limit exceeded).`,
+              freeInvoicesLeft: 0,
+              totalInvoicesCreated: totalInvoicesCreated,
+              hasFreeInvoices: false,
             },
             { status: 400 }
           );
         }
 
-        // Update total invoice count first
-        const newTotalCount = (user.total_invoices_created || 0) + 1;
+        // Update total invoice count first (paid invoice)
+        const newTotalCount = totalInvoicesCreated + 1;
         const { error: countUpdateError } = await supabase
           .from("users")
           .update({
             total_invoices_created: newTotalCount,
+            free_invoices_left: 0, // Ensure free_invoices_left is 0
           })
           .eq("id", userId);
 
@@ -176,10 +190,13 @@ export async function POST(req: Request) {
           );
         }
 
-        // Proceed to payment deduction
+        // Set amount for payment
+        amount = INVOICE_PRICE;
         description =
           description ||
-          `Invoice creation charge (after ${FREE_INVOICES_LIMIT} free invoices)`;
+          `Paid invoice creation (after ${FREE_INVOICES_LIMIT} free invoices)`;
+        
+        // Proceed to payment deduction
       }
     } else {
       // Regular payment (not invoice creation)
@@ -214,10 +231,16 @@ export async function POST(req: Request) {
 
     // Add invoice-specific data if applicable
     if (isInvoiceCreation) {
+      const totalCreated = (user.total_invoices_created || 0) + 1;
       externalResponseData = {
-        free_invoice: (user.free_invoices_left || 0) > 0,
-        invoice_count: (user.total_invoices_created || 0) + 1,
-        free_invoices_left: Math.max(0, (user.free_invoices_left || 0) - 1),
+        free_invoice: false, // This is a paid invoice
+        invoice_count: totalCreated,
+        free_invoices_left: 0,
+        total_invoices_created: totalCreated,
+        free_invoices_limit: FREE_INVOICES_LIMIT,
+        free_invoices_used: FREE_INVOICES_LIMIT,
+        is_paid_invoice: true,
+        invoice_fee: INVOICE_PRICE,
       };
     }
 
@@ -314,13 +337,14 @@ export async function POST(req: Request) {
       reference,
       transactionId: result.tx_id,
       newWalletBalance: result.new_balance,
-      freeInvoicesLeft: user.free_invoices_left || 0,
+      freeInvoicesLeft: 0, // No free invoices left after exceeding limit
       totalInvoicesCreated: finalTotalCount,
-      charged: isInvoiceCreation && (user.free_invoices_left || 0) <= 0,
+      charged: true, // Always charged when no free invoices
       amount: amount,
       isInvoiceCreation: isInvoiceCreation,
       include_lawyer_signature: include_lawyer_signature,
       status: "success",
+      hasFreeInvoices: false, // Important: user has no free invoices left
     });
   } catch (err: any) {
     console.error("❌ Deduct Funds Error:", err.message);

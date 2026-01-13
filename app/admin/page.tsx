@@ -349,7 +349,6 @@ export default function AdminDashboard() {
     if (metricsError) console.error("Metrics error:", metricsError);
   }, [paginatedError, summaryError, metricsError]);
 
-  console.log("Summary Data:", summaryData);
   const totalInflow = Number(summaryData?.totalInflow ?? 0);
   const totalOutflow = Number(summaryData?.totalOutflow ?? 0);
   const mainWalletBalance = Number(summaryData?.mainWalletBalance ?? 0);
@@ -759,7 +758,7 @@ export default function AdminDashboard() {
                 value={range}
                 onValueChange={(val: RangeOption) => setRange(val)}
               >
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-40">
                   <SelectValue placeholder="Select range" />
                 </SelectTrigger>
                 <SelectContent>
@@ -877,7 +876,7 @@ export default function AdminDashboard() {
                 value={formatCurrency(nombaBalanceRaw - mainWalletBalance)}
                 growth={<GrowthIndicator value={appRevenueGrowth} />}
                 icon={<DollarSign className="w-5 h-5 text-amber-600" />}
-                className="border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-white"
+                className="border-l-4 border-l-amber-500 bg-linear-to-r from-amber-50 to-white"
                 subtitle="Net platform earnings"
               />
               <KPICard
@@ -889,7 +888,7 @@ export default function AdminDashboard() {
                   <GrowthIndicator value={calculateContractRevenueGrowth()} />
                 }
                 icon={<FileSignature className="w-5 h-5 text-indigo-600" />}
-                className="border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50 to-white"
+                className="border-l-4 border-l-indigo-500 bg-linear-to-r from-indigo-50 to-white"
                 subtitle={`Revenue from contracts (${
                   range === "total" ? "all time" : range
                 })`}
@@ -899,7 +898,7 @@ export default function AdminDashboard() {
                 value={formatCurrency(invoiceFees)}
                 growth={<GrowthIndicator value={invoiceRevenueGrowth} />}
                 icon={<File className="w-5 h-5 text-purple-600" />}
-                className="border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-white"
+                className="border-l-4 border-l-purple-500 bg-linear-to-r from-purple-50 to-white"
                 subtitle="Revenue from invoices"
               />
               <KPICard
@@ -1921,7 +1920,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Platform Performance Summary */}
-        <div className="bg-gradient-to-r from-gray-50 to-white p-6 rounded-2xl shadow-sm border">
+        <div className="bg-linear-to-r from-gray-50 to-white p-6 rounded-2xl shadow-sm border">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">
             Platform Performance Summary
           </h3>

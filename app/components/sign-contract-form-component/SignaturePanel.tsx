@@ -1,44 +1,32 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/app/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/app/components/ui/card";
-import { Badge } from "@/app/components/ui/badge";
-import { Label } from "@/app/components/ui/label";
-import { Input } from "@/app/components/ui/input";
-import { Switch } from "@/app/components/ui/switch";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/app/components/ui/dialog";
 import {
   CheckCircle,
   XCircle,
-  Undo2,
   Trash2,
   Shield,
   Fingerprint,
   AlertCircle,
   Loader2,
   Save,
-  Clock,
   Eye,
   EyeOff,
-  Lock,
   Mail,
+  Upload,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import confetti from "canvas-confetti";
+
+import { SignaturePad } from "../SignaturePad";
 
 interface SignaturePanelProps {
   contractId: string;
@@ -60,28 +48,21 @@ export const SignaturePanel = ({
   const [step, setStep] = useState<
     "verification" | "signature" | "review" | "confirm"
   >("verification");
-  const [isDrawing, setIsDrawing] = useState(false);
   const [signatureData, setSignatureData] = useState<string | null>(null);
   const [typedName, setTypedName] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
-  const [showSignature, setShowSignature] = useState(true);
   const [isSigning, setIsSigning] = useState(false);
   const [signingTimestamp, setSigningTimestamp] = useState<string | null>(null);
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(false);
   const [attempts, setAttempts] = useState(0);
-  const [canvasInitialized, setCanvasInitialized] = useState(false);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
   const [sendCooldown, setSendCooldown] = useState(0);
+  const [signatureMode, setSignatureMode] = useState<"draw" | "upload">("draw");
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 500, height: 200 });
-
-  // Confetti function - same as in Transfer component
+  // Confetti function
   const triggerConfetti = () => {
-    // Main burst
     confetti({
       particleCount: 150,
       spread: 70,
@@ -89,7 +70,6 @@ export const SignaturePanel = ({
       colors: ["#C29307", "#ffd700", "#ffed4e", "#ffffff", "#fbbf24"],
     });
 
-    // Side bursts
     setTimeout(() => {
       confetti({
         particleCount: 80,
@@ -107,7 +87,6 @@ export const SignaturePanel = ({
       });
     }, 150);
 
-    // Additional bursts for more celebration
     setTimeout(() => {
       confetti({
         particleCount: 100,
@@ -117,111 +96,6 @@ export const SignaturePanel = ({
       });
     }, 300);
   };
-
-  // Initialize canvas size
-  useEffect(() => {
-    const updateCanvasSize = () => {
-      if (containerRef.current) {
-        const containerWidth = containerRef.current.clientWidth;
-        const width = Math.min(500, containerWidth - 32);
-        const height = Math.max(150, width * 0.4);
-        setCanvasSize({ width, height });
-      }
-    };
-
-    updateCanvasSize();
-    window.addEventListener("resize", updateCanvasSize);
-    return () => window.removeEventListener("resize", updateCanvasSize);
-  }, []);
-
-  // Show success notification with SweetAlert
-  const showSuccessAlert = (title: string, text: string) => {
-    return Swal.fire({
-      title,
-      text,
-      icon: "success",
-      confirmButtonText: "OK",
-      confirmButtonColor: "#C29307",
-      background: "#fafafa",
-      iconColor: "#C29307",
-      timer: 3000,
-      timerProgressBar: true,
-    });
-  };
-
-  // Show error notification with SweetAlert
-  const showErrorAlert = (title: string, text: string) => {
-    return Swal.fire({
-      title,
-      text,
-      icon: "error",
-      confirmButtonText: "OK",
-      confirmButtonColor: "#ef4444",
-      background: "#fafafa",
-      iconColor: "#ef4444",
-    });
-  };
-
-  // Show warning notification with SweetAlert
-  const showWarningAlert = (title: string, text: string) => {
-    return Swal.fire({
-      title,
-      text,
-      icon: "warning",
-      confirmButtonText: "OK",
-      confirmButtonColor: "#f59e0b",
-      background: "#fafafa",
-      iconColor: "#f59e0b",
-    });
-  };
-
-  // Show info notification with SweetAlert
-  const showInfoAlert = (title: string, text: string) => {
-    return Swal.fire({
-      title,
-      text,
-      icon: "info",
-      confirmButtonText: "OK",
-      confirmButtonColor: "#3b82f6",
-      background: "#fafafa",
-      iconColor: "#3b82f6",
-    });
-  };
-
-  // Initialize canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || canvasInitialized) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Set canvas background
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Set drawing styles
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#1a1a1a";
-
-    // Draw guide line
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(20, canvas.height - 30);
-    ctx.lineTo(canvas.width - 20, canvas.height - 30);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Draw "X" mark on the line
-    ctx.fillStyle = "#666";
-    ctx.font = "12px Arial";
-    ctx.fillText("✗", 10, canvas.height - 20);
-    ctx.fillText("✗", canvas.width - 15, canvas.height - 20);
-
-    setCanvasInitialized(true);
-  }, [canvasSize, canvasInitialized]);
 
   // Initialize with signee name
   useEffect(() => {
@@ -253,121 +127,56 @@ export const SignaturePanel = ({
     }
   }, [sendCooldown]);
 
-  const getCanvasCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
-    const rect = canvas.getBoundingClientRect();
-    let clientX, clientY;
-
-    if ("touches" in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    const x = (clientX - rect.left) * scaleX;
-    const y = (clientY - rect.top) * scaleY;
-
-    return { x, y };
+  // Alert functions
+  const showSuccessAlert = (title: string, text: string) => {
+    return Swal.fire({
+      title,
+      text,
+      icon: "success",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#C29307",
+      background: "#fafafa",
+      iconColor: "#C29307",
+      timer: 3000,
+      timerProgressBar: true,
+    });
   };
 
-  const startDrawing = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const showErrorAlert = (title: string, text: string) => {
+    return Swal.fire({
+      title,
+      text,
+      icon: "error",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#ef4444",
+      background: "#fafafa",
+      iconColor: "#ef4444",
+    });
+  };
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+  const showInfoAlert = (title: string, text: string) => {
+    return Swal.fire({
+      title,
+      text,
+      icon: "info",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#3b82f6",
+      background: "#fafafa",
+      iconColor: "#3b82f6",
+    });
+  };
 
-    setIsDrawing(true);
-
-    const { x, y } = getCanvasCoordinates(e);
-
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = "#1a1a1a";
-  }, []);
-
-  const draw = useCallback(
-    (e: React.MouseEvent | React.TouchEvent) => {
-      e.preventDefault();
-      if (!isDrawing) return;
-
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      const { x, y } = getCanvasCoordinates(e);
-
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    },
-    [isDrawing]
-  );
-
-  const stopDrawing = useCallback(() => {
-    if (!isDrawing) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.closePath();
-    setIsDrawing(false);
-
-    // Save the signature
-    const dataUrl = canvas.toDataURL("image/png");
+  // Handle signature change from SignaturePad
+  const handleSignatureChange = (dataUrl: string) => {
     setSignatureData(dataUrl);
-  }, [isDrawing]);
+  };
 
-  const clearSignature = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Reset background
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Redraw guide line
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(20, canvas.height - 30);
-    ctx.lineTo(canvas.width - 20, canvas.height - 30);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Draw "X" mark on the line
-    ctx.fillStyle = "#666";
-    ctx.font = "12px Arial";
-    ctx.fillText("✗", 10, canvas.height - 20);
-    ctx.fillText("✗", canvas.width - 15, canvas.height - 20);
-
+  // Clear signature
+  const handleClearSignature = () => {
     setSignatureData(null);
-  }, []);
+  };
 
-  const undoLastStroke = useCallback(() => {
-    // For simplicity, we'll clear and start over
-    // In a production app, you'd implement proper undo functionality
-    showInfoAlert("Tip", "Clear and start over for best results");
-  }, []);
-
+  // Verification functions
   const handleVerification = async () => {
     setIsVerifying(true);
     if (!verificationCode || verificationCode.length !== 6) {
@@ -470,7 +279,6 @@ export const SignaturePanel = ({
     }
 
     try {
-      // WebAuthn implementation
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge: new Uint8Array(32),
@@ -574,7 +382,6 @@ export const SignaturePanel = ({
                 </svg>
               </div>
               <h3 class="text-lg font-bold text-gray-900 mb-2">Contract Signed!</h3>
-            
             </div>
             <div class="space-y-2 text-gray-600">
               <p class="flex items-center justify-center gap-1">
@@ -625,6 +432,7 @@ export const SignaturePanel = ({
       setIsSigning(false);
     }
   };
+
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -633,7 +441,6 @@ export const SignaturePanel = ({
             <Shield className="h-5 w-5 text-[#C29307]" />
             Secure Signature Panel
           </DialogTitle>
-         
         </DialogHeader>
 
         {/* Verification Step */}
@@ -702,36 +509,6 @@ export const SignaturePanel = ({
                     : `Enter the verification code sent to ${signeeEmail}`}
                 </p>
               </div>
-              {/* 
-              {isBiometricEnabled && (
-                <div className="pt-4 border-t">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Fingerprint className="h-5 w-5 text-[#C29307]" />
-                        <span className="font-medium">
-                          Quick Biometric Sign
-                        </span>
-                        <Badge variant="outline" className="ml-2">
-                          Recommended
-                        </Badge>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleBiometricSign}
-                        className="border-[#C29307] text-[#C29307] hover:bg-[#C29307]/10"
-                      >
-                        Use Biometric
-                      </Button>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Sign securely using your device's fingerprint or face
-                      recognition
-                    </p>
-                  </div>
-                </div>
-              )} */}
 
               <div className="flex gap-3 pt-4">
                 <Button
@@ -750,8 +527,7 @@ export const SignaturePanel = ({
                 >
                   {isVerifying ? (
                     <span className="flex items-center gap-2">
-                      {" "}
-                      <Loader2 className="h-4 w-4 animate-spin" />{" "}
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Checking....
                     </span>
                   ) : (
@@ -763,7 +539,7 @@ export const SignaturePanel = ({
           </div>
         )}
 
-        {/* Signature Step */}
+        {/* Signature Step with SignaturePad */}
         {step === "signature" && (
           <div className="space-y-6 py-4">
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
@@ -793,83 +569,22 @@ export const SignaturePanel = ({
                 />
               </div>
 
+              {/* Use SignaturePad component */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-gray-700 font-medium">
-                    Draw Your Signature *
-                  </Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={undoLastStroke}
-                      className="h-8"
-                    >
-                      <Undo2 className="h-4 w-4 mr-1" />
-                      Undo
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearSignature}
-                      className="h-8 text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Clear
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowSignature(!showSignature)}
-                      className="h-8"
-                    >
-                      {showSignature ? (
-                        <>
-                          <EyeOff className="h-4 w-4 mr-1" />
-                          Hide
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="h-4 w-4 mr-1" />
-                          Show
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <div
-                  ref={containerRef}
-                  className="bg-white rounded-lg border-2 border-gray-300 overflow-hidden shadow-sm"
-                >
-                  <canvas
-                    ref={canvasRef}
-                    width={canvasSize.width}
-                    height={canvasSize.height}
-                    className="w-full h-48 cursor-crosshair touch-none bg-white"
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                    onTouchStart={startDrawing}
-                    onTouchMove={draw}
-                    onTouchEnd={stopDrawing}
-                  />
-                </div>
-
+                <SignaturePad
+                  value={signatureData || ""}
+                  onChange={handleSignatureChange}
+                  label="Your Signature *"
+                />
+                
                 <div className="flex items-start text-xs text-gray-500">
                   <div className="h-2 w-2 bg-gray-400 rounded-full mr-2 mt-1 flex-shrink-0"></div>
                   <p>
-                    Click and drag to draw your signature. For best results,
-                    sign along the dotted line.
+                    You can draw your signature or upload an image. For best results,
+                    sign along the line.
                   </p>
                 </div>
               </div>
-
-            
 
               <div className="flex gap-3 pt-4">
                 <Button
@@ -955,7 +670,6 @@ export const SignaturePanel = ({
                         </p>
                       )}
                     </div>
-                   
                   </div>
                 </div>
               </div>
@@ -1008,3 +722,7 @@ export const SignaturePanel = ({
     </Dialog>
   );
 };
+
+
+import { Label } from "@/app/components/ui/label";
+import { Input } from "@/app/components/ui/input";

@@ -16,7 +16,11 @@ interface InvoiceItemRowProps {
   onRemove: (id: string) => void;
 }
 
-export const InvoiceItemRow = ({ item, onEdit, onRemove }: InvoiceItemRowProps) => {
+export const InvoiceItemRow = ({
+  item,
+  onEdit,
+  onRemove,
+}: InvoiceItemRowProps) => {
   return (
     <div className="grid grid-cols-12 gap-3 items-center mb-3 p-3 border rounded-md hover:bg-accent/5 transition-colors">
       <div className="col-span-5">

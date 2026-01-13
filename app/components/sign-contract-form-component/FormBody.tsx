@@ -7,6 +7,7 @@ import SignContractInput from "./SignContractInput";
 import SignContractSelect from "./SignContractSelect";
 import SignContractToggle from "./SignContractToggle";
 import PreviewTab from "./PreviewTab";
+import { ContractSuccessModal } from "./ContractSuccessModal";
 import confetti from "canvas-confetti";
 import { contractTitles } from "@/app/data/sampleContracts";
 import {
@@ -130,9 +131,9 @@ const FormBody: React.FC = () => {
   const { userData } = useUserContextData();
 
   const inputCount = 4;
-  const [isOpen, setIsOpen] = useState(false);
+  const [isPinOpen, setIsPinOpen] = useState(false); // Changed from isOpen
   const [pin, setPin] = useState<string[]>(Array(inputCount).fill(""));
-  const [isProcessingPin, setIsProcessingPin] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false); // Main processing state
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isLoadingDrafts, setIsLoadingDrafts] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -156,9 +157,6 @@ const FormBody: React.FC = () => {
   );
   const [creatorSignature, setCreatorSignature] = useState<string | null>(null);
   const [localCreatorName, setLocalCreatorName] = useState(creatorName);
-
-  const [isFormLocked, setIsFormLocked] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (includeLawyerSignature) {
@@ -288,10 +286,8 @@ const FormBody: React.FC = () => {
 
   useEffect(() => {
     return () => {
-      setIsProcessingPin(false);
-      setIsFormLocked(false);
-      setIsSubmitting(false);
-      setIsOpen(false);
+      setIsProcessingPayment(false);
+      setIsPinOpen(false);
       setShowContractSummary(false);
       setShowSuccessModal(false);
       setPin(Array(inputCount).fill(""));
@@ -385,7 +381,7 @@ const FormBody: React.FC = () => {
       }
 
       const res = await fetch(
-        `/api/contract/saved-signature?userId=${userData.id}`,
+        `/api/saved-signature?userId=${userData.id}`,
         {
           method: "GET",
           headers: {
@@ -684,7 +680,6 @@ const FormBody: React.FC = () => {
   const handleSaveDraft = async () => {
     try {
       setIsSavingDraft(true);
-      setIsFormLocked(true);
 
       if (!userData?.id) {
         Swal.fire({
@@ -692,7 +687,6 @@ const FormBody: React.FC = () => {
           title: "Unauthorized",
           text: "You must be logged in to save a draft.",
         });
-        setIsFormLocked(false);
         return;
       }
 
@@ -707,7 +701,6 @@ const FormBody: React.FC = () => {
           title: "No Content",
           text: "Please add some content before saving as draft.",
         });
-        setIsFormLocked(false);
         return;
       }
 
@@ -779,7 +772,6 @@ const FormBody: React.FC = () => {
       });
     } finally {
       setIsSavingDraft(false);
-      setIsFormLocked(false);
     }
   };
 
@@ -893,11 +885,6 @@ const FormBody: React.FC = () => {
     const { isValid: formValid, errorMessages } = validateFormFields();
 
     if (!formValid) {
-      setIsProcessingPin(false);
-      setIsFormLocked(false);
-      setIsSubmitting(false);
-      setIsOpen(false);
-
       Swal.fire({
         icon: "error",
         title: "Validation Error",
@@ -923,10 +910,6 @@ const FormBody: React.FC = () => {
 
     const signatureValid = validateSignature();
     if (!signatureValid) {
-      setIsProcessingPin(false);
-      setIsFormLocked(false);
-      setIsSubmitting(false);
-      setIsOpen(false);
       return false;
     }
     return true;
@@ -1141,8 +1124,17 @@ const FormBody: React.FC = () => {
     }
   };
 
+  // Helper function to reset all loading states
+  const resetAllLoadingStates = () => {
+    setIsProcessingPayment(false);
+    setPin(Array(inputCount).fill(""));
+  };
+
   const processPaymentAndSubmit = async () => {
     try {
+      // Payment processing starts here (after PIN confirmation)
+      setIsProcessingPayment(true);
+      
       const paymentSuccess = await handleDeduct();
 
       if (paymentSuccess) {
@@ -1153,17 +1145,14 @@ const FormBody: React.FC = () => {
 
           triggerContractConfetti();
 
-          // FINALLY reset submitting state ONLY when deduction succeeded
-          setIsSubmitting(false);
-          setIsFormLocked(false);
-          setIsProcessingPin(false);
-          setIsOpen(false);
+          // Reset all loading states since we're done
+          resetAllLoadingStates();
+          setIsPinOpen(false);
           setPin(Array(inputCount).fill(""));
 
-          setTimeout(() => {
-            setShowSuccessModal(true);
-          }, 300);
-
+          setHasUnsavedChanges(false);
+          
+          // Reset form
           setForm({
             receiverName: "",
             receiverEmail: "",
@@ -1179,33 +1168,28 @@ const FormBody: React.FC = () => {
             contractDate: new Date().toISOString().split("T")[0],
           });
           setAttachments([]);
-          setHasUnsavedChanges(false);
           setIncludeLawyerSignature(false);
           setCreatorSignature(null);
+          
+          // Show success modal
+          setTimeout(() => {
+            setShowSuccessModal(true);
+          }, 300);
         } else {
           await handleRefund();
-          // Keep submitting state true even on save contract failure
-          // because deduction succeeded
-          setIsSubmitting(false);
-          setIsFormLocked(false);
-          setIsProcessingPin(false);
-          setIsOpen(false);
+          resetAllLoadingStates();
+          setIsPinOpen(false);
           setPin(Array(inputCount).fill(""));
         }
       } else {
-        // Payment failed, reset states
-        setIsSubmitting(false);
-        setIsFormLocked(false);
-        setIsProcessingPin(false);
-        setIsOpen(false);
+        // Payment failed
+        resetAllLoadingStates();
+        setIsPinOpen(false);
         setPin(Array(inputCount).fill(""));
       }
     } catch (error) {
-      // Any error, reset states
-      setIsSubmitting(false);
-      setIsFormLocked(false);
-      setIsProcessingPin(false);
-      setIsOpen(false);
+      resetAllLoadingStates();
+      setIsPinOpen(false);
       setPin(Array(inputCount).fill(""));
       Swal.fire({
         icon: "error",
@@ -1217,7 +1201,7 @@ const FormBody: React.FC = () => {
   };
 
   const handleCreatorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isFormLocked) return;
+    if (isProcessingPayment) return;
     const name = e.target.value;
     setLocalCreatorName(name);
     setCreatorName(name);
@@ -1230,18 +1214,13 @@ const FormBody: React.FC = () => {
     if (options?.includeLawyerSignature !== undefined) {
       setIncludeLawyerSignature(options.includeLawyerSignature);
     }
-    setIsOpen(true);
-    // Keep isSubmitting as true when moving to PIN popup
-    setIsProcessingPin(true);
+    setIsPinOpen(true);
   };
 
   const handleSummaryBack = () => {
     setShowContractSummary(false);
-    // User cancelled from contract summary, reset all states
-    setIsSubmitting(false);
-    setIsFormLocked(false);
-    setIsProcessingPin(false);
-    setIsOpen(false);
+    resetAllLoadingStates();
+    setIsPinOpen(false);
     setPin(Array(inputCount).fill(""));
   };
 
@@ -1262,7 +1241,7 @@ const FormBody: React.FC = () => {
 
   const handleSubmit = async (isDraft: boolean = false) => {
     // Prevent multiple submissions
-    if (isSubmitting || isFormLocked || isProcessingPin || isSavingDraft) {
+    if (isProcessingPayment || isSavingDraft) {
       return;
     }
 
@@ -1271,30 +1250,17 @@ const FormBody: React.FC = () => {
       return;
     }
 
-    // Set submitting state immediately
-    setIsSubmitting(true);
-    setIsFormLocked(true);
-
     try {
       const inputsValid = validateInputs();
-      
+
       if (!inputsValid) {
-        setIsSubmitting(false);
-        setIsFormLocked(false);
         return;
       }
 
       // Only proceed if validation passed
       setShowContractSummary(true);
-      // Don't reset isSubmitting - keep it true until deduction succeeds
     } catch (error) {
       console.error("Submit error:", error);
-      setIsSubmitting(false);
-      setIsFormLocked(false);
-      setIsProcessingPin(false);
-      setIsOpen(false);
-      setPin(Array(inputCount).fill(""));
-      
       Swal.fire({
         icon: "error",
         title: "Submission Error",
@@ -1305,7 +1271,7 @@ const FormBody: React.FC = () => {
   };
 
   const resetForm = () => {
-    if (isFormLocked) {
+    if (isProcessingPayment) {
       Swal.fire({
         icon: "warning",
         title: "Form is Processing",
@@ -1378,7 +1344,7 @@ const FormBody: React.FC = () => {
   };
 
   const handleFormChange = (field: keyof FormState, value: any) => {
-    if (isFormLocked) return;
+    if (isProcessingPayment) return;
     setForm((prev) => ({ ...prev, [field]: value }));
     const errorField = field as keyof typeof errors;
     if (errors[errorField]) {
@@ -1387,12 +1353,12 @@ const FormBody: React.FC = () => {
   };
 
   const handleSelectChange = (value: string) => {
-    if (isFormLocked) return;
+    if (isProcessingPayment) return;
     handleFormChange("contractTitle", value);
   };
 
   const handleFileUpload = (file: File) => {
-    if (isFormLocked) {
+    if (isProcessingPayment) {
       Swal.fire({
         icon: "warning",
         title: "Form is Processing",
@@ -1429,7 +1395,7 @@ const FormBody: React.FC = () => {
   };
 
   const handleRemoveAttachment = (index: number) => {
-    if (isFormLocked) {
+    if (isProcessingPayment) {
       Swal.fire({
         icon: "warning",
         title: "Form is Processing",
@@ -1451,10 +1417,10 @@ const FormBody: React.FC = () => {
 
   const handleLawyerToggle = useCallback(
     (checked: boolean) => {
-      if (isFormLocked) return;
+      if (isProcessingPayment) return;
       setIncludeLawyerSignature(checked);
     },
-    [isFormLocked]
+    [isProcessingPayment]
   );
 
   useEffect(() => {
@@ -1469,30 +1435,26 @@ const FormBody: React.FC = () => {
 
   return (
     <>
-      {isOpen && !showContractSummary && !showSuccessModal && (
-        <PinPopOver
-          setIsOpen={(newValue) => {
-            setIsOpen(newValue);
+      {/* Pin Popup */}
+      <PinPopOver
+        setIsOpen={(newValue) => {
+          setIsPinOpen(newValue);
+          if (!newValue) {
+            resetAllLoadingStates();
+            setPin(Array(inputCount).fill(""));
+          }
+        }}
+        isOpen={isPinOpen}
+        pin={pin}
+        setPin={setPin}
+        inputCount={inputCount}
+        onConfirm={async (pinCode) => {
+          await processPaymentAndSubmit();
+        }}
+       
+      />
 
-            if (!newValue) {
-              // User closed PIN popup, reset all states
-              setIsSubmitting(false);
-              setIsFormLocked(false);
-              setIsProcessingPin(false);
-              setPin(Array(inputCount).fill(""));
-            }
-          }}
-          isOpen={isOpen}
-          pin={pin}
-          setPin={setPin}
-          inputCount={inputCount}
-          onConfirm={() => {
-            const pinString = pin.join("");
-            processPaymentAndSubmit();
-          }}
-        />
-      )}
-
+      
       <ContractSummary
         contractTitle={form.contractTitle}
         contractContent={form.contractContent}
@@ -1514,110 +1476,40 @@ const FormBody: React.FC = () => {
         currentLawyerSignature={includeLawyerSignature}
         onClose={() => {
           setShowContractSummary(false);
-          // User closed contract summary, reset all states
-          setIsSubmitting(false);
-          setIsFormLocked(false);
-          setIsProcessingPin(false);
-          setIsOpen(false);
+          resetAllLoadingStates();
+          setIsPinOpen(false);
           setPin(Array(inputCount).fill(""));
         }}
       />
 
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-white/10 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg max-h-[90vh] overflow-y-auto">
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#F9F4E5] to-[#ffed4e] rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                <svg
-                  className="w-8 h-8 text-[#C29307]"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </div>
+      {/* Success Modal */}
+      <ContractSuccessModal
+        open={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          resetAllLoadingStates();
+          setIsPinOpen(false);
+          setPin(Array(inputCount).fill(""));
+          setShowContractSummary(false);
+        }}
+        onNewContract={() => {
+          setShowSuccessModal(false);
+          resetAllLoadingStates();
+          setIsPinOpen(false);
+          setPin(Array(inputCount).fill(""));
+          setShowContractSummary(false);
+          window.location.reload();
+        }}
+        contractId={savedContractId}
+        contractDate={form.contractDate}
+        attachmentsCount={attachments.length}
+        includeLawyerSignature={includeLawyerSignature}
+        creatorSignature={!!creatorSignature}
+        signingLink={generatedSigningLink}
+        onCopyLink={handleCopySigningLink}
+      />
 
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Contract Created Successfully! 🎉
-              </h3>
-              <p className="text-gray-600">
-                Your contract has been generated and is ready to share.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {generatedSigningLink && (
-                <div className="space-y-2">
-                  <Button
-                    onClick={handleCopySigningLink}
-                    variant="outline"
-                    className="w-full border-[#C29307] text-[#C29307] hover:bg-[#C29307] hover:text-white transition-all duration-200 hover:scale-[1.02]"
-                  >
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copy Contract Link
-                  </Button>
-                  <div className="text-xs text-gray-500 text-center">
-                    Share this contract link with the recipient to sign
-                  </div>
-                </div>
-              )}
-
-              <Button
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  setIsSubmitting(false);
-                  setIsFormLocked(false);
-                  setIsProcessingPin(false);
-                  setIsOpen(false);
-                  setPin(Array(inputCount).fill(""));
-                  setShowContractSummary(false);
-                  window.location.reload();
-                }}
-                variant="outline"
-                className="w-full hover:bg-gray-50 transition-colors duration-200"
-              >
-                Create New Contract
-              </Button>
-            </div>
-
-            <div className="mt-4 p-3 bg-gradient-to-r from-gray-50 to-[#F9F4E5]/30 rounded-lg border border-gray-100">
-              <p className="text-sm text-gray-700 text-center">
-                <strong>Contract ID:</strong> {savedContractId}
-              </p>
-              <p className="text-sm text-gray-700 text-center mt-1">
-                <strong>Contract Date:</strong>{" "}
-                {new Date(form.contractDate).toLocaleDateString()}
-              </p>
-              {attachments.length > 0 && (
-                <p className="text-sm text-gray-700 text-center mt-1">
-                  <strong>Attachments:</strong> {attachments.length} file(s)
-                  included
-                </p>
-              )}
-              {includeLawyerSignature && (
-                <p className="text-sm text-gray-700 text-center mt-1">
-                  <strong>Lawyer Signature:</strong> Included ✓
-                </p>
-              )}
-              {creatorSignature && (
-                <p className="text-sm text-gray-700 text-center mt-1">
-                  <strong>Your Signature:</strong> Applied ✓
-                </p>
-              )}
-              <p className="text-xs text-gray-500 text-center mt-1">
-                You can find this contract in your dashboard
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* Main Form Content */}
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-8 px-4">
           <div className="flex items-start justify-between mb-6">
@@ -1626,7 +1518,7 @@ const FormBody: React.FC = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  if (isFormLocked) {
+                  if (isProcessingPayment) {
                     Swal.fire({
                       icon: "warning",
                       title: "Form is Processing",
@@ -1688,13 +1580,13 @@ const FormBody: React.FC = () => {
                   ✓ Signed
                 </Badge>
               )}
-              {isSubmitting && (
+              {isProcessingPayment && (
                 <Badge
                   variant="outline"
                   className="bg-red-50 text-red-700 border-red-200"
                 >
                   <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                  Processing...
+                  Processing Payment...
                 </Badge>
               )}
             </div>
@@ -1707,7 +1599,7 @@ const FormBody: React.FC = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    if (isFormLocked) {
+                    if (isProcessingPayment) {
                       Swal.fire({
                         icon: "warning",
                         title: "Form is Processing",
@@ -1749,7 +1641,7 @@ const FormBody: React.FC = () => {
             <Tabs
               value={activeTab}
               onValueChange={(value) => {
-                if (isFormLocked) return;
+                if (isProcessingPayment) return;
                 setActiveTab(value);
               }}
               className="w-full"
@@ -1773,7 +1665,7 @@ const FormBody: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       onClick={() => setActiveTab("preview")}
-                      disabled={!form.contractContent || isFormLocked}
+                      disabled={!form.contractContent || isProcessingPayment}
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Preview
@@ -1795,7 +1687,7 @@ const FormBody: React.FC = () => {
                         size="sm"
                         onClick={loadSignatureManually}
                         disabled={
-                          !userData?.id || !!creatorSignature || isFormLocked
+                          !userData?.id || !!creatorSignature || isProcessingPayment
                         }
                         className="border-gray-300 text-gray-700 hover:bg-gray-100"
                       >
@@ -2021,9 +1913,7 @@ const FormBody: React.FC = () => {
                     size="lg"
                     className="flex-1 hover:bg-blue-50"
                     disabled={
-                      isSubmitting ||
-                      isFormLocked ||
-                      isProcessingPin ||
+                      isProcessingPayment ||
                       isSavingDraft ||
                       (!form.contractTitle.trim() &&
                         !form.contractContent.trim())
@@ -2046,10 +1936,10 @@ const FormBody: React.FC = () => {
                     size="lg"
                     className="flex-1 bg-[#C29307] text-white hover:bg-[#b38606] disabled:opacity-70 disabled:cursor-not-allowed"
                     disabled={
-                      isSubmitting || isFormLocked || isProcessingPin || isSavingDraft
+                      isProcessingPayment || isSavingDraft
                     }
                   >
-                    {isSubmitting ? (
+                    {isProcessingPayment ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         Processing...

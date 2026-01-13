@@ -68,7 +68,7 @@ export async function sendLoginNotificationWithDeviceInfo(
         location,
       }
     );
-    console.log("Login notification sent successfully");
+    // console.log("Login notification sent successfully");
   } catch (error) {
     console.error("Failed to send login notification:", error);
     // Don't throw error - notifications shouldn't block login

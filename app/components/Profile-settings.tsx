@@ -128,7 +128,7 @@ const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
                   className="w-24 h-24 rounded-full object-cover border-2 border-gray-200"
                 />
               ) : (
-                <div className="w-24 h-24 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-24 h-24 bg-linear-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                   {userData?.firstName?.charAt(0).toUpperCase()}
                   {userData?.lastName?.charAt(0).toUpperCase()}
                 </div>

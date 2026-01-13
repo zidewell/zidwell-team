@@ -5,8 +5,9 @@ import { Button } from "@/app/components/ui/button";
 import { Card } from "@/app/components/ui/card";
 import { Separator } from "@/app/components/ui/separator";
 import DownloadInvoiceButton from "../downloadButton";
-import PaymentForm from "@/app/components/invoice/PaymentForm";
+
 import { ToastProvider } from "@/app/components/ui/toast";
+import PaymentForm from "../../components/Invoice-components/PaymentForm";
 
 // Types
 interface InvoiceItem {

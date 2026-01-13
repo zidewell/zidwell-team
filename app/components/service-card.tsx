@@ -27,13 +27,13 @@ const services: any = [
   },
   {
     id: 2,
-    title: "Simple Agreement",
+    title: "Create Agreement",
     description: "Generate Agreement",
     icon: Scale,
     color: "bg-indigo-50 text-indigo-600",
     buttonColor: "bg-[#C29307] hover:bg-[#C29307]",
-    // link: "/dashboard/services/simple-agreement",
-    link: "/#",
+    link: "/dashboard/services/contract",
+    // link: "/#",
   },
   {
     id: 3,
@@ -42,7 +42,7 @@ const services: any = [
     icon: Receipt,
     color: "bg-red-50 text-red-600",
     buttonColor: "bg-[#C29307] hover:bg-[#C29307]",
-    link: "/dashboard/services/create-receipt",
+    link: "/dashboard/services/receipt",
   },
 
   {

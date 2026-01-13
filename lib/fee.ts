@@ -35,10 +35,11 @@ export function calculateFees(
     
     // Zidwell charges 0.5% (₦5 min, ₦50 cap) for bank transfers
     const ourPercentage = am * 0.005; // 0.5%
-    const zidwellFee = Math.min(Math.max(ourPercentage, 5), 50); // Min ₦5, Max ₦50
+    const zidwellFee = Math.min(Math.max(ourPercentage, 5), 50); 
     
     // Customer pays BOTH Nomba fee and Zidwell fee
-    appFee = nombaFee + zidwellFee;
+    // appFee = nombaFee + zidwellFee;
+    appFee = 50;
   }
 
   const totalFee = appFee;

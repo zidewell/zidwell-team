@@ -86,7 +86,6 @@ const nextConfig = {
   },
   
 
-  // Compiler options
   // compiler: {
   //   removeConsole: process.env.NODE_ENV === 'production', // Remove consoles in prod
   // },

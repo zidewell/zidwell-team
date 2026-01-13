@@ -288,7 +288,7 @@ export default function AIAccountant() {
           <CardContent>
             <div className="text-center space-y-4">
               <div className="relative w-32 h-32 mx-auto">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center">
+                <div className="w-32 h-32 rounded-full bg-linear-to-r from-green-400 to-blue-500 flex items-center justify-center">
                   <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center">
                     <span className="text-2xl font-bold text-gray-900">85</span>
                   </div>

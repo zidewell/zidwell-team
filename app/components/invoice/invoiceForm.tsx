@@ -20,18 +20,18 @@ interface InvoiceItemFormProps {
   onSubmit: (item: InvoiceItem) => void;
 }
 
-export const InvoiceItemForm = ({ 
-  item, 
-  isOpen, 
-  onClose, 
-  onSubmit 
+export const InvoiceItemForm = ({
+  item,
+  isOpen,
+  onClose,
+  onSubmit,
 }: InvoiceItemFormProps) => {
   const [formData, setFormData] = useState<InvoiceItem>({
     id: "",
     description: "",
     quantity: 1,
     unitPrice: 0,
-    total: 0
+    total: 0,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -45,7 +45,7 @@ export const InvoiceItemForm = ({
         description: "",
         quantity: 1,
         unitPrice: 0,
-        total: 0
+        total: 0,
       });
     }
     setErrors({});
@@ -53,12 +53,12 @@ export const InvoiceItemForm = ({
 
   useEffect(() => {
     const total = formData.quantity * formData.unitPrice;
-    setFormData(prev => ({ ...prev, total }));
+    setFormData((prev) => ({ ...prev, total }));
   }, [formData.quantity, formData.unitPrice]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.description.trim()) {
       newErrors.description = "Description is required";
     }
@@ -68,7 +68,7 @@ export const InvoiceItemForm = ({
     if (!formData.unitPrice || formData.unitPrice < 0) {
       newErrors.unitPrice = "Price must be 0 or greater";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -82,13 +82,13 @@ export const InvoiceItemForm = ({
   };
 
   const handleChange = (field: keyof InvoiceItem, value: string | number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
@@ -136,7 +136,9 @@ export const InvoiceItemForm = ({
                 type="number"
                 placeholder="Qty"
                 value={formData.quantity}
-                onChange={(e) => handleChange("quantity", parseFloat(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleChange("quantity", parseFloat(e.target.value) || 0)
+                }
                 min="1"
                 step="1"
                 required
@@ -154,7 +156,9 @@ export const InvoiceItemForm = ({
                 type="number"
                 placeholder="Price"
                 value={formData.unitPrice}
-                onChange={(e) => handleChange("unitPrice", parseFloat(e.target.value) || 0)}
+                onChange={(e) =>
+                  handleChange("unitPrice", parseFloat(e.target.value) || 0)
+                }
                 min="0"
                 step="0.01"
                 required
@@ -169,24 +173,19 @@ export const InvoiceItemForm = ({
           <div className="space-y-2">
             <Label>Total</Label>
             <div className="p-3 bg-muted rounded-md text-lg font-semibold">
-              ₦{formData.total.toLocaleString(undefined, {
+              ₦
+              {formData.total.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
-                maximumFractionDigits: 2
+                maximumFractionDigits: 2,
               })}
             </div>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-            >
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
-              {item ? "Update Item" : "Add Item"}
-            </Button>
+            <Button type="submit">{item ? "Update Item" : "Add Item"}</Button>
           </div>
         </form>
       </div>

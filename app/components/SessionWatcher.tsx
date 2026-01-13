@@ -144,7 +144,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
   const router = useRouter();
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [isMounted, setIsMounted] = useState(false);
-  const INACTIVITY_LIMIT = 40 * 60 * 1000; // 15 minutes
+  const INACTIVITY_LIMIT = 15 * 60 * 1000; // 15 minutes
   
   // Use your existing context
   const { userData, setUserData, loading } = useUserContextData();
@@ -237,7 +237,7 @@ export default function SessionWatcher({ children }: { children: React.ReactNode
       if (!alreadyLoggedOut && timeSinceLastActivity > INACTIVITY_LIMIT) {
         alreadyLoggedOut = true;
         
-        console.log("User inactive for 15 minutes, logging out...");
+    
 
         try {
           // Sign out via API

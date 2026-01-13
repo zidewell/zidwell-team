@@ -1,14 +1,19 @@
-import { Download, Edit, Eye, FileText, Loader2, Plus, Send } from "lucide-react";
+import {
+  Download,
+  Edit,
+  Eye,
+  FileText,
+  Loader2,
+  Plus,
+  Send,
+} from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
-import RecieptPreview from "../previews/RecieptPreview";
 import { useRouter } from "next/navigation";
 import { useUserContextData } from "../../context/userData";
 import Swal from "sweetalert2";
-import withReactContent from "sweetalert2-react-content";
-import { Receipt } from "../ReceiptGen";
 import Loader from "../Loader";
 import ContractsPreview from "../previews/ContractsPreview";
 
@@ -63,91 +68,95 @@ const ContractList: React.FC<Props> = ({ contracts, loading }) => {
     draft: "bg-gray-100 text-gray-800",
   };
 
-const handleDownload = async (contract: any) => {
-  if (!contract.contract_text?.trim()) {
-    Swal.fire(
-      "Empty Contract",
-      "This contract has no text to download.",
-      "warning"
-    );
-    return;
-  }
-
-  setLoadingMap((prev) => ({ ...prev, [contract.id]: true }));
-  try {
-    // Change this line to call the new endpoint
-    const res = await fetch("/api/contract/download-signed-contract", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contract_token: contract.token,
-       
-        contract: {
-          ...contract,
-          // Ensure we have all the necessary fields
-          contract_title: contract.contract_title,
-          contract_text: contract.contract_text,
-          initiator_name: contract.initiator_name,
-          signee_name: contract.signee_name,
-          signee_email: contract.signee_email,
-          token: contract.token,
-          created_at: contract.created_at,
-          signed_at: contract.signed_at,
-          signature_date: contract.signature_date,
-          status: contract.status,
-          verification_status: contract.verification_status,
-          has_lawyer_signature: contract.has_lawyer_signature,
-          creator_signature: contract.creator_signature,
-          signee_signature_image: contract.signee_signature_image,
-        }
-      }),
-    });
-
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error || "Failed to generate PDF");
+  const handleDownload = async (contract: any) => {
+    if (!contract.contract_text?.trim()) {
+      Swal.fire(
+        "Empty Contract",
+        "This contract has no text to download.",
+        "warning"
+      );
+      return;
     }
 
-    // Get the PDF blob
-    const blob = await res.blob();
-    
-    // Create a meaningful filename
-    const contractTitle = contract.contract_title
-      ?.replace(/[^a-z0-9]/gi, "-")
-      .toLowerCase() || "contract";
-    
-    // Use the contract token and date for uniqueness
-    const fileName = `${contractTitle}-${contract.token}-${new Date().getTime()}.pdf`;
-    
-    // Create download link
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    
-    // Optional: Show success message
-    Swal.fire(
-      "Download Successful",
-      "The signed contract has been downloaded.",
-      "success"
-    );
-  } catch (err) {
-    console.error(err);
-    Swal.fire(
-      "Error",
-      err instanceof Error ? err.message : "An error occurred while generating the PDF.",
-      "error"
-    );
-  } finally {
-    setLoadingMap((prev) => ({ ...prev, [contract.id]: false }));
-  }
-};
+    setLoadingMap((prev) => ({ ...prev, [contract.id]: true }));
+    try {
+      // Change this line to call the new endpoint
+      const res = await fetch("/api/contract/download-signed-contract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contract_token: contract.token,
+
+          contract: {
+            ...contract,
+            // Ensure we have all the necessary fields
+            contract_title: contract.contract_title,
+            contract_text: contract.contract_text,
+            initiator_name: contract.initiator_name,
+            signee_name: contract.signee_name,
+            signee_email: contract.signee_email,
+            token: contract.token,
+            created_at: contract.created_at,
+            signed_at: contract.signed_at,
+            signature_date: contract.signature_date,
+            status: contract.status,
+            verification_status: contract.verification_status,
+            has_lawyer_signature: contract.has_lawyer_signature,
+            creator_signature: contract.creator_signature,
+            signee_signature_image: contract.signee_signature_image,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to generate PDF");
+      }
+
+      // Get the PDF blob
+      const blob = await res.blob();
+
+      // Create a meaningful filename
+      const contractTitle =
+        contract.contract_title?.replace(/[^a-z0-9]/gi, "-").toLowerCase() ||
+        "contract";
+
+      // Use the contract token and date for uniqueness
+      const fileName = `${contractTitle}-${
+        contract.token
+      }-${new Date().getTime()}.pdf`;
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      // Optional: Show success message
+      Swal.fire(
+        "Download Successful",
+        "The signed contract has been downloaded.",
+        "success"
+      );
+    } catch (err) {
+      console.error(err);
+      Swal.fire(
+        "Error",
+        err instanceof Error
+          ? err.message
+          : "An error occurred while generating the PDF.",
+        "error"
+      );
+    } finally {
+      setLoadingMap((prev) => ({ ...prev, [contract.id]: false }));
+    }
+  };
 
   if (loading) {
     return (
@@ -202,19 +211,20 @@ const handleDownload = async (contract: any) => {
                     <Eye className="w-4 h-4 mr-1" />
                     View
                   </Button>
-                  {status === "draft" || status === "pending" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        router.push(
-                          `/dashboard/services/contract/edit/${contract.id}`
-                        )
-                      } 
-                    >
-                      Edit
-                    </Button>
-                  )}
+                  {status === "draft" ||
+                    (status === "pending" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/services/contract/edit/${contract.id}`
+                          )
+                        }
+                      >
+                        Edit
+                      </Button>
+                    ))}
                   <Button
                     onClick={() => handleDownload(contract)}
                     variant="outline"
@@ -224,7 +234,6 @@ const handleDownload = async (contract: any) => {
                     <Download className="w-4 h-4 mr-1" />
                     {isDownloading ? "Downloading..." : "Download"}
                   </Button>
-                 
                 </div>
                 <ContractsPreview
                   isOpen={isPreviewOpen}

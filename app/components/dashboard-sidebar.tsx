@@ -238,10 +238,10 @@ export default function DashboardSidebar() {
             <NavItem
               item={{
                 name: "Create Receipt",
-                href: "/dashboard/services/create-receipt",
+                href: "/dashboard/services/receipt",
                 icon: Receipt,
               }}
-              isActive={pathname === "/dashboard/services/create-receipt"}
+              isActive={pathname === "/dashboard/services/receipt"}
             />
 
             <NavItem

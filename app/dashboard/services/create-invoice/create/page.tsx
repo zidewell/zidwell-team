@@ -2,7 +2,7 @@
 
 import DashboardSidebar from "@/app/components/dashboard-sidebar";
 import DashboardHeader from "@/app/components/dashboard-hearder";
-import CreateInvoice from "@/app/components/CreateInvoice"; 
+import CreateInvoice from "@/app/components/Invoice-components/CreateInvoice";
 
 
 export default function InvoiceCreate() {

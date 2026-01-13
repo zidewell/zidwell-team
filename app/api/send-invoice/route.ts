@@ -40,7 +40,7 @@ interface RequestBody {
   initiator_account_name: string;
   initiator_bank_name: string;
   target_quantity?: number;
-  is_draft?: boolean; // Add this field
+  is_draft?: boolean;
 }
 
 function generateInvoiceId(): string {
@@ -125,21 +125,19 @@ async function sendInvoiceEmail(params: {
     `
       : "";
 
-       const baseUrl =
+    const baseUrl =
       process.env.NODE_ENV === "development"
         ? process.env.NEXT_PUBLIC_DEV_URL
         : process.env.NEXT_PUBLIC_BASE_URL;
 
-      
     const headerImageUrl = `${baseUrl}/zidwell-header.png`;
     const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
 
-
-  await transporter.sendMail({
-  from: `Zidwell Invoice <${process.env.EMAIL_USER}>`,
-  to: params.to,
-  subject: params.subject,
-  html: `
+    await transporter.sendMail({
+      from: `Zidwell Invoice <${process.env.EMAIL_USER}>`,
+      to: params.to,
+      subject: params.subject,
+      html: `
 <!DOCTYPE html>
 <html>
 <body style="margin:0; padding:0; background:#f3f4f6; font-family:Arial, sans-serif;">
@@ -281,7 +279,7 @@ async function sendInvoiceEmail(params: {
 </body>
 </html>
 `,
-});
+    });
   } catch (error) {
     console.error("Email send error:", error);
   }
@@ -299,6 +297,16 @@ function isValidUrl(string: string) {
 export async function POST(req: Request) {
   try {
     const body: RequestBody = await req.json();
+
+    // Debug logging
+    console.log("API /send-invoice received:", {
+      userId: body.userId,
+      signee_email: body.signee_email,
+      invoice_items_count: body.invoice_items?.length,
+      payment_type: body.payment_type,
+      is_draft: body.is_draft,
+      allowMultiplePayments: body.payment_type === "multiple"
+    });
 
     const {
       userId,
@@ -327,38 +335,74 @@ export async function POST(req: Request) {
       is_draft,
     } = body;
 
-    if (
-      !userId ||
-      !signee_email ||
-      !invoice_items ||
-      invoice_items.length === 0
-    ) {
+    // VALIDATION: Check required fields
+    if (!userId) {
+      console.error("Missing userId");
       return NextResponse.json(
-        {
-          message:
-            "Missing required fields: userId, signee_email, or invoice items",
-        },
+        { message: "Missing required field: userId" },
         { status: 400 }
       );
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(signee_email)) {
+    if (!invoice_items || invoice_items.length === 0) {
+      console.error("No invoice items provided");
       return NextResponse.json(
-        { message: "Invalid email format" },
+        { message: "Invoice must have at least one item" },
         { status: 400 }
       );
+    }
+
+    // Validate each invoice item
+    for (let i = 0; i < invoice_items.length; i++) {
+      const item = invoice_items[i];
+      if (!item.description || !item.quantity || !item.unitPrice) {
+        console.error(`Invalid item at index ${i}:`, item);
+        return NextResponse.json(
+          { message: `Item ${i + 1} is missing required fields (description, quantity, or price)` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Email validation only for single payments
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (payment_type === "single") {
+      if (!signee_email) {
+        console.error("Missing email for single payment");
+        return NextResponse.json(
+          { message: "Email is required for single payment invoices" },
+          { status: 400 }
+        );
+      }
+      
+      if (!emailRegex.test(signee_email)) {
+        console.error("Invalid email format:", signee_email);
+        return NextResponse.json(
+          { message: "Invalid email format for single payment invoice" },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate target_quantity for multiple payments
-    if (
-      payment_type === "multiple" &&
-      (!target_quantity || target_quantity < 1)
-    ) {
-      return NextResponse.json(
-        { message: "Target quantity must be at least 1 for multiple payments" },
-        { status: 400 }
-      );
+    if (payment_type === "multiple") {
+      if (!target_quantity || target_quantity < 1) {
+        console.error("Invalid target quantity for multiple payments:", target_quantity);
+        return NextResponse.json(
+          { message: "Target quantity must be at least 1 for multiple payments" },
+          { status: 400 }
+        );
+      }
+      
+      // For multiple payments, we can accept an empty email
+      // but if provided, it should be valid
+      if (signee_email && signee_email.trim() !== "" && !emailRegex.test(signee_email)) {
+        console.error("Invalid optional email for multiple payments:", signee_email);
+        return NextResponse.json(
+          { message: "If email is provided for multiple payments, it must be valid" },
+          { status: 400 }
+        );
+      }
     }
 
     const invoiceId = invoice_id;
@@ -368,6 +412,7 @@ export async function POST(req: Request) {
         : process.env.NEXT_PUBLIC_BASE_URL;
 
     if (!baseUrl) {
+      console.error("Base URL not configured");
       return NextResponse.json(
         { message: "Base URL not configured" },
         { status: 500 }
@@ -389,7 +434,6 @@ export async function POST(req: Request) {
       isUpdatingDraft = true;
       existingInvoiceId = existingInvoice.id;
     } else if (existingInvoice && !existingInvoice.is_draft) {
-      // Invoice already exists and is NOT a draft - this is an error
       console.error(`Invoice ${invoice_id} already exists and is not a draft`);
       return NextResponse.json(
         { message: "Invoice with this ID already exists as a final invoice. Please use a different invoice ID." },
@@ -399,8 +443,6 @@ export async function POST(req: Request) {
 
     const publicToken = uuidv4();
     const signingLink = `${baseUrl}/pay-invoice/${publicToken}`;
-
-    console.log(signingLink, "signingLink");
 
     // Calculate subtotal only (fee calculation is now handled in frontend)
     const subtotal = calculateSubtotal(invoice_items);
@@ -415,6 +457,7 @@ export async function POST(req: Request) {
     const issueDate = new Date(issue_date);
 
     if (isNaN(issueDate.getTime())) {
+      console.error("Invalid date format:", issue_date);
       return NextResponse.json(
         { message: "Invalid date format" },
         { status: 400 }
@@ -448,8 +491,8 @@ export async function POST(req: Request) {
           business_logo: finalLogoUrl,
           from_email: initiator_email,
           from_name: initiator_name,
-          client_name: signee_name,
-          client_email: signee_email,
+          client_name: signee_name || null,
+          client_email: signee_email || null,
           client_phone: clientPhone,
           bill_to: bill_to,
           issue_date: issueDate.toISOString().split("T")[0],
@@ -471,7 +514,7 @@ export async function POST(req: Request) {
           initiator_account_number,
           initiator_account_name,
           initiator_bank_name,
-          is_draft: false, // Remove draft flag
+          is_draft: false,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existingInvoiceId)
@@ -513,8 +556,8 @@ export async function POST(req: Request) {
             business_logo: finalLogoUrl,
             from_email: initiator_email,
             from_name: initiator_name,
-            client_name: signee_name,
-            client_email: signee_email,
+            client_name: signee_name || null,
+            client_email: signee_email || null,
             client_phone: clientPhone,
             bill_to: bill_to,
             issue_date: issueDate.toISOString().split("T")[0],
@@ -586,19 +629,26 @@ export async function POST(req: Request) {
       );
     }
 
-    // Send email notification with view link only
-    await sendInvoiceEmail({
-      to: signee_email,
-      subject: `New Invoice from ${initiator_name}`,
-      invoiceId,
-      amount: total_amount,
-      signingLink,
-      senderName: initiator_name,
-      message,
-      businessLogo: finalLogoUrl,
-      isMultiplePayments: payment_type === "multiple",
-      targetQuantity: target_quantity,
-    });
+    // Send email notification only if we have a valid email
+    if (signee_email && emailRegex.test(signee_email)) {
+      await sendInvoiceEmail({
+        to: signee_email,
+        subject: `New Invoice from ${initiator_name}`,
+        invoiceId,
+        amount: total_amount,
+        signingLink,
+        senderName: initiator_name,
+        message,
+        businessLogo: finalLogoUrl,
+        isMultiplePayments: payment_type === "multiple",
+        targetQuantity: target_quantity,
+      });
+      console.log("Invoice email sent to:", signee_email);
+    } else if (payment_type === "multiple") {
+      console.log("No email sent for multiple payments (email not required)");
+    } else {
+      console.log("No email sent - invalid or missing email address");
+    }
 
     return NextResponse.json(
       {

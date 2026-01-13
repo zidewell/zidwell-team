@@ -6,7 +6,7 @@ import { Input } from "@/app/components/ui/input";
 import { Label } from "@/app/components/ui/label";
 import { CreditCard, Banknote } from "lucide-react";
 import { useToast } from "@/app/hooks/use-toast";
-import { PayWithTransferModal } from "./PayWithTransferModal";
+import { PayWithTransferModal } from "../Invoice-components/PayWithTransferModal"; 
 
 // Types
 interface PayerInfo {

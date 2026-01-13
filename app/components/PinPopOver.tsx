@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "./ui/button";
+import { Loader2 } from "lucide-react";
 
 interface PinPopOverProps {
   setIsOpen: (isOpen: boolean) => void;
@@ -10,7 +11,7 @@ interface PinPopOverProps {
   pin: string[];
   setPin: (pin: string[]) => void;
   inputCount: number;
-  onConfirm?: (code: string) => void;
+  onConfirm?: (code: string) => Promise<void> | void; 
   invoiceFeeInfo?: {
     isFree: boolean;
     freeInvoicesLeft: number;
@@ -29,9 +30,11 @@ export default function PinPopOver({
   invoiceFeeInfo,
 }: PinPopOverProps) {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // ✅ Handle input change
   const handleInput = (index: number, value: string) => {
+    if (isProcessing) return; // Prevent input changes when processing
     if (!/^\d?$/.test(value)) return;
     const newOtp = [...pin];
     newOtp[index] = value;
@@ -46,6 +49,7 @@ export default function PinPopOver({
     e: React.KeyboardEvent<HTMLInputElement>,
     index: number
   ) => {
+    if (isProcessing) return; // Prevent keyboard navigation when processing
     if (e.key === "Backspace" || e.key === "Delete") {
       if (!pin[index] && index > 0) {
         inputsRef.current[index - 1]?.focus();
@@ -55,6 +59,7 @@ export default function PinPopOver({
 
   // ✅ Handle paste event
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (isProcessing) return; // Prevent paste when processing
     e.preventDefault();
     const text = e.clipboardData.getData("text").trim();
     if (!new RegExp(`^[0-9]{${inputCount}}$`).test(text)) return;
@@ -64,17 +69,33 @@ export default function PinPopOver({
   };
 
   // ✅ Handle form submit
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = pin.join("");
+    
+    // Prevent submission if already processing or PIN is incomplete
+    if (isProcessing || code.length !== inputCount) return;
 
-  
-    if (onConfirm) {
-      onConfirm(code);
+    // Start loading
+    setIsProcessing(true);
+
+    try {
+      if (onConfirm) {
+        // If onConfirm returns a promise, await it
+        const result = onConfirm(code);
+        if (result && typeof result.then === 'function') {
+          await result;
+        }
+      }
+
+      // Don't close modal or clear PIN immediately - let parent component handle it
+      // The parent will handle closing based on the result
+      
+    } catch (error) {
+      console.error("Error during PIN confirmation:", error);
+      // Reset on error
+      setIsProcessing(false);
     }
-
-    setIsOpen(false);
-    setPin(new Array(inputCount).fill(""));
   };
 
   return (
@@ -87,7 +108,7 @@ export default function PinPopOver({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setIsOpen(false)}
+            onClick={() => !isProcessing && setIsOpen(false)}
           />
 
           {/* 📤 Modal Container */}
@@ -100,12 +121,16 @@ export default function PinPopOver({
           >
             <div className="max-w-md w-full text-center bg-white px-4 sm:px-8 py-10 rounded-xl shadow-xl relative">
           
-              <button
-                onClick={() => setIsOpen(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
+              {/* Close button - only shown when not processing */}
+              {!isProcessing && (
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                  disabled={isProcessing}
+                >
+                  ✕
+                </button>
+              )}
 
               {/* Invoice Fee Information */}
               {invoiceFeeInfo && (
@@ -123,16 +148,7 @@ export default function PinPopOver({
                           ? "🎉 Free Invoice"
                           : "💰 Invoice Fee"}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        {invoiceFeeInfo.isFree ? (
-                          <>
-                            Using free invoice (
-                            {invoiceFeeInfo.freeInvoicesLeft - 1} remaining)
-                          </>
-                        ) : (
-                          <>Fee: ₦{invoiceFeeInfo.feeAmount}</>
-                        )}
-                      </p>
+                      
                     </div>
                     <div className="text-right">
                       <p
@@ -144,9 +160,7 @@ export default function PinPopOver({
                       >
                         {invoiceFeeInfo.isFree ? "FREE" : "₦100"}
                       </p>
-                      <p className="text-xs text-gray-500">
-                        Total created: {invoiceFeeInfo.totalInvoicesCreated}
-                      </p>
+                    
                     </div>
                   </div>
                 </div>
@@ -157,11 +171,19 @@ export default function PinPopOver({
                   Transaction Pin Verification
                 </h1>
                 <p className="text-[15px] text-slate-500">
-                  Input your 4-digit pin to complete transaction.
-                  {invoiceFeeInfo?.isFree && (
-                    <span className="block text-green-600 font-medium mt-1">
-                      No payment required for this free invoice
+                  {isProcessing ? (
+                    <span className="text-[#C29307] font-medium">
+                      Processing transaction...
                     </span>
+                  ) : (
+                    <>
+                      Input your 4-digit pin to complete transaction.
+                      {invoiceFeeInfo?.isFree && (
+                        <span className="block text-green-600 font-medium mt-1">
+                          No payment required for this free invoice
+                        </span>
+                      )}
+                    </>
                   )}
                 </p>
               </header>
@@ -180,13 +202,26 @@ export default function PinPopOver({
                       maxLength={1}
                       value={digit}
                       onChange={(e) => {
+                        if (isProcessing) return;
                         const val = e.target.value.replace(/\D/g, "");
                         handleInput(i, val);
                       }}
-                      onKeyDown={(e) => handleKeyDown(e, i)}
-                      onFocus={(e) => e.target.select()}
-                      onPaste={handlePaste}
-                      className="w-14 h-14 text-center text-2xl font-extrabold text-slate-900 bg-slate-100 border border-transparent hover:border-slate-200 rounded p-4 outline-none focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                      onKeyDown={(e) => {
+                        if (isProcessing) return;
+                        handleKeyDown(e, i);
+                      }}
+                      onFocus={(e) => !isProcessing && e.target.select()}
+                      onPaste={(e) => {
+                        if (isProcessing) return;
+                        handlePaste(e);
+                      }}
+                      className={`w-14 h-14 text-center text-2xl font-extrabold rounded p-4 outline-none transition-colors ${
+                        isProcessing
+                          ? 'bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed'
+                          : 'text-slate-900 bg-slate-100 border border-transparent hover:border-slate-200 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100'
+                      }`}
+                      disabled={isProcessing}
+                      readOnly={isProcessing}
                     />
                   ))}
                 </div>
@@ -194,12 +229,26 @@ export default function PinPopOver({
                 <div className="max-w-[260px] mx-auto mt-6">
                   <Button
                     type="submit"
-                    className="hover:bg-[#C29307] w-full inline-flex justify-center whitespace-nowrap rounded-lg bg-[#C29307] px-3.5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring focus:ring-[#C29307] transition-colors duration-150"
+                    className={`w-full inline-flex justify-center items-center whitespace-nowrap rounded-lg px-3.5 py-2.5 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring focus:ring-[#C29307] transition-colors duration-150 ${
+                      isProcessing || pin.join("").length !== inputCount
+                        ? 'bg-gray-400 cursor-not-allowed hover:bg-gray-400'
+                        : 'bg-[#C29307] hover:bg-[#C29307]/90'
+                    }`}
+                    disabled={isProcessing || pin.join("").length !== inputCount}
                   >
-                    {invoiceFeeInfo?.isFree
-                      ? "Confirm Free Invoice"
-                      : "Confirm"}
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : invoiceFeeInfo?.isFree ? (
+                      "Confirm Free Invoice"
+                    ) : (
+                      "Confirm Payment"
+                    )}
                   </Button>
+                  
+                
                 </div>
               </form>
             </div>

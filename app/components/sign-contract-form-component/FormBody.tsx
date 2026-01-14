@@ -33,6 +33,7 @@ import {
   Scale,
   Download,
   Check,
+  Trash2,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import {
@@ -51,6 +52,7 @@ import { Badge } from "../ui/badge";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
 import { Input } from "../ui/input";
+import { SignaturePad } from "../SignaturePad"; 
 
 type ContractDraft = {
   id: string;
@@ -158,6 +160,9 @@ const FormBody: React.FC = () => {
   const [creatorSignature, setCreatorSignature] = useState<string | null>(null);
   const [localCreatorName, setLocalCreatorName] = useState(creatorName);
 
+  // Local signature state for the signature pad
+  const [localSignature, setLocalSignature] = useState<string | null>(null);
+
   useEffect(() => {
     if (includeLawyerSignature) {
       setTotalAmount(CONTRACT_FEE + LAWYER_FEE);
@@ -195,6 +200,11 @@ const FormBody: React.FC = () => {
     termsConsent: "",
   });
 
+  // Update local signature when creatorSignature changes
+  useEffect(() => {
+    setLocalSignature(creatorSignature);
+  }, [creatorSignature]);
+
   const triggerContractConfetti = () => {
     confetti({
       particleCount: 150,
@@ -231,14 +241,19 @@ const FormBody: React.FC = () => {
   };
 
   const generateContractId = useCallback(() => {
-    const datePart = new Date().getFullYear();
-    const randomToken = crypto
-      .randomUUID()
-      .replace(/-/g, "")
-      .substring(0, 12)
-      .toUpperCase();
-    return `CTR-${datePart}-${randomToken}`;
-  }, []);
+  const datePart = new Date().getFullYear();
+  const randomToken = crypto
+    .randomUUID()
+    .replace(/-/g, "")
+    .substring(0, 12)
+    .toUpperCase();
+  const readableId = `CTR-$
+  {datePart}-${randomToken}`;
+  
+  return crypto.randomUUID();
+}, []);
+
+
 
   useEffect(() => {
     setForm((prev) => ({
@@ -260,7 +275,8 @@ const FormBody: React.FC = () => {
         form.ageConsent ||
         form.termsConsent ||
         form.contractDate ||
-        attachments.length > 0)
+        attachments.length > 0 ||
+        localSignature)
     ) {
       setHasUnsavedChanges(true);
     }
@@ -276,6 +292,7 @@ const FormBody: React.FC = () => {
     form.termsConsent,
     form.contractDate,
     attachments.length,
+    localSignature,
   ]);
 
   useEffect(() => {
@@ -395,6 +412,7 @@ const FormBody: React.FC = () => {
       if (res.ok && data.success) {
         if (data.signature) {
           setCreatorSignature(data.signature);
+          setLocalSignature(data.signature);
           setSaveSignatureForFuture(true);
 
           Swal.fire({
@@ -439,7 +457,7 @@ const FormBody: React.FC = () => {
         return false;
       }
 
-      const res = await fetch("/api/contract/saved-signature", {
+      const res = await fetch("/api/saved-signature", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -496,6 +514,7 @@ const FormBody: React.FC = () => {
   };
 
   const handleSignatureChange = async (signature: string | null) => {
+    setLocalSignature(signature);
     setCreatorSignature(signature);
 
     if (!signature && saveSignatureForFuture && userData?.id) {
@@ -535,6 +554,11 @@ const FormBody: React.FC = () => {
     }
   };
 
+  const clearSignature = () => {
+    setLocalSignature(null);
+    setCreatorSignature(null);
+  };
+
   const loadDraftIntoForm = (draft: ContractDraft) => {
     const draftContractId =
       draft.metadata?.contract_id ||
@@ -570,6 +594,7 @@ const FormBody: React.FC = () => {
     }
     if (draft.creator_signature) {
       setCreatorSignature(draft.creator_signature);
+      setLocalSignature(draft.creator_signature);
     }
     if (draft.include_lawyer_signature) {
       setIncludeLawyerSignature(draft.include_lawyer_signature);
@@ -657,7 +682,8 @@ const FormBody: React.FC = () => {
           form.contractContent.trim() ||
           form.paymentTerms.trim() ||
           form.contractDate ||
-          attachments.length > 0)
+          attachments.length > 0 ||
+          localSignature)
       ) {
         e.preventDefault();
         e.returnValue =
@@ -675,6 +701,7 @@ const FormBody: React.FC = () => {
     form.paymentTerms,
     form.contractDate,
     attachments.length,
+    localSignature,
   ]);
 
   const handleSaveDraft = async () => {
@@ -694,7 +721,8 @@ const FormBody: React.FC = () => {
         !form.contractTitle.trim() &&
         !form.contractContent.trim() &&
         !form.paymentTerms.trim() &&
-        attachments.length === 0
+        attachments.length === 0 &&
+        !localSignature
       ) {
         Swal.fire({
           icon: "warning",
@@ -729,7 +757,7 @@ const FormBody: React.FC = () => {
         has_attachments: attachments.length > 0,
         attachment_count: attachments.length,
         creator_name: creatorName,
-        creator_signature: creatorSignature,
+        creator_signature: localSignature || creatorSignature,
         include_lawyer_signature: includeLawyerSignature,
         metadata: {
           payment_terms: form.paymentTerms,
@@ -849,19 +877,12 @@ const FormBody: React.FC = () => {
   };
 
   const validateSignature = (): boolean => {
-    if (!creatorSignature) {
+    if (!localSignature) {
       Swal.fire({
         icon: "warning",
         title: "Signature Required",
-        html: `Please add your signature in the <strong>Preview tab</strong> before submitting.`,
+        text: "Please add your signature in the form before submitting.",
         confirmButtonColor: "#C29307",
-        showCancelButton: true,
-        cancelButtonText: "Cancel",
-        confirmButtonText: "Go to Preview",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          setActiveTab("preview");
-        }
       });
       return false;
     }
@@ -870,10 +891,8 @@ const FormBody: React.FC = () => {
       Swal.fire({
         icon: "warning",
         title: "Name Required",
-        text: "Please enter your full legal name in the Preview tab signature section.",
+        text: "Please enter your full legal name in the creator name field.",
         confirmButtonColor: "#C29307",
-      }).then(() => {
-        setActiveTab("preview");
       });
       return false;
     }
@@ -1005,7 +1024,7 @@ const FormBody: React.FC = () => {
         is_draft: isDraft,
         include_lawyer_signature: includeLawyerSignature,
         creator_name: creatorName,
-        creator_signature: creatorSignature,
+        creator_signature: localSignature || creatorSignature,
         metadata: {
           attachments: attachmentsData,
           attachment_count: attachments.length,
@@ -1014,7 +1033,7 @@ const FormBody: React.FC = () => {
           lawyer_fee: includeLawyerSignature ? LAWYER_FEE : 0,
           total_fee: totalAmount,
           creator_name: creatorName,
-          creator_signature: creatorSignature,
+          creator_signature: localSignature || creatorSignature,
           payment_terms: form.paymentTerms,
           contract_date: form.contractDate,
         },
@@ -1170,6 +1189,7 @@ const FormBody: React.FC = () => {
           setAttachments([]);
           setIncludeLawyerSignature(false);
           setCreatorSignature(null);
+          setLocalSignature(null);
           
           // Show success modal
           setTimeout(() => {
@@ -1309,6 +1329,7 @@ const FormBody: React.FC = () => {
         setAttachments([]);
         setIncludeLawyerSignature(false);
         setCreatorSignature(null);
+        setLocalSignature(null);
         setCreatorName(
           userData?.firstName && userData?.lastName
             ? `${userData.firstName} ${userData.lastName}`
@@ -1572,7 +1593,7 @@ const FormBody: React.FC = () => {
                   Lawyer Signature
                 </Badge>
               )}
-              {creatorSignature && (
+              {localSignature && (
                 <Badge
                   variant="outline"
                   className="bg-green-50 text-green-700 border-green-200"
@@ -1659,7 +1680,7 @@ const FormBody: React.FC = () => {
 
               <TabsContent value="create" className="space-y-6">
                 <section className="space-y-4">
-                  <div className="flex justify-between items-center">
+                  {/* <div className="flex justify-between items-center">
                     <h4 className="text-lg font-medium">Contract Details</h4>
                     <Button
                       variant="ghost"
@@ -1670,9 +1691,9 @@ const FormBody: React.FC = () => {
                       <Eye className="h-4 w-4 mr-2" />
                       Preview
                     </Button>
-                  </div>
+                  </div> */}
 
-                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  {/* <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-700">
@@ -1687,11 +1708,11 @@ const FormBody: React.FC = () => {
                         size="sm"
                         onClick={loadSignatureManually}
                         disabled={
-                          !userData?.id || !!creatorSignature || isProcessingPayment
+                          !userData?.id || !!localSignature || isProcessingPayment
                         }
                         className="border-gray-300 text-gray-700 hover:bg-gray-100"
                       >
-                        {creatorSignature ? (
+                        {localSignature ? (
                           <>
                             <Check className="h-4 w-4 mr-2" />
                             Signature Loaded
@@ -1704,20 +1725,19 @@ const FormBody: React.FC = () => {
                         )}
                       </Button>
                     </div>
-                    {creatorSignature && (
+                    {localSignature && (
                       <div className="mt-3 p-3 bg-white border border-green-200 rounded-lg">
                         <div className="flex items-center">
                           <div className="h-6 w-6 bg-green-100 rounded-full flex items-center justify-center mr-2">
                             <Check className="h-4 w-4 text-green-600" />
                           </div>
                           <p className="text-sm text-green-700">
-                            Signature loaded successfully! Switch to Preview tab
-                            to see it.
+                            Signature loaded successfully!
                           </p>
                         </div>
                       </div>
                     )}
-                  </div>
+                  </div> */}
 
                   <div className="w-full">
                     <Label className="block text-xs font-medium text-gray-600 mb-2">
@@ -1906,6 +1926,98 @@ const FormBody: React.FC = () => {
                   </div>
                 </section>
 
+                {/* Signature Section - Moved here under consent toggles */}
+                <section className="border border-gray-200 rounded-lg p-6 bg-gray-50 print:hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+                    <div className="mb-4 sm:mb-0">
+                      <h4 className="text-lg font-semibold text-gray-900">
+                        Add Your Signature
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        Draw or upload your signature to complete the contract
+                      </p>
+                    </div>
+                    {localSignature && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearSignature}
+                        className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
+                        disabled={isProcessingPayment}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Clear Signature
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Load Saved Signature Button */}
+                  {userData?.id && !localSignature && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-blue-800">
+                            Saved Signature Available
+                          </p>
+                          <p className="text-xs text-blue-600 mt-1">
+                            You have a signature saved for future use. Would you
+                            like to load it?
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={loadSignatureManually}
+                          disabled={isProcessingPayment}
+                          className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                        >
+                          Load Saved Signature
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-6">
+                    {/* Signature Pad Component */}
+                    <SignaturePad
+                      value={localSignature || ""}
+                      onChange={(signature) => handleSignatureChange(signature)}
+                      label="Your Signature"
+                      disabled={isProcessingPayment}
+                    />
+
+                    {/* Save Signature Toggle */}
+                    {userData?.id && (
+                      <div className="flex items-center space-x-3 p-4 bg-white border border-gray-200 rounded-lg">
+                        <Switch
+                          id="save-signature-toggle"
+                          checked={saveSignatureForFuture}
+                          onCheckedChange={handleSaveSignatureToggle}
+                          className="data-[state=checked]:bg-[#C29307]"
+                          disabled={(!localSignature && saveSignatureForFuture) || isProcessingPayment}
+                        />
+                        <div className="space-y-1 flex-1">
+                          <Label
+                            htmlFor="save-signature-toggle"
+                            className="cursor-pointer text-sm font-medium text-gray-700"
+                          >
+                            Save signature for future use
+                          </Label>
+                          <p className="text-xs text-gray-500">
+                            Your signature will be securely stored and automatically
+                            loaded for future contracts
+                          </p>
+                          {!localSignature && saveSignatureForFuture && (
+                            <p className="text-xs text-amber-600 mt-1">
+                              Please create a signature first to enable saving
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
                 <div className="flex gap-3 pt-4 border-t">
                   <Button
                     onClick={() => handleSubmit(true)}
@@ -1916,7 +2028,8 @@ const FormBody: React.FC = () => {
                       isProcessingPayment ||
                       isSavingDraft ||
                       (!form.contractTitle.trim() &&
-                        !form.contractContent.trim())
+                        !form.contractContent.trim() &&
+                        !localSignature)
                     }
                   >
                     {isSavingDraft ? (
@@ -1968,13 +2081,14 @@ const FormBody: React.FC = () => {
                   onIncludeLawyerChange={setIncludeLawyerSignature}
                   creatorName={creatorName}
                   onCreatorNameChange={setCreatorName}
-                  creatorSignature={creatorSignature}
+                  creatorSignature={localSignature || creatorSignature}
                   localCreatorName={localCreatorName}
                   setLocalCreatorName={setLocalCreatorName}
-                  saveSignatureForFuture={saveSignatureForFuture}
-                  onSaveSignatureToggle={handleSaveSignatureToggle}
-                  onSignatureChange={handleSignatureChange}
-                  onLoadSavedSignature={loadSignatureManually}
+                  // Note: These props are no longer needed in PreviewTab since signature is in FormBody
+                  // saveSignatureForFuture={saveSignatureForFuture}
+                  // onSaveSignatureToggle={handleSaveSignatureToggle}
+                  // onSignatureChange={handleSignatureChange}
+                  // onLoadSavedSignature={loadSignatureManually}
                 />
               </TabsContent>
             </Tabs>

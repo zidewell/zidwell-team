@@ -42,10 +42,6 @@ interface PreviewTabProps {
   localCreatorName: string;
   setLocalCreatorName: (name: string) => void;
   creatorSignature?: string | null;
-  onSignatureChange?: (signature: string | null) => void;
-  saveSignatureForFuture?: boolean;
-  onSaveSignatureToggle?: (save: boolean) => void;
-  onLoadSavedSignature?: () => void;
 }
 
 const PreviewTab: React.FC<PreviewTabProps> = ({
@@ -62,12 +58,8 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
   creatorName = "",
   onCreatorNameChange,
   creatorSignature = null,
-  onSignatureChange,
   localCreatorName,
   setLocalCreatorName,
-  saveSignatureForFuture = false,
-  onSaveSignatureToggle,
-  onLoadSavedSignature,
 }) => {
   const [localSignature, setLocalSignature] = useState(creatorSignature);
 
@@ -75,40 +67,6 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
   useEffect(() => {
     setLocalSignature(creatorSignature);
   }, [creatorSignature]);
-
-  const handleSignatureChange = (signature: string) => {
-    setLocalSignature(signature);
-    onSignatureChange?.(signature);
-    
-    // If save signature toggle is enabled, trigger the save
-    if (saveSignatureForFuture && onSaveSignatureToggle) {
-      onSaveSignatureToggle(saveSignatureForFuture);
-    }
-  };
-
-  const clearSignature = () => {
-    setLocalSignature(null);
-    onSignatureChange?.(null);
-  };
-
-  // Handle save signature toggle change
-  const handleSaveSignatureToggle = (save: boolean) => {
-    if (onSaveSignatureToggle) {
-      onSaveSignatureToggle(save);
-
-      // If turning on and there's a signature, trigger save
-      if (save && localSignature) {
-        onSignatureChange?.(localSignature);
-      }
-    }
-  };
-
-  // Handle loading saved signature
-  const handleLoadSavedSignature = () => {
-    if (onLoadSavedSignature) {
-      onLoadSavedSignature();
-    }
-  };
 
   return (
     <div className="">
@@ -385,96 +343,6 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                 </div>
               </div>
             )}
-
-            {/* Interactive Signature Section */}
-            <div className="border border-gray-200 rounded-lg p-6 bg-gray-50 print:hidden">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-                <div className="mb-4 sm:mb-0">
-                  <h4 className="text-lg font-semibold text-gray-900">
-                    Add Your Signature
-                  </h4>
-                  <p className="text-sm text-gray-600">
-                    Draw or upload your signature to complete the contract
-                  </p>
-                </div>
-                {localSignature && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearSignature}
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 w-full sm:w-auto"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear Signature
-                  </Button>
-                )}
-              </div>
-
-              {/* Load Saved Signature Button */}
-              {onLoadSavedSignature && !localSignature && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-blue-800">
-                        Saved Signature Available
-                      </p>
-                      <p className="text-xs text-blue-600 mt-1">
-                        You have a signature saved for future use. Would you
-                        like to load it?
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleLoadSavedSignature}
-                      className="border-blue-300 text-blue-700 hover:bg-blue-100"
-                    >
-                      Load Saved Signature
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-6">
-                {/* Signature Pad Component */}
-                <SignaturePad
-                  value={localSignature || ""}
-                  onChange={handleSignatureChange}
-                  label="Your Signature"
-                  disabled={false}
-                />
-
-                {/* Save Signature Toggle */}
-                {onSaveSignatureToggle && (
-                  <div className="flex items-center space-x-3 p-4 bg-white border border-gray-200 rounded-lg">
-                    <Switch
-                      id="save-signature-toggle"
-                      checked={saveSignatureForFuture}
-                      onCheckedChange={handleSaveSignatureToggle}
-                      className="data-[state=checked]:bg-[#C29307]"
-                      disabled={!localSignature && saveSignatureForFuture}
-                    />
-                    <div className="space-y-1 flex-1">
-                      <Label
-                        htmlFor="save-signature-toggle"
-                        className="cursor-pointer text-sm font-medium text-gray-700"
-                      >
-                        Save signature for future use
-                      </Label>
-                      <p className="text-xs text-gray-500">
-                        Your signature will be securely stored and automatically
-                        loaded for future contracts
-                      </p>
-                      {!localSignature && saveSignatureForFuture && (
-                        <p className="text-xs text-amber-600 mt-1">
-                          Please create a signature first to enable saving
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
 
             {/* Navigation Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-200 print:hidden">

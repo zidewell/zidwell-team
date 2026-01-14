@@ -934,7 +934,7 @@ const updateReceiptInDatabase = async (): Promise<boolean> => {
 
       <div className="min-h-screen bg-background">
         <div className="container mx-auto py-4 sm:py-6 px-3 sm:px-4">
-          {/* Responsive Header Section */}
+      
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="flex items-start gap-3">

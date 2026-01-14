@@ -241,19 +241,9 @@ const FormBody: React.FC = () => {
   };
 
   const generateContractId = useCallback(() => {
-  const datePart = new Date().getFullYear();
-  const randomToken = crypto
-    .randomUUID()
-    .replace(/-/g, "")
-    .substring(0, 12)
-    .toUpperCase();
-  const readableId = `CTR-$
-  {datePart}-${randomToken}`;
-  
-  return crypto.randomUUID();
-}, []);
-
-
+    // Generate a proper UUID for database
+    return crypto.randomUUID();
+  }, []);
 
   useEffect(() => {
     setForm((prev) => ({
@@ -1691,9 +1681,9 @@ const FormBody: React.FC = () => {
                       <Eye className="h-4 w-4 mr-2" />
                       Preview
                     </Button>
-                  </div> */}
+                  </div>
 
-                  {/* <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-700">
@@ -2084,15 +2074,12 @@ const FormBody: React.FC = () => {
                   creatorSignature={localSignature || creatorSignature}
                   localCreatorName={localCreatorName}
                   setLocalCreatorName={setLocalCreatorName}
-                  // Note: These props are no longer needed in PreviewTab since signature is in FormBody
-                  // saveSignatureForFuture={saveSignatureForFuture}
-                  // onSaveSignatureToggle={handleSaveSignatureToggle}
-                  // onSignatureChange={handleSignatureChange}
-                  // onLoadSavedSignature={loadSignatureManually}
+                 
                 />
               </TabsContent>
             </Tabs>
           </Card>
+       
         </div>
       </div>
     </>

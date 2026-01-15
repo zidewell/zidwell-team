@@ -644,11 +644,7 @@ function generateContractHTML(
                                 <div class="signature-line">
                                     ${partyASignatureHTML}
                                 </div>
-                                ${
-                                  contract.status === "signed"
-                                    ? '<div class="status-badge status-signed">✓ Signed</div>'
-                                    : '<div class="status-badge status-pending">Pending</div>'
-                                }
+                               
                             </div>
                         </td>
                         
@@ -681,11 +677,7 @@ function generateContractHTML(
                                 <div class="signature-line">
                                     ${partyBSignatureHTML}
                                 </div>
-                                ${
-                                  contract.status === "signed"
-                                    ? '<div class="status-badge status-signed">✓ Signed</div>'
-                                    : '<div class="status-badge status-pending">Pending</div>'
-                                }
+                               
                             </div>
                         </td>
                     </tr>

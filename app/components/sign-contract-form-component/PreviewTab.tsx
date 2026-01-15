@@ -18,6 +18,7 @@ import {
 } from "@/app/components/ui/card";
 import { Switch } from "@/app/components/ui/switch";
 import { SignaturePad } from "../SignaturePad"; 
+
 interface AttachmentFile {
   file: File;
   name: string;
@@ -161,7 +162,7 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
                   <h3 className="text-lg font-semibold text-gray-900 mb-6 pb-2 border-b">
                     TERMS AND CONDITIONS
                   </h3>
-                  <div className="prose prose-sm max-w-none text-gray-700 leading-relaxed font-serif bg-gray-50 p-6 rounded border">
+                  <div className="max-w-none text-gray-700 leading-relaxed font-serif bg-gray-50 p-6 rounded border">
                     {contractContent ? (
                       <div
                         className="rich-text-content"
@@ -383,6 +384,87 @@ const PreviewTab: React.FC<PreviewTabProps> = ({
           </div>
         )}
       </div>
+
+      {/* Add this style tag at the end of the component */}
+      <style jsx global>{`
+        /* Rich text content styling for PreviewTab */
+        .rich-text-content {
+          font-family: inherit;
+          line-height: 1.6;
+          color: #374151;
+        }
+
+        .rich-text-content h1 {
+          font-size: 1.875rem;
+          font-weight: 700;
+          margin: 1.5rem 0 1rem 0;
+          color: #111827;
+        }
+
+        .rich-text-content h2 {
+          font-size: 1.5rem;
+          font-weight: 600;
+          margin: 1.25rem 0 0.75rem 0;
+          color: #111827;
+        }
+
+        .rich-text-content h3 {
+          font-size: 1.25rem;
+          font-weight: 600;
+          margin: 1rem 0 0.5rem 0;
+          color: #111827;
+        }
+
+        .rich-text-content p {
+          margin: 0.75rem 0;
+          line-height: 1.6;
+        }
+
+        /* List styles - these are the most important */
+        .rich-text-content ul,
+        .rich-text-content ol {
+          margin: 0.75rem 0 !important;
+          padding-left: 1.5rem !important;
+        }
+
+        .rich-text-content ul {
+          list-style-type: disc !important;
+        }
+
+        .rich-text-content ol {
+          list-style-type: decimal !important;
+        }
+
+        .rich-text-content li {
+          margin: 0.25rem 0 !important;
+          display: list-item !important;
+        }
+
+        /* Text formatting */
+        .rich-text-content strong,
+        .rich-text-content b {
+          font-weight: bold !important;
+        }
+
+        .rich-text-content em,
+        .rich-text-content i {
+          font-style: italic !important;
+        }
+
+        .rich-text-content u {
+          text-decoration: underline !important;
+        }
+
+        .rich-text-content a {
+          color: #2563eb;
+          text-decoration: underline;
+        }
+
+        /* Selection */
+        .rich-text-content ::selection {
+          background-color: rgba(37, 99, 235, 0.2);
+        }
+      `}</style>
     </div>
   );
 };

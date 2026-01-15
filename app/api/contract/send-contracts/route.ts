@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     // Get contract content as HTML (DO NOT CONVERT TO PLAIN TEXT)
     const contractContent =
       body.contract_content || body.contractContent || body.contract_text || "";
-    
+
     // Store HTML directly
     const contractText = contractContent;
 
@@ -52,9 +52,8 @@ export async function POST(req: NextRequest) {
       body.contractDate ||
       new Date().toISOString().split("T")[0];
 
-    // Get payment terms as HTML (DO NOT CONVERT TO PLAIN TEXT)
     const paymentTermsContent = body.payment_terms || body.paymentTerms || "";
-    const paymentTerms = paymentTermsContent; // Store as HTML
+    const paymentTerms = paymentTermsContent;
 
     if (!userId) {
       return NextResponse.json(
@@ -81,22 +80,21 @@ export async function POST(req: NextRequest) {
       lawyer_fee: includeLawyerSignature ? 10000 : 0,
       total_fee: includeLawyerSignature ? 10010 : 10,
       creator_name: creatorName,
-      creator_signature: creatorSignature ? true : false,
+      creator_signature: creatorSignature || null,
+      creator_signature_exists: creatorSignature ? true : false,
       age_consent: ageConsent,
       terms_consent: termsConsent,
       contract_id: contractIdFromBody,
       contract_date: contractDate,
-      payment_terms: paymentTerms, // Store as HTML
-      contract_html: contractContent, // Store original HTML for reference
+      payment_terms: paymentTerms,
+      contract_html: contractContent,
     };
 
-    // Add attachments to metadata if they exist
     if (body.metadata?.attachments) {
       metadata.attachments = body.metadata.attachments;
       metadata.attachment_count = body.metadata.attachment_count || 0;
     }
 
-    // Also add base fee and lawyer fee from metadata if provided
     if (body.metadata?.base_fee) {
       metadata.base_fee = body.metadata.base_fee;
     }
@@ -110,11 +108,7 @@ export async function POST(req: NextRequest) {
     let existingDraft = null;
     let result: any;
 
-    // CHECK IF WE SHOULD UPDATE AN EXISTING DRAFT
-    // First, check if we have a contract_id that matches a draft's ID
     if (!isDraft && contractIdFromBody) {
-      console.log("Looking for draft with contract_id:", contractIdFromBody);
-
       // First, try to find draft by ID directly
       const { data: draftById } = await supabase
         .from("contracts")
@@ -167,21 +161,15 @@ export async function POST(req: NextRequest) {
 
     const now = new Date().toISOString();
 
-    // If we found an existing draft and we're sending (not saving as draft)
     if (existingDraft && !isDraft) {
-      console.log("Converting draft to final contract:", existingDraft.id);
-      console.log("Draft ID:", existingDraft.id);
-      console.log("New contract_id:", contractIdFromBody);
-      console.log("Contract text length:", contractText.length);
-      console.log("Payment terms length:", paymentTerms.length);
-
       const updateData: any = {
         contract_title: contractTitle,
-        contract_text: contractText, // Store HTML
+        contract_text: contractText,
         signee_email: receiverEmail,
         signee_name: receiverName,
         phone_number: receiverPhone,
         status: "pending",
+        token: token,
         signing_link: signingLink,
         is_draft: false,
         metadata: metadata,
@@ -194,12 +182,7 @@ export async function POST(req: NextRequest) {
         sent_at: now,
       };
 
-      // Update token if needed
-      if (!existingDraft.token) {
-        updateData.token = token;
-      }
-
-      // Update the existing draft
+      // Update the existing draft with new token
       const { data: updatedContract, error: updateError } = await supabase
         .from("contracts")
         .update(updateData)
@@ -223,7 +206,7 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         token: token,
         contract_title: contractTitle,
-        contract_text: contractText, // Store HTML
+        contract_text: contractText,
         initiator_email: body.initiator_email || body.initiatorEmail || "",
         initiator_name: body.initiator_name || body.initiatorName || "",
         signee_email: receiverEmail,
@@ -451,7 +434,6 @@ export async function POST(req: NextRequest) {
         // console.log("Notification email sent to:", receiverEmail);
       } catch (emailError) {
         console.error("Failed to send email:", emailError);
-        
       }
     }
 

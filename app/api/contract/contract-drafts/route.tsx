@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     // Transform the data to match the form structure
     const drafts = contracts?.map(contract => ({
       id: contract.id,
-      contract_id: contract.metadata?.contract_id || contract.id, // Get from metadata first
+      contract_id: contract.metadata?.contract_id || contract.id, 
       contract_title: contract.contract_title,
       contract_content: contract.contract_text, // Store as plain text
       contract_text: contract.contract_text,

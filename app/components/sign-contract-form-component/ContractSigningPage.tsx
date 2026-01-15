@@ -154,41 +154,113 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
         </div>
 
         {/* Terms Section */}
-        <div className="mb-10">
-          <div className="flex items-center gap-4 my-6">
-            <div className="flex-1 h-1 bg-[#C29307] rounded-2xl" />
+       <div className="mb-10">
+  <div className="flex items-center gap-4 my-6">
+    <div className="flex-1 h-1 bg-[#C29307] rounded-2xl" />
+    <h2 className="text-xl font-bold text-center whitespace-nowrap">
+      THE TERMS OF AGREEMENT ARE AS FOLLOWS
+    </h2>
+    <div className="flex-1 h-1 bg-[#C29307] rounded-2xl" />
+  </div>
 
-            <h2 className="text-xl font-bold text-center whitespace-nowrap">
-              THE TERMS OF AGREEMENT ARE AS FOLLOWS
-            </h2>
-
-            <div className="flex-1 h-1 bg-[#C29307] rounded-2xl" />
-          </div>
-
-          {contract.content ? (
-            contract.content.includes("<") ? (
-              // Render HTML content
-              <div
-                className="rich-text-content prose prose-sm max-w-none text-sm leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: contract.content }}
-              />
-            ) : (
-              // Render plain text with proper formatting
-              <div className="whitespace-pre-line text-sm leading-relaxed space-y-4">
-                {contract.content.split("\n").map((paragraph, index) => (
-                  <p key={index} className="mb-4 last:mb-0">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            )
-          ) : (
-            <div className="text-gray-400 italic text-sm text-center py-8">
-              No contract content provided
-            </div>
-          )}
-        </div>
-
+  {contract.content ? (
+    <div
+      className="contract-content text-sm leading-relaxed"
+      style={{
+        fontFamily: 'Arial, sans-serif',
+        lineHeight: '1.6',
+      }}
+      dangerouslySetInnerHTML={{
+        __html: `
+          <style>
+            .contract-content ol, .contract-content ul {
+              margin-left: 24px;
+              margin-bottom: 16px;
+              padding-left: 0;
+            }
+            
+            /* Ordered lists (numbered) */
+            .contract-content ol {
+              list-style-type: decimal;
+              counter-reset: item;
+            }
+            
+            .contract-content ol li {
+              display: list-item;
+              margin-bottom: 8px;
+              padding-left: 8px;
+              position: relative;
+            }
+            
+            /* Unordered lists (bulleted) */
+            .contract-content ul {
+              list-style-type: disc;
+            }
+            
+            .contract-content ul li {
+              display: list-item;
+              margin-bottom: 8px;
+              padding-left: 8px;
+              position: relative;
+            }
+            
+            /* Nested lists */
+            .contract-content ul ul,
+            .contract-content ol ol {
+              margin-left: 20px;
+              margin-top: 8px;
+              margin-bottom: 8px;
+            }
+            
+            .contract-content ul ul {
+              list-style-type: circle;
+            }
+            
+            .contract-content ul ul ul {
+              list-style-type: square;
+            }
+            
+            .contract-content ol ol {
+              list-style-type: lower-alpha;
+            }
+            
+            .contract-content ol ol ol {
+              list-style-type: lower-roman;
+            }
+            
+            /* Paragraph spacing */
+            .contract-content p {
+              margin-bottom: 16px;
+            }
+            
+            /* Bold text */
+            .contract-content strong,
+            .contract-content b {
+              font-weight: bold;
+              color: #111827;
+            }
+            
+            /* Italic text */
+            .contract-content em,
+            .contract-content i {
+              font-style: italic;
+            }
+            
+            /* Underline */
+            .contract-content u {
+              text-decoration: underline;
+            }
+          </style>
+          ${contract.content}
+        `,
+      }}
+    />
+  ) : (
+    <div className="text-gray-400 italic text-sm text-center py-8">
+      No contract content provided
+    </div>
+  )}
+</div>
         {/* PAYMENT TERMS Section - Only show if payment terms exist */}
         {paymentTerms && (
           <div className="mb-10">

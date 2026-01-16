@@ -638,7 +638,7 @@ export const SignaturePanel = ({
                       value={signatureData || ""}
                       onChange={handleSignatureChange}
                       label="Your Signature *"
-                      mobileOptimized={true}
+                     
                     />
                     {signatureData && (
                       <Button

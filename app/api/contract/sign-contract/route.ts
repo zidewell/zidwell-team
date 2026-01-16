@@ -100,11 +100,11 @@ function generateContractHTML(
 
   // Generate signature cells
   const partyASignatureHTML = creatorSignatureImage
-    ? `<img src="${creatorSignatureImage}" alt="Signature of ${partyA}" style="height: 40px; object-fit: contain;">`
+    ? `<img src="${creatorSignatureImage}" alt="Signature of ${partyA}" style="height: 40px; object-fit: contain; max-width: 180px;">`
     : `<span style="color: #9ca3af; font-size: 14px;">Signature</span>`;
 
   const partyBSignatureHTML = signeeSignatureImage
-    ? `<img src="${signeeSignatureImage}" alt="Signature of ${partyB}" style="height: 40px; object-fit: contain;">`
+    ? `<img src="${signeeSignatureImage}" alt="Signature of ${partyB}" style="height: 40px; object-fit: contain; max-width: 180px;">`
     : `<span style="color: #9ca3af; font-size: 14px;">Signature</span>`;
 
   // Check if contract has lawyer signature
@@ -112,15 +112,39 @@ function generateContractHTML(
     (typeof contract.metadata === 'object' && contract.metadata?.lawyer_signature) ||
     (typeof contract.metadata === 'string' && JSON.parse(contract.metadata || '{}')?.lawyer_signature);
 
-  // Parse terms from contract_text (which now contains HTML)
+  // Parse terms from contract_text (which now contains HTML from Quill)
   const parseTerms = () => {
     if (!contract.contract_text) return null;
     
-    // Return HTML content directly since we're storing HTML now
-    return contract.contract_text;
+    // Since we're storing HTML from Quill, return it directly
+    const content = contract.contract_text;
+    
+    // Optional: Add some basic sanitization or adjustments
+    // Ensure all images use https for email/PDF compatibility
+    const sanitizedContent = content.replace(
+      /src="http:\/\//gi, 
+      'src="https://'
+    );
+    
+    return sanitizedContent;
   };
 
   const contractContent = parseTerms();
+
+  // Ensure headers have proper spacing for PDF generation
+  const styledContractContent = contractContent
+    ? contractContent
+        .replace(/<h1[^>]*>/g, '<h1 style="page-break-after: avoid; margin-top: 30px; margin-bottom: 20px; font-size: 24px; font-weight: bold; color: #111827;">')
+        .replace(/<h2[^>]*>/g, '<h2 style="page-break-after: avoid; margin-top: 25px; margin-bottom: 15px; font-size: 20px; font-weight: bold; color: #111827;">')
+        .replace(/<h3[^>]*>/g, '<h3 style="page-break-after: avoid; margin-top: 20px; margin-bottom: 10px; font-size: 18px; font-weight: bold; color: #111827;">')
+        .replace(/<p[^>]*>/g, '<p style="margin: 10px 0; line-height: 1.6; color: #4b5563;">')
+        .replace(/<ul[^>]*>/g, '<ul style="margin: 15px 0; padding-left: 30px;">')
+        .replace(/<ol[^>]*>/g, '<ol style="margin: 15px 0; padding-left: 30px;">')
+        .replace(/<li[^>]*>/g, '<li style="margin: 8px 0; line-height: 1.5;">')
+        .replace(/<strong[^>]*>/g, '<strong style="font-weight: bold;">')
+        .replace(/<em[^>]*>/g, '<em style="font-style: italic;">')
+        .replace(/<u[^>]*>/g, '<u style="text-decoration: underline;">')
+    : "No contract terms specified.";
 
   const headerImageUrl = `${baseUrl}/zidwell-header.png`;
   const footerImageUrl = `${baseUrl}/zidwell-footer.png`;
@@ -251,6 +275,68 @@ function generateContractHTML(
             line-height: 1.7;
             color: #4b5563;
             text-align: justify;
+        }
+        
+        /* Quill-specific styles for PDF */
+        .term-content h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 30px 0 20px 0;
+            color: #111827;
+            page-break-after: avoid;
+        }
+        
+        .term-content h2 {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 25px 0 15px 0;
+            color: #111827;
+            page-break-after: avoid;
+        }
+        
+        .term-content h3 {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0 10px 0;
+            color: #111827;
+            page-break-after: avoid;
+        }
+        
+        .term-content p {
+            margin: 10px 0;
+            line-height: 1.6;
+            color: #4b5563;
+        }
+        
+        .term-content ul, 
+        .term-content ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+        
+        .term-content li {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        .term-content strong {
+            font-weight: bold;
+        }
+        
+        .term-content em {
+            font-style: italic;
+        }
+        
+        .term-content u {
+            text-decoration: underline;
+        }
+        
+        .term-content blockquote {
+            border-left: 4px solid #e5e7eb;
+            margin: 20px 0;
+            padding-left: 20px;
+            color: #6b7280;
+            font-style: italic;
         }
         
         /* Payment Terms Section */
@@ -470,6 +556,24 @@ function generateContractHTML(
                 font-size: 11pt;
             }
             
+            .term-content h1 {
+                font-size: 20px !important;
+                margin: 20px 0 15px 0 !important;
+                page-break-after: avoid !important;
+            }
+            
+            .term-content h2 {
+                font-size: 18px !important;
+                margin: 18px 0 12px 0 !important;
+                page-break-after: avoid !important;
+            }
+            
+            .term-content h3 {
+                font-size: 16px !important;
+                margin: 15px 0 10px 0 !important;
+                page-break-after: avoid !important;
+            }
+            
             .payment-terms-section {
                 page-break-inside: avoid;
                 margin-bottom: 20px;
@@ -598,7 +702,7 @@ function generateContractHTML(
         
         <div class="terms-section">
             <div class="term-content">
-                ${contractContent || "No contract terms specified."}
+                ${styledContractContent}
             </div>
         </div>
         
@@ -644,7 +748,6 @@ function generateContractHTML(
                                 <div class="signature-line">
                                     ${partyASignatureHTML}
                                 </div>
-                               
                             </div>
                         </td>
                         
@@ -677,7 +780,6 @@ function generateContractHTML(
                                 <div class="signature-line">
                                     ${partyBSignatureHTML}
                                 </div>
-                               
                             </div>
                         </td>
                     </tr>
@@ -746,7 +848,6 @@ function generateContractHTML(
 </body>
 </html>`;
 }
-
 async function generatePdfBuffer(
   contract: any,
   signeeName: string,

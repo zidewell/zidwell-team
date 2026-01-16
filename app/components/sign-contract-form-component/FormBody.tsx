@@ -1556,7 +1556,7 @@ const FormBody: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               {hasUnsavedChanges && (
                 <Badge
                   variant="outline"
@@ -1603,8 +1603,8 @@ const FormBody: React.FC = () => {
             </div>
           </div>
 
-          <Card className="p-6 h-fit">
-            <div className="flex justify-between items-center mb-6">
+         
+            <div className="flex justify-between md:items-center mb-6 flex-col md:flex-row gap-3 ">
               <div className="flex items-center gap-4">
                 <Button
                   variant="outline"
@@ -1917,7 +1917,7 @@ const FormBody: React.FC = () => {
                 </section>
 
                 {/* Signature Section - Moved here under consent toggles */}
-                <section className="border border-gray-200 rounded-lg p-6 bg-gray-50 print:hidden">
+                <section className="md:border md:border-gray-200 rounded-lg md:p-6 md:bg-gray-50 print:hidden">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
                     <div className="mb-4 sm:mb-0">
                       <h4 className="text-lg font-semibold text-gray-900">
@@ -1944,7 +1944,7 @@ const FormBody: React.FC = () => {
                   {/* Load Saved Signature Button */}
                   {userData?.id && !localSignature && (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
                         <div>
                           <p className="text-sm font-medium text-blue-800">
                             Saved Signature Available
@@ -2008,12 +2008,12 @@ const FormBody: React.FC = () => {
                   </div>
                 </section>
 
-                <div className="flex gap-3 pt-4 border-t">
+                <div className="flex flex-col md:flex-row gap-3 pt-4 ">
                   <Button
                     onClick={() => handleSubmit(true)}
                     variant="outline"
                     size="lg"
-                    className="flex-1 hover:bg-blue-50"
+                    className="md:flex-1 hover:bg-blue-50"
                     disabled={
                       isProcessingPayment ||
                       isSavingDraft ||
@@ -2037,7 +2037,7 @@ const FormBody: React.FC = () => {
                   <Button
                     onClick={() => handleSubmit(false)}
                     size="lg"
-                    className="flex-1 bg-[#C29307] text-white hover:bg-[#b38606] disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="md:flex-1 bg-[#C29307] text-white hover:bg-[#b38606] disabled:opacity-70 disabled:cursor-not-allowed"
                     disabled={
                       isProcessingPayment || isSavingDraft
                     }
@@ -2078,7 +2078,7 @@ const FormBody: React.FC = () => {
                 />
               </TabsContent>
             </Tabs>
-          </Card>
+         
        
         </div>
       </div>

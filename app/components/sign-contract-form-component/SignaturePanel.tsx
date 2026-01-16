@@ -8,6 +8,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/app/components/ui/dialog";
 import {
   CheckCircle,
@@ -22,11 +23,17 @@ import {
   EyeOff,
   Mail,
   Upload,
+  X,
+  ArrowLeft,
+  Smartphone,
+  Monitor,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import confetti from "canvas-confetti";
 
 import { SignaturePad } from "../SignaturePad";
+import { Label } from "@/app/components/ui/label";
+import { Input } from "@/app/components/ui/input";
 
 interface SignaturePanelProps {
   contractId: string;
@@ -184,6 +191,7 @@ export const SignaturePanel = ({
         "Invalid Code",
         "Please enter a valid 6-digit verification code"
       );
+      setIsVerifying(false);
       return;
     }
 
@@ -435,294 +443,381 @@ export const SignaturePanel = ({
 
   return (
     <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-[#C29307]" />
-            Secure Signature Panel
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Verification Step */}
-        {step === "verification" && (
-          <div className="space-y-6 py-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-blue-800">
-                    Two-Factor Authentication Required
-                  </h4>
-                  <p className="text-sm text-blue-700 mt-1">
-                    For security, we need to verify it's really you before
-                    signing.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="verificationCode">
-                  Email Verification Code *
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="verificationCode"
-                    value={verificationCode}
-                    onChange={(e) =>
-                      setVerificationCode(
-                        e.target.value.replace(/\D/g, "").slice(0, 6)
-                      )
-                    }
-                    placeholder="Enter 6-digit code"
-                    maxLength={6}
-                    className="text-center text-lg tracking-widest"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSendVerificationCode}
-                    className="whitespace-nowrap min-w-[120px]"
-                    disabled={isSendingCode || sendCooldown > 0}
-                  >
-                    {isSendingCode ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Sending...
-                      </>
-                    ) : sendCooldown > 0 ? (
-                      `Resend (${sendCooldown}s)`
-                    ) : codeSent ? (
-                      <>
-                        <Mail className="h-4 w-4 mr-2" />
-                        Resend Code
-                      </>
-                    ) : (
-                      "Send Code"
-                    )}
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500">
-                  {codeSent
-                    ? `A 6-digit verification code has been sent to ${signeeEmail}`
-                    : `Enter the verification code sent to ${signeeEmail}`}
-                </p>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={onCancel}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  className="flex-1 bg-[#C29307] hover:bg-[#b38606]"
-                  onClick={handleVerification}
-                  disabled={!verificationCode || verificationCode.length !== 6}
-                >
-                  {isVerifying ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Checking....
-                    </span>
-                  ) : (
-                    "Verify & Continue"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Signature Step with SignaturePad */}
-        {step === "signature" && (
-          <div className="space-y-6 py-4">
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-amber-800">Legal Notice</h4>
-                  <p className="text-sm text-amber-700 mt-1">
-                    Your signature is legally binding. By signing, you
-                    acknowledge that you have read, understood, and agree to all
-                    terms of this contract.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="typedName">Contract Creator Name *</Label>
-                <Input
-                  id="typedName"
-                  value={typedName}
-                  onChange={(e) => setTypedName(e.target.value)}
-                  placeholder="Enter your full name as it should appear on the contract"
-                  className="text-lg"
-                  disabled
-                />
-              </div>
-
-              {/* Use SignaturePad component */}
-              <div className="space-y-3">
-                <SignaturePad
-                  value={signatureData || ""}
-                  onChange={handleSignatureChange}
-                  label="Your Signature *"
-                />
-                
-                <div className="flex items-start text-xs text-gray-500">
-                  <div className="h-2 w-2 bg-gray-400 rounded-full mr-2 mt-1 flex-shrink-0"></div>
-                  <p>
-                    You can draw your signature or upload an image. For best results,
-                    sign along the line.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setStep("verification")}
-                >
-                  Back
-                </Button>
-                <Button
-                  type="button"
-                  className="flex-1 bg-[#C29307] hover:bg-[#b38606]"
-                  onClick={handleProceedToSignature}
-                  disabled={!signatureData || !typedName.trim()}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Save & Continue
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Review Step */}
-        {step === "review" && (
-          <div className="space-y-6 py-4">
-            <div className="text-center">
-              <CheckCircle className="h-16 w-16 text-[#C29307] mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                Review Your Signature
+      <DialogContent className="w-[95vw] max-w-lg sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto p-0 sm:p-6">
+        {/* Mobile Header */}
+        <div className="sticky top-0 z-50 bg-white border-b border-gray-200 px-4 py-3 sm:hidden">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (step === "signature") setStep("verification");
+                else if (step === "review") setStep("signature");
+                else onCancel();
+              }}
+              className="text-[#C29307] h-8 w-8 p-0"
+            >
+              {step === "verification" ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <ArrowLeft className="h-5 w-5" />
+              )}
+            </Button>
+            <div className="text-center flex-1">
+              <h3 className="text-sm font-semibold">
+                {step === "verification" && "Verify Identity"}
+                {step === "signature" && "Add Signature"}
+                {step === "review" && "Review Signature"}
               </h3>
-              <p className="text-gray-600">
-                Please verify your signature before final submission
-              </p>
             </div>
+            <div className="w-8" /> {/* Spacer for balance */}
+          </div>
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center mt-3">
+            <div className="flex items-center">
+              <div className={`h-2 w-2 rounded-full ${step === "verification" ? "bg-[#C29307]" : "bg-gray-300"}`} />
+              <div className={`h-0.5 w-8 ${step !== "verification" ? "bg-[#C29307]" : "bg-gray-300"}`} />
+              <div className={`h-2 w-2 rounded-full ${step === "signature" ? "bg-[#C29307]" : step === "review" ? "bg-[#C29307]" : "bg-gray-300"}`} />
+              <div className={`h-0.5 w-8 ${step === "review" ? "bg-[#C29307]" : "bg-gray-300"}`} />
+              <div className={`h-2 w-2 rounded-full ${step === "review" ? "bg-[#C29307]" : "bg-gray-300"}`} />
+            </div>
+          </div>
+        </div>
 
-            <div className="space-y-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium text-gray-700 mb-2">
-                        Signatory Information
-                      </h4>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Name:</span>
-                          <span className="font-medium">{typedName}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">Email:</span>
-                          <span className="font-medium">{signeeEmail}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-500">
-                            Signed At:
-                          </span>
-                          <span className="font-medium">
-                            {signingTimestamp
-                              ? new Date(signingTimestamp).toLocaleString()
-                              : "Pending"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+        <div className="p-4 sm:p-0">
+          {/* Desktop Header */}
+          <DialogHeader className="hidden sm:block">
+            <DialogTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-[#C29307]" />
+              Secure Signature Panel
+            </DialogTitle>
+          </DialogHeader>
 
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-700 mb-2">
-                      Your Signature
-                    </h4>
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex items-center justify-center h-32">
-                      {signatureData ? (
-                        <img
-                          src={signatureData}
-                          alt="Your signature"
-                          className="max-h-20 object-contain"
-                        />
-                      ) : (
-                        <p className="text-gray-400 italic">
-                          No signature captured
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          {/* Verification Step */}
+          {step === "verification" && (
+            <div className="space-y-6 py-2 sm:py-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                  <Shield className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-red-800">
-                      Final Warning
+                    <h4 className="font-semibold text-blue-800 text-sm sm:text-base">
+                      Two-Factor Authentication Required
                     </h4>
-                    <p className="text-sm text-red-700 mt-1">
-                      Once confirmed, this action cannot be undone. Your
-                      signature will be legally binding.
+                    <p className="text-xs sm:text-sm text-blue-700 mt-1">
+                      For security, we need to verify it's really you before
+                      signing.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setStep("signature")}
-                  disabled={isSigning}
-                >
-                  Edit Signature
-                </Button>
-                <Button
-                  type="button"
-                  className="flex-1 bg-red-600 hover:bg-red-700"
-                  onClick={handleConfirmSign}
-                  disabled={isSigning}
-                >
-                  {isSigning ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    "Confirm & Sign Contract"
-                  )}
-                </Button>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="verificationCode" className="text-sm sm:text-base">
+                    Email Verification Code *
+                  </Label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      id="verificationCode"
+                      value={verificationCode}
+                      onChange={(e) =>
+                        setVerificationCode(
+                          e.target.value.replace(/\D/g, "").slice(0, 6)
+                        )
+                      }
+                      placeholder="Enter 6-digit code"
+                      maxLength={6}
+                      className="text-center text-lg tracking-widest h-12 sm:h-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendVerificationCode}
+                      className="whitespace-nowrap h-12 sm:h-10"
+                      disabled={isSendingCode || sendCooldown > 0}
+                    >
+                      {isSendingCode ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : sendCooldown > 0 ? (
+                        `Resend (${sendCooldown}s)`
+                      ) : codeSent ? (
+                        <>
+                          <Mail className="h-4 w-4 mr-2" />
+                          Resend Code
+                        </>
+                      ) : (
+                        "Send Code"
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    {codeSent
+                      ? `A 6-digit verification code has been sent to ${signeeEmail}`
+                      : `Enter the verification code sent to ${signeeEmail}`}
+                  </p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2 sm:pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-12 sm:h-10"
+                    onClick={onCancel}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 h-12 sm:h-10 bg-[#C29307] hover:bg-[#b38606]"
+                    onClick={handleVerification}
+                    disabled={!verificationCode || verificationCode.length !== 6 || isVerifying}
+                  >
+                    {isVerifying ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Checking...
+                      </span>
+                    ) : (
+                      "Verify & Continue"
+                    )}
+                  </Button>
+                </div>
+
+                {/* Mobile Helper */}
+                <div className="block sm:hidden pt-4">
+                  <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+                    <Smartphone className="h-4 w-4" />
+                    <span>Use landscape mode for better signature experience</span>
+                  </div>
+                </div>
               </div>
             </div>
+          )}
+
+          {/* Signature Step with SignaturePad */}
+          {step === "signature" && (
+            <div className="space-y-6 py-2 sm:py-4">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 sm:p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-amber-800 text-sm sm:text-base">
+                      Legal Notice
+                    </h4>
+                    <p className="text-xs sm:text-sm text-amber-700 mt-1">
+                      Your signature is legally binding. By signing, you
+                      acknowledge that you have read, understood, and agree to all
+                      terms of this contract.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="typedName" className="text-sm sm:text-base">
+                    Contract Signer Name *
+                  </Label>
+                  <Input
+                    id="typedName"
+                    value={typedName}
+                    onChange={(e) => setTypedName(e.target.value)}
+                    placeholder="Enter your full name as it should appear on the contract"
+                    className="text-base sm:text-lg h-12 sm:h-10"
+                    disabled
+                  />
+                </div>
+
+                {/* Use SignaturePad component with mobile optimizations */}
+                <div className="space-y-3">
+                  <div className="relative">
+                    <SignaturePad
+                      value={signatureData || ""}
+                      onChange={handleSignatureChange}
+                      label="Your Signature *"
+                      mobileOptimized={true}
+                    />
+                    {signatureData && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClearSignature}
+                        className="absolute top-2 right-2 z-10 h-8 w-8 p-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-start text-xs text-gray-500">
+                    <div className="h-2 w-2 bg-gray-400 rounded-full mr-2 mt-1 flex-shrink-0"></div>
+                    <p className="text-xs sm:text-sm">
+                      Draw your signature using your finger or mouse. For best results on mobile,
+                      use landscape mode.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mobile Helper */}
+                <div className="block sm:hidden bg-blue-50 border border-blue-100 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-shrink-0">
+                      <Monitor className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <p className="text-xs text-blue-700">
+                      <strong>Tip:</strong> Rotate your phone sideways for a larger drawing area
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 pt-2 sm:pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-12 sm:h-10"
+                    onClick={() => setStep("verification")}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 h-12 sm:h-10 bg-[#C29307] hover:bg-[#b38606]"
+                    onClick={handleProceedToSignature}
+                    disabled={!signatureData || !typedName.trim()}
+                  >
+                    <Save className="h-4 w-4 mr-2 hidden sm:inline" />
+                    Save & Continue
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Review Step */}
+          {step === "review" && (
+            <div className="space-y-6 py-2 sm:py-4">
+              <div className="text-center">
+                <CheckCircle className="h-12 w-12 sm:h-16 sm:w-16 text-[#C29307] mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">
+                  Review Your Signature
+                </h3>
+                <p className="text-sm sm:text-base text-gray-600">
+                  Please verify your signature before final submission
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="space-y-4">
+                      <div>
+                        <h4 className="font-medium text-gray-700 text-sm sm:text-base mb-2">
+                          Signatory Information
+                        </h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs sm:text-sm text-gray-500">Name:</span>
+                            <span className="font-medium text-sm sm:text-base">{typedName}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs sm:text-sm text-gray-500">Email:</span>
+                            <span className="font-medium text-sm sm:text-base">{signeeEmail}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs sm:text-sm text-gray-500">
+                              Signed At:
+                            </span>
+                            <span className="font-medium text-xs sm:text-sm">
+                              {signingTimestamp
+                                ? new Date(signingTimestamp).toLocaleString()
+                                : "Pending"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="font-medium text-gray-700 text-sm sm:text-base mb-2">
+                        Your Signature
+                      </h4>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4 flex items-center justify-center h-24 sm:h-32">
+                        {signatureData ? (
+                          <img
+                            src={signatureData}
+                            alt="Your signature"
+                            className="max-h-16 sm:max-h-20 object-contain"
+                          />
+                        ) : (
+                          <p className="text-gray-400 italic text-sm">
+                            No signature captured
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h4 className="font-semibold text-red-800 text-sm sm:text-base">
+                        Final Warning
+                      </h4>
+                      <p className="text-xs sm:text-sm text-red-700 mt-1">
+                        Once confirmed, this action cannot be undone. Your
+                        signature will be legally binding.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 h-12 sm:h-10"
+                    onClick={() => setStep("signature")}
+                    disabled={isSigning}
+                  >
+                    Edit Signature
+                  </Button>
+                  <Button
+                    type="button"
+                    className="flex-1 h-12 sm:h-10 bg-red-600 hover:bg-red-700"
+                    onClick={handleConfirmSign}
+                    disabled={isSigning}
+                  >
+                    {isSigning ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      "Confirm & Sign Contract"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Footer */}
+        <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 sm:hidden">
+          <div className="text-center">
+            <p className="text-xs text-gray-500">
+              <Shield className="inline h-3 w-3 mr-1" />
+              Secure signing powered by Zidwell
+            </p>
           </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );
 };
-
-
-import { Label } from "@/app/components/ui/label";
-import { Input } from "@/app/components/ui/input";

@@ -1,8 +1,11 @@
-import React, { useRef } from 'react'
+import React, { useRef, useEffect, useCallback } from 'react';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css';
 import { 
   AlignCenter, AlignLeft, AlignRight, Bold, 
   Heading1, Heading2, Heading3, Italic, Underline,
-  List, ListOrdered
+  List, ListOrdered, Undo, Redo, Link,
+  RemoveFormatting
 } from 'lucide-react';
 import { Button } from '../ui/button';
 
@@ -10,357 +13,332 @@ interface ContractEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  readOnly?: boolean;
 }
 
-const RichTextArea = ({ value, onChange, placeholder }: ContractEditorProps) => {
+const RichTextArea = ({ value, onChange, placeholder = 'Enter your contract details here...', readOnly = false }: ContractEditorProps) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const quillInstanceRef = useRef<Quill | null>(null);
 
-  // Convert HTML to value when needed
-  const handleInput = () => {
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+  // Initialize Quill
+  useEffect(() => {
+    if (!editorRef.current || quillInstanceRef.current) return;
+
+    const quill = new Quill(editorRef.current, {
+      theme: 'snow',
+      placeholder,
+      readOnly,
+      modules: {
+        toolbar: false, // We'll use custom toolbar
+        clipboard: {
+          matchVisual: false,
+        },
+        history: {
+          delay: 1000,
+          maxStack: 50,
+          userOnly: true,
+        },
+      },
+      formats: [
+        'header',
+        'bold', 'italic', 'underline', 'strike',
+        'blockquote', 'code-block',
+        'list', 'bullet', 'indent',
+        'align',
+        'link',
+        'clean'
+      ],
+    });
+
+    quillInstanceRef.current = quill;
+
+    // Set initial value
+    if (value) {
+      quill.clipboard.dangerouslyPasteHTML(value);
     }
-  };
 
-  // Simple execCommand wrapper that always works
-  const execCommand = (command: string, value: string = '') => {
-    if (!editorRef.current) return;
-    
-    // Focus the editor first
-    editorRef.current.focus();
-    
-    // Save the current selection
-    const selection = window.getSelection();
-    
-    // Try to execute the command
-    const success = document.execCommand(command, false, value);
-    
-    // If it failed, try alternative approach
-    if (!success) {
-      console.warn(`Command ${command} failed, trying alternative...`);
-      
-      if (command === 'insertOrderedList' || command === 'insertUnorderedList') {
-        // Alternative list creation
-        createListManually(command === 'insertOrderedList' ? 'ol' : 'ul');
-      } else {
-        // Try one more time
-        document.execCommand(command, false, value);
-      }
-    }
-    
-    handleInput();
-  };
+    // Handle text changes
+    quill.on('text-change', () => {
+      const html = quill.root.innerHTML;
+      onChange(html);
+    });
 
-  // Manual list creation function
-  const createListManually = (listType: 'ul' | 'ol') => {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-    
-    const range = selection.getRangeAt(0);
-    
-    // Create list element
-    const list = document.createElement(listType);
-    const listItem = document.createElement('li');
-    
-    // Get selected text or use placeholder
-    if (!selection.isCollapsed) {
-      const selectedText = selection.toString();
-      listItem.textContent = selectedText;
-      
-      // Delete the selected content
-      range.deleteContents();
-    } else {
-      listItem.innerHTML = '&nbsp;'; // Empty item
-    }
-    
-    list.appendChild(listItem);
-    range.insertNode(list);
-    
-    // Move cursor inside the list item
-    const newRange = document.createRange();
-    newRange.setStart(listItem, 0);
-    newRange.collapse(true);
-    
-    selection.removeAllRanges();
-    selection.addRange(newRange);
-  };
+    return () => {
+      quillInstanceRef.current = null;
+    };
+  }, []);
 
-  // Apply heading formatting
-  const formatBlock = (tag: string) => {
-    execCommand('formatBlock', `<${tag}>`);
-  };
-
-  // Apply list formatting - Fixed version
-  const applyList = (type: 'ordered' | 'unordered') => {
-    const command = type === 'ordered' ? 'insertOrderedList' : 'insertUnorderedList';
-    execCommand(command);
-  };
-
-  // Apply alignment - Simplified
-  const applyAlignment = (alignment: 'left' | 'center' | 'right') => {
-    if (!editorRef.current) return;
-    
-    editorRef.current.focus();
-    
-    // Try different approaches
-    const command = `justify${alignment.charAt(0).toUpperCase() + alignment.slice(1)}`;
-    const success = document.execCommand(command);
-    
-    if (!success) {
-      // Fallback: set style directly on selection
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const container = document.createElement('span');
-        container.style.textAlign = alignment;
-        
-        if (!selection.isCollapsed) {
-          const fragment = range.cloneContents();
-          container.appendChild(fragment);
-          range.deleteContents();
-          range.insertNode(container);
-        }
-      }
-    }
-    
-    handleInput();
-  };
-
-  // Set initial content
-  React.useEffect(() => {
-    if (editorRef.current && value !== editorRef.current.innerHTML) {
-      editorRef.current.innerHTML = value || '';
+  // Update value when prop changes
+  useEffect(() => {
+    if (quillInstanceRef.current && value !== quillInstanceRef.current.root.innerHTML) {
+      quillInstanceRef.current.clipboard.dangerouslyPasteHTML(value);
     }
   }, [value]);
 
-  // Clear formatting - Working version
-  const clearFormatting = () => {
-    if (!editorRef.current) return;
+  // Update readOnly state
+  useEffect(() => {
+    if (quillInstanceRef.current) {
+      quillInstanceRef.current.enable(!readOnly);
+    }
+  }, [readOnly]);
+
+  const handleFormat = useCallback((format: string, value?: any) => {
+    if (quillInstanceRef.current) {
+      quillInstanceRef.current.format(format, value);
+    }
+  }, []);
+
+  const handleHeading = useCallback((level: number) => {
+    if (quillInstanceRef.current) {
+      const format = quillInstanceRef.current.getFormat();
+      if (format.header === level) {
+        quillInstanceRef.current.format('header', false);
+      } else {
+        quillInstanceRef.current.format('header', level);
+      }
+    }
+  }, []);
+
+  const handleList = useCallback((type: 'bullet' | 'ordered') => {
+    if (quillInstanceRef.current) {
+      quillInstanceRef.current.format('list', type);
+    }
+  }, []);
+
+  const handleAlignment = useCallback((alignment: 'left' | 'center' | 'right' | 'justify') => {
+    if (quillInstanceRef.current) {
+      quillInstanceRef.current.format('align', alignment);
+    }
+  }, []);
+
+  const handleClearFormatting = useCallback(() => {
+    if (quillInstanceRef.current) {
+      const range = quillInstanceRef.current.getSelection();
+      if (range) {
+        quillInstanceRef.current.removeFormat(range.index, range.length);
+      }
+    }
+  }, []);
+
+  const handleClearAll = useCallback(() => {
+    if (quillInstanceRef.current) {
+      quillInstanceRef.current.setText('');
+    }
+  }, []);
+
+  const handleLink = useCallback(() => {
+    if (!quillInstanceRef.current) return;
     
-    editorRef.current.focus();
+    const range = quillInstanceRef.current.getSelection();
+    if (!range) return;
     
-    // Try execCommand first
-    document.execCommand('removeFormat', false);
+    const text = quillInstanceRef.current.getText(range.index, range.length);
+    let url = prompt('Enter URL:', text || 'https://');
     
-    // Also remove all inline styles
-    const selection = window.getSelection();
-    if (selection && !selection.isCollapsed) {
-      const range = selection.getRangeAt(0);
-      const fragment = range.cloneContents();
+    if (url) {
+      if (!url.match(/^https?:\/\//)) {
+        url = 'https://' + url;
+      }
       
-      // Create a clean text node
-      const text = fragment.textContent || '';
-      const cleanText = document.createTextNode(text);
-      
-      range.deleteContents();
-      range.insertNode(cleanText);
-      
-      // Move cursor to end
-      range.setStartAfter(cleanText);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
+      if (range.length > 0) {
+        quillInstanceRef.current.formatText(range.index, range.length, 'link', url);
+      } else {
+        quillInstanceRef.current.insertText(range.index, url, 'link', url);
+      }
     }
-    
-    handleInput();
-  };
+  }, []);
 
-  // Clear all content
-  const clearAllContent = () => {
-    if (!editorRef.current) return;
-    
-    editorRef.current.innerHTML = '';
-    editorRef.current.focus();
-    handleInput();
-  };
-
-  // Handle paste
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    
-    // Insert as plain text
-    document.execCommand('insertText', false, text);
-    
-    handleInput();
-  };
-
-  // Handle focus/placeholder
-  const handleFocus = () => {
-    if (editorRef.current && editorRef.current.innerHTML === `<p>${placeholder}</p>`) {
-      editorRef.current.innerHTML = '';
+  const handleUndo = useCallback(() => {
+    if (quillInstanceRef.current) {
+      quillInstanceRef.current.history.undo();
     }
-  };
+  }, []);
 
-  const handleBlur = () => {
-    if (editorRef.current && editorRef.current.innerHTML.trim() === '') {
-      editorRef.current.innerHTML = `<p>${placeholder}</p>`;
-    } else if (editorRef.current && editorRef.current.innerHTML === '') {
-      editorRef.current.innerHTML = `<p>${placeholder}</p>`;
+  const handleRedo = useCallback(() => {
+    if (quillInstanceRef.current) {
+      quillInstanceRef.current.history.redo();
     }
-  };
-
-  // Add a click handler to ensure selection works
-  const handleEditorClick = () => {
-    if (!editorRef.current) return;
-    
-    // Ensure the editor has focus when clicked
-    editorRef.current.focus();
-    
-    // If empty, ensure placeholder is cleared
-    if (editorRef.current.innerHTML === `<p>${placeholder}</p>`) {
-      editorRef.current.innerHTML = '';
-    }
-  };
+  }, []);
 
   return (
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       {/* Toolbar */}
-      <div className="flex gap-2 items-center p-3 bg-muted border-b border-border">
-        <div className="flex flex-wrap gap-1">
-          {/* Text formatting */}
-          <Button 
-            size={'sm'} 
-            variant={'ghost'} 
-            className='h-8 px-2' 
-            type="button" 
-            onClick={() => execCommand('bold')}
-            title="Bold (Ctrl+B)"
-          >
-            <Bold className="w-4 h-4"/>
-          </Button>
-          <Button 
-            size={'sm'} 
-            variant={'ghost'} 
-            className='h-8 px-2' 
-            type="button" 
-            onClick={() => execCommand('italic')}
-            title="Italic (Ctrl+I)"
-          >
-            <Italic className="w-4 h-4"/>
-          </Button>
-          <Button 
-            size={'sm'} 
-            variant={'ghost'} 
-            className='h-8 px-2' 
-            type="button" 
-            onClick={() => execCommand('underline')}
-            title="Underline (Ctrl+U)"
-          >
-            <Underline className="w-4 h-4"/>
-          </Button>
-          
-          <div className="w-px h-8 bg-border mx-1" />
-          
-          {/* Headings */}
-          <Button 
-            size={'sm'} 
-            variant={'ghost'} 
-            className='h-8 px-2' 
-            type="button" 
-            onClick={() => formatBlock('h1')}
-            title="Heading 1"
-          >
-            <Heading1 className="w-4 h-4"/>
-          </Button>
-          <Button 
-            size={'sm'} 
-            variant={'ghost'} 
-            className='h-8 px-2' 
-            type="button" 
-            onClick={() => formatBlock('h2')}
-            title="Heading 2"
-          >
-            <Heading2 className="w-4 h-4"/>
-          </Button>
-          <Button 
-            size={'sm'} 
-            variant={'ghost'} 
-            className='h-8 px-2' 
-            type="button" 
-            onClick={() => formatBlock('h3')}
-            title="Heading 3"
-          >
-            <Heading3 className="w-4 h-4"/>
-          </Button>
-          
-          <div className="w-px h-8 bg-border mx-1" />
-          
-          {/* Lists - FIXED */}
+      <div className="flex gap-2 items-center p-3 bg-muted border-b border-border flex-wrap">
+        {/* History Controls */}
+        <div className="flex items-center gap-1 mr-2">
           <Button
-            type="button"
             size="sm"
             variant="ghost"
-            onClick={() => applyList('unordered')}
+            onClick={handleUndo}
+            className="h-8 px-2"
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleRedo}
+            className="h-8 px-2"
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="w-px h-8 bg-border mx-1" />
+
+        {/* Text formatting */}
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleFormat('bold')}
+            className="h-8 px-2"
+            title="Bold (Ctrl+B)"
+          >
+            <Bold className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleFormat('italic')}
+            className="h-8 px-2"
+            title="Italic (Ctrl+I)"
+          >
+            <Italic className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleFormat('underline')}
+            className="h-8 px-2"
+            title="Underline (Ctrl+U)"
+          >
+            <Underline className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <div className="w-px h-8 bg-border mx-1" />
+
+        {/* Headings */}
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleHeading(1)}
+            className="h-8 px-2"
+            title="Heading 1"
+          >
+            <Heading1 className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleHeading(2)}
+            className="h-8 px-2"
+            title="Heading 2"
+          >
+            <Heading2 className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleHeading(3)}
+            className="h-8 px-2"
+            title="Heading 3"
+          >
+            <Heading3 className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <div className="w-px h-8 bg-border mx-1" />
+
+        {/* Lists */}
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleList('bullet')}
             className="h-8 px-2"
             title="Bullet List"
           >
             <List className="h-4 w-4" />
           </Button>
           <Button
-            type="button"
             size="sm"
             variant="ghost"
-            onClick={() => applyList('ordered')}
+            onClick={() => handleList('ordered')}
             className="h-8 px-2"
             title="Numbered List"
           >
             <ListOrdered className="h-4 w-4" />
           </Button>
-          
-          <div className="w-px h-8 bg-border mx-1" />
-          
-          {/* Alignment */}
+        </div>
+
+        <div className="w-px h-8 bg-border mx-1" />
+
+        {/* Alignment */}
+        <div className="flex items-center gap-1">
           <Button
-            type="button"
             size="sm"
             variant="ghost"
-            onClick={() => applyAlignment('left')}
+            onClick={() => handleAlignment('left')}
             className="h-8 px-2"
             title="Align Left"
           >
             <AlignLeft className="h-4 w-4" />
           </Button>
           <Button
-            type="button"
             size="sm"
             variant="ghost"
-            onClick={() => applyAlignment('center')}
+            onClick={() => handleAlignment('center')}
             className="h-8 px-2"
             title="Align Center"
           >
             <AlignCenter className="h-4 w-4" />
           </Button>
           <Button
-            type="button"
             size="sm"
             variant="ghost"
-            onClick={() => applyAlignment('right')}
+            onClick={() => handleAlignment('right')}
             className="h-8 px-2"
             title="Align Right"
           >
             <AlignRight className="h-4 w-4" />
           </Button>
-          
-          <div className="w-px h-8 bg-border mx-1" />
-          
-          {/* Clear buttons */}
+        </div>
+
+        <div className="w-px h-8 bg-border mx-1" />
+
+        {/* Link */}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleLink}
+          className="h-8 px-2"
+          title="Insert Link"
+        >
+          <Link className="h-4 w-4" />
+        </Button>
+
+        <div className="w-px h-8 bg-border mx-1" />
+
+        {/* Clear buttons */}
+        <div className="flex items-center gap-1">
           <Button
-            type="button"
             size="sm"
             variant="ghost"
-            onClick={clearFormatting}
-            className="h-8 px-2 text-xs"
+            onClick={handleClearFormatting}
+            className="h-8 px-2"
             title="Clear Formatting"
           >
-            Clear Format
+            <RemoveFormatting className="h-4 w-4" />
           </Button>
-          
           <Button
-            type="button"
             size="sm"
             variant="outline"
-            onClick={clearAllContent}
+            onClick={handleClearAll}
             className="h-8 px-2 text-xs"
             title="Clear All Content"
           >
@@ -368,112 +346,11 @@ const RichTextArea = ({ value, onChange, placeholder }: ContractEditorProps) => 
           </Button>
         </div>
       </div>
-      
-      {/* Editor Area */}
-      <div
-        ref={editorRef}
-        contentEditable
-        onInput={handleInput}
-        onPaste={handlePaste}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onClick={handleEditorClick}
-        className="min-h-56 p-4 text-sm focus:outline-none rich-text-editor"
-        style={{ 
-          whiteSpace: 'pre-wrap',
-          overflowWrap: 'break-word',
-          minHeight: '292px'
-        }}
-        suppressContentEditableWarning
-      />
 
-      {/* CSS Styles - Fixed to apply properly */}
-      <style jsx global>{`
-        /* Target the editor properly */
-        div.rich-text-editor[contenteditable="true"] {
-          outline: none;
-          line-height: 1.6;
-          font-family: inherit;
-        }
-
-        div.rich-text-editor[contenteditable="true"] h1 {
-          font-size: 1.875rem;
-          font-weight: 700;
-          margin: 1.5rem 0 1rem 0;
-          color: #111827;
-        }
-
-        div.rich-text-editor[contenteditable="true"] h2 {
-          font-size: 1.5rem;
-          font-weight: 600;
-          margin: 1.25rem 0 0.75rem 0;
-          color: #111827;
-        }
-
-        div.rich-text-editor[contenteditable="true"] h3 {
-          font-size: 1.25rem;
-          font-weight: 600;
-          margin: 1rem 0 0.5rem 0;
-          color: #111827;
-        }
-
-        div.rich-text-editor[contenteditable="true"] p {
-          margin: 0.75rem 0;
-          line-height: 1.6;
-          min-height: 1.5em;
-        }
-
-        /* List styles - IMPORTANT: This makes lists visible */
-        div.rich-text-editor[contenteditable="true"] ul,
-        div.rich-text-editor[contenteditable="true"] ol {
-          margin: 0.75rem 0 !important;
-          padding-left: 1.5rem !important;
-          display: block !important;
-        }
-
-        div.rich-text-editor[contenteditable="true"] ul {
-          list-style-type: disc !important;
-        }
-
-        div.rich-text-editor[contenteditable="true"] ol {
-          list-style-type: decimal !important;
-        }
-
-        div.rich-text-editor[contenteditable="true"] li {
-          margin: 0.25rem 0 !important;
-          display: list-item !important;
-          list-style-position: outside !important;
-        }
-
-        /* Text formatting */
-        div.rich-text-editor[contenteditable="true"] strong,
-        div.rich-text-editor[contenteditable="true"] b {
-          font-weight: bold !important;
-        }
-
-        div.rich-text-editor[contenteditable="true"] em,
-        div.rich-text-editor[contenteditable="true"] i {
-          font-style: italic !important;
-        }
-
-        div.rich-text-editor[contenteditable="true"] u {
-          text-decoration: underline !important;
-        }
-
-        /* Selection */
-        div.rich-text-editor[contenteditable="true"] ::selection {
-          background-color: rgba(37, 99, 235, 0.2);
-        }
-
-        /* Placeholder styling */
-        div.rich-text-editor[contenteditable="true"]:empty:before {
-          content: "${placeholder || 'Enter your contract details here...'}";
-          color: #9ca3af;
-          pointer-events: none;
-        }
-      `}</style>
+      {/* Quill Editor Container */}
+      <div ref={editorRef} className="min-h-56" />
     </div>
   );
-}
+};
 
 export default RichTextArea;

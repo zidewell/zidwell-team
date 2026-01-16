@@ -14,7 +14,7 @@ const ContractForm = () => {
       <div className="lg:ml-64">
         <DashboardHeader />
 
-        <main className="p-6">
+        <main className="md:p-6">
           <div className="max-w-6xl mx-auto">
             <SignContractForm />
           </div>

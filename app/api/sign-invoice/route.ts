@@ -279,7 +279,7 @@ function generateInvoiceHTML(invoice: any, logo: string): string {
       </div>
       <div>
         <div class="invoice-id">#${invoice.invoice_id || "12345"}</div>
-        <div class="status-badge">${invoice.status || "unpaid"}</div>
+        <div class="status-badge">Paid</div>
       </div>
     </div>
 

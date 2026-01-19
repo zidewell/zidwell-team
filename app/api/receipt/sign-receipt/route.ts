@@ -484,7 +484,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("Receipt found, status:", receipt.status);
 
     // Check if receipt is already signed
     if (receipt.status === "signed") {

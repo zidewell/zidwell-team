@@ -2006,7 +2006,7 @@ function CreateReceiptPage() {
                 {/* Info Banner */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
-                    <Eye className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <Eye className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
                     <div>
                       <h3 className="font-medium text-blue-800">
                         Live Preview Mode

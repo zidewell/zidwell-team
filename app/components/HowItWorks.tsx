@@ -1,26 +1,26 @@
-import { UserPlus, Wallet, TrendingUp } from "lucide-react";
+import { UserPlus, Wallet, TrendingUp, Shield } from "lucide-react";
 
 const steps = [
   {
     number: "01",
     icon: UserPlus,
-    title: "Create Your Wallet",
+    title: "Create Your Account ",
     description:
-      "Sign up, verify your identity, and get your Zidwell wallet ready for use in minutes.",
+      "Signup using your own name or brand name, either works.",
   },
   {
     number: "02",
-    icon: Wallet,
-    title: "Use Zidwell for Everyday Finance",
+    icon: Shield,
+    title: "Identity Verification ",
     description:
-      "Pay bills, send money, issue receipts, create contracts, and track your activity — all in one place.",
+      "Verify your identity with your BVN and business registration certificate if you have one. This is CBN policy.",
   },
   {
     number: "03",
     icon: TrendingUp,
-    title: "Build Financial Structure Over Time",
+    title: "Use Zidwell Daily",
     description:
-      "From cashback rewards to tax support and community learning, Zidwell helps you move from survival to stability, and from stability to growth.",
+      "Pay bills, receive payment, issue receipts & invoices, create contracts etc. Financial structure happens over time with daily use.",
   },
 ];
 
@@ -37,7 +37,7 @@ const HowItWorks = () => {
             How Zidwell <span className="text-[#C29307]">Works</span>
           </h2>
           <p className="text-lg text-gray-50/70 dark:text-gray-900/70">
-            Three simple steps to financial clarity
+          3 Simple steps to financial structure for your business 
           </p>
         </div>
 

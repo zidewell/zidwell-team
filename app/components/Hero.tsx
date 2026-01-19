@@ -32,9 +32,7 @@ const Hero = () => {
 
           {/* Subheading */}
           <p className="animate-fade-up-delay-2 text-lg md:text-xl text-gray-500 dark:text-gray-400 max-w-2xl mx-auto mb-8 text-balance">
-            Zidwell helps individuals and growing businesses bring order,
-            clarity, and confidence to their finances. One smart wallet. One
-            platform. Real financial peace of mind.
+            We’ve created ONE PLATFORM with all the tools to manage your business finances. Think of invoices, receipts, simple contracts, bookkeeping, tax manager - it’s all here. Signup and check it out
           </p>
 
           {/* CTA Buttons */}

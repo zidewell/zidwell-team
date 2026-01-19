@@ -21,9 +21,9 @@ export default async function page({
     .eq("token", token)
     .single();
 
-  // if (error || !contractData) return notFound();
-  console.log("Fetched contract data:", contractData);
-  console.log("Contract token:", error);
+  if (error || !contractData) return notFound();
+  // console.log("Fetched contract data:", contractData);
+  // console.log("Contract token:", error);
 
   // Format contract data for the component
   const contract = {

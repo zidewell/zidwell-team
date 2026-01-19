@@ -10,6 +10,7 @@ import {
   SetStateAction,
 } from "react";
 import supabase from "../supabase/supabase";
+import { usePathname } from "next/navigation";
 
 export type PodcastEpisode = {
   id: string;
@@ -88,6 +89,7 @@ interface UserContextType {
   setTransactions: Dispatch<SetStateAction<any[]>>;
 }
 
+// ADD THIS LINE - Create the context
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 class NotificationCache {
@@ -136,6 +138,49 @@ class NotificationCache {
 
 const notificationCache = new NotificationCache();
 
+// Static public pages
+const STATIC_PUBLIC_PAGES = [
+  '/',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/about',
+  '/contact',
+  '/privacy',
+  '/terms',
+  '/auth',
+  '/auth/callback',
+  '/auth/login',
+  '/auth/register',
+];
+
+// Regex patterns for dynamic public routes
+const PUBLIC_PAGE_PATTERNS = [
+  // Your specific dynamic pages
+  /^\/sign-contract\/[^\/]+$/,           // /sign-contract/[token]
+  /^\/sign-receipt\/[^\/]+$/,            // /sign-receipt/[token]
+  /^\/pay-invoice\/[^\/]+$/,             // /pay-invoice/[token]
+  
+  // Common dynamic pages you might have
+  /^\/verify-email\/[^\/]+$/,            // /verify-email/[token]
+  /^\/reset-password\/[^\/]+$/,          // /reset-password/[token]
+  /^\/invite\/[^\/]+$/,                  // /invite/[code]
+  /^\/share\/[^\/]+$/,                   // /share/[id]
+  /^\/preview\/[^\/]+$/,                 // /preview/[id]
+  /^\/public\/[^\/]+$/,                  // /public/[id]
+  
+  // Blog/content pages (if applicable)
+  /^\/blog(\/.*)?$/,                     // All blog pages
+  /^\/news(\/.*)?$/,                     // All news pages
+  /^\/article(\/.*)?$/,                  // All article pages
+  
+  // Documentation pages
+  /^\/docs(\/.*)?$/,                     // All documentation pages
+  /^\/help(\/.*)?$/,                     // All help pages
+  /^\/faq(\/.*)?$/,                      // All FAQ pages
+];
+
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
@@ -154,7 +199,56 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [transactionPage, setTransactionPage] = useState(1);
   const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
-  const [transactionsLoading, setTransactionsLoading] = useState(false); // Add separate loading state
+  const [transactionsLoading, setTransactionsLoading] = useState(false);
+  const [shouldFetchData, setShouldFetchData] = useState(false);
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const [debugMode] = useState(false); // Set to true for debugging
+
+  const pathname = usePathname();
+
+  // Check if current page is public
+  const isPublicPage = () => {
+    if (!pathname) return false;
+    
+    // Check static pages
+    if (STATIC_PUBLIC_PAGES.some(page => pathname === page)) {
+      if (debugMode) console.log(`Public page (static): ${pathname}`);
+      return true;
+    }
+
+    // Check if path starts with any static public page
+    if (STATIC_PUBLIC_PAGES.some(page => 
+      pathname.startsWith(page + '/')
+    )) {
+      if (debugMode) console.log(`Public page (static prefix): ${pathname}`);
+      return true;
+    }
+
+    // Check dynamic patterns
+    if (PUBLIC_PAGE_PATTERNS.some(pattern => pattern.test(pathname))) {
+      if (debugMode) console.log(`Public page (pattern): ${pathname}`);
+      return true;
+    }
+
+    // Additional specific checks for common patterns
+    if (pathname.startsWith('/sign-contract/')) {
+      if (debugMode) console.log(`Public page (sign-contract): ${pathname}`);
+      return true;
+    }
+
+    if (pathname.startsWith('/sign-receipt/')) {
+      if (debugMode) console.log(`Public page (sign-receipt): ${pathname}`);
+      return true;
+    }
+
+    if (pathname.startsWith('/pay-invoice/')) {
+      if (debugMode) console.log(`Public page (pay-invoice): ${pathname}`);
+      return true;
+    }
+
+    if (debugMode) console.log(`Protected page: ${pathname}`);
+    return false;
+  };
 
   const clearNotificationCache = () => {
     notificationCache.clear();
@@ -340,8 +434,69 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Initialize user from localStorage and determine if we should fetch data
   useEffect(() => {
-    if (!userData?.id) return;
+    const initializeUser = async () => {
+      try {
+        const storedUser = localStorage.getItem("userData");
+        if (storedUser) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+          setUserData(parsedUser);
+          
+          // Check if we're on a public page
+          const isPublic = isPublicPage();
+          if (isPublic) {
+            if (debugMode) console.log('Public page detected, skipping data fetch');
+            setShouldFetchData(false);
+          } else {
+            if (debugMode) console.log('Protected page detected, will fetch data');
+            setShouldFetchData(true);
+          }
+        } else {
+          // No user in localStorage
+          setShouldFetchData(false);
+        }
+      } catch (error) {
+        console.error("Failed to parse localStorage user:", error);
+      } finally {
+        setInitialCheckDone(true);
+        setLoading(false);
+      }
+    };
+
+    initializeUser();
+  }, []);
+
+  // Watch for pathname changes to update shouldFetchData
+  useEffect(() => {
+    if (!initialCheckDone) return;
+
+    const isPublic = isPublicPage();
+    
+    if (isPublic) {
+      if (debugMode) console.log('Switched to public page, stopping data fetches');
+      setShouldFetchData(false);
+      
+      // Clear sensitive data when moving to public pages
+      if (userData) {
+        setTransactions([]);
+        setNotifications([]);
+        setUnreadCount(0);
+        setBalance(null);
+        setLifetimeBalance(0);
+        setTotalOutflow(0);
+        setTotalTransactions(0);
+      }
+    } else {
+      if (debugMode) console.log('Switched to protected page, enabling data fetches');
+      setShouldFetchData(true);
+    }
+  }, [pathname, initialCheckDone, userData]);
+
+  // Real-time subscription (only when shouldFetchData is true)
+  useEffect(() => {
+    if (!shouldFetchData || !userData?.id) return;
 
     const channel = supabase
       .channel('notification-changes')
@@ -378,17 +533,19 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userData?.id]);
+  }, [userData?.id, shouldFetchData]);
 
+  // Fetch notifications (only when shouldFetchData is true)
   useEffect(() => {
-    if (userData?.id) {
+    if (shouldFetchData && userData?.id) {
       fetchNotifications();
       fetchUnreadCount();
     }
-  }, [userData?.id]);
+  }, [userData?.id, shouldFetchData]);
 
+  // Cache cleanup and refresh intervals (only when shouldFetchData is true)
   useEffect(() => {
-    if (!userData?.id) return;
+    if (!shouldFetchData || !userData?.id) return;
 
     const cleanupInterval = setInterval(() => {
       notificationCache.cleanup();
@@ -403,22 +560,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       clearInterval(cleanupInterval);
       clearInterval(refreshInterval);
     };
-  }, [userData?.id]);
-
-  useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("userData");
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setUserData(parsedUser);
-      }
-      setLoading(false); // Set loading to false after checking localStorage
-    } catch (error) {
-      console.error("Failed to parse localStorage user:", error);
-      setLoading(false); // Still set loading to false on error
-    }
-  }, []);
+  }, [userData?.id, shouldFetchData]);
 
   const fetchEpisodes = async () => {
     const cacheKey = 'podcast_episodes';
@@ -442,9 +584,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Fetch balance (only when shouldFetchData is true)
   useEffect(() => {
     const fetchBalance = async () => {
-      if (!userData?.id) return;
+      if (!shouldFetchData || !userData?.id) return;
 
       const cacheKey = `balance_${userData.id}`;
       const cached = notificationCache.get(cacheKey);
@@ -488,15 +631,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    if (userData?.id) {
+    if (shouldFetchData && userData?.id) {
       fetchBalance();
     }
-  }, [userData?.id, userData?.zidcoinBalance]);
+  }, [userData?.id, userData?.zidcoinBalance, shouldFetchData]);
 
-  // FIXED: Transaction fetching logic
+  // Fetch transactions (only when shouldFetchData is true)
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!userData?.id) {
+      if (!shouldFetchData || !userData?.id) {
         setTransactions([]);
         return;
       }
@@ -506,7 +649,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       
       if (cached) {
         setTransactions(cached);
-        setHasMoreTransactions(cached.length >= 10); // Assuming 10 is page size
+        setHasMoreTransactions(cached.length >= 10);
         return;
       }
 
@@ -522,7 +665,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           params.set("search", searchTerm);
         }
 
-        // console.log('Fetching transactions with params:', params.toString());
         const res = await fetch(`/api/bill-transactions?${params.toString()}`);
         
         if (!res.ok) {
@@ -530,7 +672,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
 
         const data = await res.json();
-        // console.log('Transactions API response:', data);
         
         const transactions = data.transactions || [];
         setTransactions(transactions);
@@ -541,7 +682,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error fetching transactions:", error);
         setTransactions([]);
         
-        // Fallback to cached data if available
         const cached = notificationCache.get(cacheKey);
         if (cached) {
           setTransactions(cached);
@@ -552,11 +692,12 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     };
     
     fetchTransactions();
-  }, [userData?.id, searchTerm]);
+  }, [userData?.id, searchTerm, shouldFetchData]);
 
+  // Fetch transaction stats (only when shouldFetchData is true)
   useEffect(() => {
     const fetchTransactionStats = async () => {
-      if (!userData?.id) return;
+      if (!shouldFetchData || !userData?.id) return;
 
       const cacheKey = `transaction_stats_${userData.id}`;
       const cached = notificationCache.get(cacheKey);
@@ -594,9 +735,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     };
-    fetchTransactionStats();
-  }, [userData?.id]);
+    
+    if (shouldFetchData && userData?.id) {
+      fetchTransactionStats();
+    }
+  }, [userData?.id, shouldFetchData]);
 
+  // Theme initialization (always runs)
   useEffect(() => {
     const theme = localStorage.getItem("theme");
     if (theme === "dark") {
@@ -612,32 +757,28 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("theme", newTheme ? "dark" : "light");
   };
 
-  // useEffect(() => {
-  //   fetchEpisodes();
-  // }, []);
-
   return (
     <UserContext.Provider
       value={{
         user,
         userData,
-        balance,
+        balance: shouldFetchData ? balance : null,
         setUserData,
-        loading: loading || transactionsLoading, // Combine both loading states
+        loading: loading || (shouldFetchData && transactionsLoading),
         episodes,
         isDarkMode,
         setIsDarkMode,
         handleDarkModeToggle,
-        transactions,
+        transactions: shouldFetchData ? transactions : [],
         setTransactions,
-        lifetimeBalance,
-        totalOutflow,
-        totalTransactions,
+        lifetimeBalance: shouldFetchData ? lifetimeBalance : 0,
+        totalOutflow: shouldFetchData ? totalOutflow : 0,
+        totalTransactions: shouldFetchData ? totalTransactions : 0,
         searchTerm,
         setSearchTerm,
-        notifications,
-        unreadCount,
-        notificationsLoading,
+        notifications: shouldFetchData ? notifications : [],
+        unreadCount: shouldFetchData ? unreadCount : 0,
+        notificationsLoading: shouldFetchData ? notificationsLoading : false,
         fetchNotifications,
         markAsRead,
         markAllAsRead,

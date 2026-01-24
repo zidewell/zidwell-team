@@ -1,16 +1,6 @@
 {
   "rewrites": [
     {
-      "source": "/",
-      "has": [
-        {
-          "type": "host",
-          "value": "app.zidwell.com"
-        }
-      ],
-      "destination": "/my-app"
-    },
-    {
       "source": "/:path*",
       "has": [
         {
@@ -18,7 +8,7 @@
           "value": "app.zidwell.com"
         }
       ],
-      "destination": "/my-app"
+      "destination": "/my-app/:path*"
     }
   ]
 }

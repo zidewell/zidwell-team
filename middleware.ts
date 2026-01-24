@@ -184,7 +184,7 @@ function redirectToLogin(req: NextRequest) {
   // Get the current URL the user was trying to access
   const { pathname, search } = req.nextUrl;
   
-  // Build the full URL including query parameters
+  
   const fullUrl = `${pathname}${search}`;
   
   // Create login URL with callback parameter

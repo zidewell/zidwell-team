@@ -17,21 +17,21 @@ const features = [
     title: "Get Paid with Digital Invoice",
     description:
       "Our invoice works like a regular pdf invoice and also like a payment link",
-    link: "/dashboard/services/create-invoice",
+    link: "/features/invoice",
   },
   {
     icon: Receipt,
     title: "Digital Proof of Payment ",
     description:
       "Send digital receipts as proof of payment to their customers. You sign, they sign, everyone is happy",
-    link: "/dashboard/services/receipt",
+  link: "/features/receipt",
   },
   {
     icon: FileText,
     title: "Simple Contracts",
     description:
       "Create, send, receive and sign simple agreements to protect your business dealings all inside Zidwell. ",
-      link: "/dashboard/services/contract",
+      link: "/features/contract",
   },
   {
     icon: Upload,

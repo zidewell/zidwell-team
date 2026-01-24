@@ -111,13 +111,13 @@ const Header = () => {
             </div>
           ) : (
             <div className="hidden md:flex items-center gap-3">
-              <Button
-                variant="ghost"
+              <Button2
+                variant="heroOutline"
                 onClick={() => router.push("/auth/login")}
                 size="sm"
               >
                 Log In
-              </Button>
+              </Button2>
               <Button2 onClick={() => router.push("/auth/signup")} size="sm">
                 Get Started Free
               </Button2>
@@ -176,8 +176,8 @@ const Header = () => {
                   </Button2>
                 ) : (
                   <>
-                    <Button
-                      variant="ghost"
+                    <Button2
+                      variant="heroOutline"
                       className="w-full justify-center"
                       onClick={() => {
                         router.push("/auth/login");
@@ -185,7 +185,7 @@ const Header = () => {
                       }}
                     >
                       Log In
-                    </Button>
+                    </Button2>
                     <Button2
                       onClick={() => {
                         router.push("/auth/signup");

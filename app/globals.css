@@ -148,5 +148,19 @@ z-index: -1;
 background-image:  repeating-radial-gradient( circle at 0 0, transparent 0, #ffffff 38px ), repeating-linear-gradient( #C2930755, #C29307 );
 }
 
+.bg-gold-mesh {
+    background: 
+      radial-gradient(at 40% 20%, rgba(194, 147, 7, 0.15) 0px, transparent 50%),
+      radial-gradient(at 80% 0%, rgba(194, 147, 7, 0.1) 0px, transparent 50%),
+      radial-gradient(at 0% 50%, rgba(194, 147, 7, 0.08) 0px, transparent 50%);
+  }
+
+
+.bg-grid-pattern {
+    background-image: 
+      linear-gradient(rgba(194, 147, 7, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(194, 147, 7, 0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
 
 

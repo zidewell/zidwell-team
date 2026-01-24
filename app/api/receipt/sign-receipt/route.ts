@@ -495,8 +495,8 @@ export async function POST(req: NextRequest) {
 
     // Verify code if receipt has one
     if (receipt.verification_code) {
-      console.log("Receipt requires verification. Code in DB:", receipt.verification_code);
-      console.log("Provided code:", verificationCode);
+      // console.log("Receipt requires verification. Code in DB:", receipt.verification_code);
+      // console.log("Provided code:", verificationCode);
       
       if (!verificationCode) {
         return NextResponse.json(

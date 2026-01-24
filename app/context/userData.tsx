@@ -584,7 +584,7 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Fetch balance (only when shouldFetchData is true)
+
   useEffect(() => {
     const fetchBalance = async () => {
       if (!shouldFetchData || !userData?.id) return;

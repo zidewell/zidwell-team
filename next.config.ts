@@ -4,8 +4,8 @@ const nextConfig = {
   reactStrictMode: true,
   images: {
     unoptimized: true, 
-    domains: ['zidwell.com'], // Add your domain for image optimization
-    formats: ['image/webp', 'image/avif'], // Modern image formats
+    domains: ['zidwell.com', "app.zidwell.com"], 
+    formats: ['image/webp', 'image/avif'],
   },
   
   // SEO Optimizations
@@ -58,7 +58,7 @@ const nextConfig = {
     ];
   },
 
-  // Redirects for better SEO
+  
   async redirects() {
     return [
       {
@@ -76,19 +76,24 @@ const nextConfig = {
         destination: '/auth/signup',
         permanent: true,
       },
+      {
+        source: '/app',
+        destination: '/my-app',
+        permanent: true,
+      },
     ];
   },
 
   // Environment variables for SEO
   env: {
-    SITE_URL: process.env.SITE_URL || 'https://zidwell.com',
+    SITE_URL: process.env.SITE_URL || 'https://zidwell.com' || "app.zidwell.com",
     SITE_NAME: 'Zidwell',
   },
   
 
-  // compiler: {
-  //   removeConsole: process.env.NODE_ENV === 'production', // Remove consoles in prod
-  // },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
 };
 
 module.exports = nextConfig;

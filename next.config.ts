@@ -13,33 +13,6 @@ const nextConfig = {
   poweredByHeader: false, // Remove X-Powered-By header
   compress: true, // Enable compression
   
-  // ADD THIS SECTION - Subdomain rewrites
-  async rewrites() {
-    return [
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: 'app.zidwell.com',
-          },
-        ],
-        destination: '/my-app/:path*',
-      },
-   
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: 'www.zidwell.com',
-          },
-        ],
-        destination: 'https://zidwell.com/:path*',
-      },
-    ];
-  },
-  
   // Headers for security and SEO
   async headers() {
     return [
@@ -113,7 +86,7 @@ const nextConfig = {
 
   // Environment variables for SEO
   env: {
-    SITE_URL: process.env.SITE_URL || 'https://zidwell.com',
+    SITE_URL: process.env.SITE_URL || 'https://zidwell.com' || "app.zidwell.com",
     SITE_NAME: 'Zidwell',
   },
   

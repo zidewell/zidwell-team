@@ -1,13 +1,12 @@
-
-import { MetadataRoute } from 'next'
+import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
-      userAgent: '*',
-      allow: '/',
-      disallow: ['/api/', '/dashboard/', '/admin/', '/private/'],
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/api/", "/dashboard/", "/admin/", "/private/"],
     },
-    sitemap: 'https://zidwell.com/sitemap.xml',
-  }
+    sitemap: "https://zidwell.com/sitemap.xml",
+  };
 }

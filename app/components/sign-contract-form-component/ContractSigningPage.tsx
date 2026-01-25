@@ -11,7 +11,16 @@ import {
 } from "@/app/components/ui/card";
 import { Badge } from "@/app/components/ui/badge";
 import { SuggestEditsModal } from "./SuggestEditsModal";
-import { FileText, CheckCircle, XCircle, Edit, PenTool, Menu, X, ChevronLeft } from "lucide-react";
+import {
+  FileText,
+  CheckCircle,
+  XCircle,
+  Edit,
+  PenTool,
+  Menu,
+  X,
+  ChevronLeft,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/app/hooks/use-toast";
 import { IdentityVerificationModal } from "./IdentityVerificationModal";
@@ -127,7 +136,6 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
   return (
     <div className="min-h-screen bg-white">
-    
       <div className="max-w-4xl mx-auto px-3 md:px-4 py-4 md:py-8">
         {/* Header - matches image design */}
         <div className="text-center mb-6 md:mb-10">
@@ -175,8 +183,8 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
             <div
               className="contract-content text-xs md:text-sm leading-relaxed px-2 md:px-0"
               style={{
-                fontFamily: 'Arial, sans-serif',
-                lineHeight: '1.6',
+                fontFamily: "Arial, sans-serif",
+                lineHeight: "1.6",
               }}
               dangerouslySetInnerHTML={{
                 __html: `
@@ -348,13 +356,17 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                 {/* Table Headers - Hidden on mobile, shown on desktop */}
                 <div className="hidden md:table-row-group">
                   <div className="table-row">
-                    <div className="table-cell py-3 px-4 text-center font-bold">PARTY A</div>
+                    <div className="table-cell py-3 px-4 text-center font-bold">
+                      PARTY A
+                    </div>
                     {contract.hasLawyerSignature && (
                       <div className="table-cell py-3 px-4 text-center font-bold">
                         LEGAL WITNESS
                       </div>
                     )}
-                    <div className="table-cell py-3 px-4 text-center font-bold">PARTY B</div>
+                    <div className="table-cell py-3 px-4 text-center font-bold">
+                      PARTY B
+                    </div>
                   </div>
                 </div>
 
@@ -362,9 +374,13 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                 <div className="md:hidden space-y-6">
                   {/* Party A Mobile Card */}
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="font-bold text-center text-sm mb-3 text-gray-700">PARTY A</div>
+                    <div className="font-bold text-center text-sm mb-3 text-gray-700">
+                      PARTY A
+                    </div>
                     <div className="flex flex-col items-center justify-start">
-                      <div className="font-bold text-sm">{contract.initiatorName}</div>
+                      <div className="font-bold text-sm">
+                        {contract.initiatorName}
+                      </div>
                       <div className="h-[40px] w-32 border-b-2 border-dotted border-black my-3 flex items-center justify-center">
                         {contract.creatorSignature ? (
                           <img
@@ -384,9 +400,13 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                   {/* Lawyer Witness Mobile Card */}
                   {contract.hasLawyerSignature && (
                     <div className="bg-white border border-gray-200 rounded-lg p-4">
-                      <div className="font-bold text-center text-sm mb-3 text-gray-700">LEGAL WITNESS</div>
+                      <div className="font-bold text-center text-sm mb-3 text-gray-700">
+                        LEGAL WITNESS
+                      </div>
                       <div className="flex flex-col items-center justify-start">
-                        <div className="font-bold text-sm">Barr. Adewale Johnson</div>
+                        <div className="font-bold text-sm">
+                          Barr. Adewale Johnson
+                        </div>
                         <div className="h-[40px] w-32 border-b-2 border-dotted border-black my-3 flex items-center justify-center">
                           <span className="text-gray-600 italic font-serif text-sm">
                             Barr. Adewale Johnson
@@ -406,7 +426,9 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
                   {/* Party B Mobile Card */}
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <div className="font-bold text-center text-sm mb-3 text-gray-700">PARTY B</div>
+                    <div className="font-bold text-center text-sm mb-3 text-gray-700">
+                      PARTY B
+                    </div>
                     <div className="flex flex-col items-center justify-start">
                       <div className="font-bold text-sm">
                         {contract.signeeName || "Signee Name"}
@@ -434,7 +456,9 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                     {/* Party A Signature Cell */}
                     <div className="table-cell py-4 md:py-6 px-2 md:px-4 text-center align-top border-t">
                       <div className="min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-start">
-                        <div className="font-bold text-sm md:text-base">{contract.initiatorName}</div>
+                        <div className="font-bold text-sm md:text-base">
+                          {contract.initiatorName}
+                        </div>
                         <div className="h-[40px] md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-black my-3 md:mb-4 flex items-center justify-center">
                           {contract.creatorSignature ? (
                             <img
@@ -455,7 +479,9 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
                     {contract.hasLawyerSignature && (
                       <div className="table-cell py-4 md:py-6 px-2 md:px-4 text-center align-top border-t">
                         <div className="min-h-[100px] md:min-h-[120px] flex flex-col items-center justify-start">
-                          <div className="font-bold text-sm md:text-base">Barr. Adewale Johnson</div>
+                          <div className="font-bold text-sm md:text-base">
+                            Barr. Adewale Johnson
+                          </div>
                           <div className="h-[40px] md:h-[50px] w-32 md:w-48 border-b-2 border-dotted border-black my-3 md:mb-4 flex items-center justify-center">
                             <span className="text-gray-600 italic font-serif text-sm md:text-lg">
                               Barr. Adewale Johnson
@@ -515,7 +541,9 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
               >
                 <PenTool className="h-4 w-4 md:h-5 md:w-5" />
                 <div className="text-left">
-                  <div className="font-semibold text-sm md:text-base">Sign Contract</div>
+                  <div className="font-semibold text-sm md:text-base">
+                    Sign Contract
+                  </div>
                   <div className="text-xs opacity-90">I agree to all terms</div>
                 </div>
               </Button>
@@ -567,7 +595,7 @@ const ContractSigningPage = ({ contract }: ContractSigningPageProps) => {
 
         {/* Footer */}
         <div className="text-center text-[10px] md:text-xs text-gray-500 pt-4 md:pt-6 border-t border-gray-200 px-2 md:px-0">
-          THIS CONTRACT WAS CREATED AND SIGNED ON ZIDWELL.COM
+          THIS CONTRACT WAS CREATED AND SIGNED ON zidwell.com
           <br />
           Contract ID: {contract.token.substring(0, 8).toUpperCase()}
         </div>

@@ -138,7 +138,7 @@ export default function ReceiptPage() {
             What You Get for ₦100 per Receipt
           </h2>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-2  gap-6">
             {[
               {
                 title: "Professional Templates",
@@ -147,7 +147,7 @@ export default function ReceiptPage() {
               },
               {
                 title: "Custom Branding",
-                description: "Add your logo, colors, and business information",
+                description: "Add your logo and business information",
                 icon: <Receipt className="h-5 w-5 text-green-600" />
               },
               {
@@ -156,20 +156,11 @@ export default function ReceiptPage() {
                 icon: <Lock className="h-5 w-5 text-purple-600" />
               },
               {
-                title: "PDF & PNG Export",
+                title: "PDF Export",
                 description: "Download in multiple formats or share as link",
                 icon: <Download className="h-5 w-5 text-orange-600" />
               },
-              {
-                title: "Cloud Storage",
-                description: "Store receipts securely for easy access later",
-                icon: <Shield className="h-5 w-5 text-red-600" />
-              },
-              {
-                title: "Quick Search",
-                description: "Find any receipt by customer name, date, or amount",
-                icon: <Search className="h-5 w-5 text-indigo-600" />
-              }
+             
             ].map((feature, index) => (
               <div key={index} className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start gap-4">

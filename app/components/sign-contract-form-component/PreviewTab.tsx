@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import {
-  FileText,
-  Trash2,
-  Edit,
-  FileText as FileIcon,
-} from "lucide-react";
+import { FileText, Trash2, Edit, FileText as FileIcon } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Label } from "@/app/components/ui/label";
 import {
@@ -17,7 +12,7 @@ import {
   CardTitle,
 } from "@/app/components/ui/card";
 import { Switch } from "@/app/components/ui/switch";
-import { SignaturePad } from "../SignaturePad"; 
+import { SignaturePad } from "../SignaturePad";
 
 interface AttachmentFile {
   file: File;

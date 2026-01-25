@@ -16,7 +16,7 @@ function generateContractHTML(
 ): string {
   const formatDate = (dateString: string) => {
     if (!dateString) return "Date not specified";
-    
+
     try {
       const date = new Date(dateString);
       const day = date.getDate();
@@ -47,18 +47,18 @@ function generateContractHTML(
   // Get contract date from metadata or created_at
   const getContractDate = () => {
     let metadataObj = contract.metadata;
-    
-    if (typeof contract.metadata === 'string') {
+
+    if (typeof contract.metadata === "string") {
       try {
         metadataObj = JSON.parse(contract.metadata);
       } catch (e) {
-        console.error('Failed to parse metadata:', e);
+        console.error("Failed to parse metadata:", e);
         return formatDate(contract.created_at);
       }
     }
-    
+
     // Check for contract_date in metadata first, then fall back
-    return metadataObj?.contract_date 
+    return metadataObj?.contract_date
       ? formatDate(metadataObj.contract_date)
       : formatDate(contract.created_at);
   };
@@ -68,17 +68,17 @@ function generateContractHTML(
   // Get payment terms from metadata
   const getPaymentTerms = () => {
     if (!contract.metadata) return null;
-    
+
     let metadataObj = contract.metadata;
-    if (typeof contract.metadata === 'string') {
+    if (typeof contract.metadata === "string") {
       try {
         metadataObj = JSON.parse(contract.metadata);
       } catch (e) {
-        console.error('Failed to parse metadata:', e);
+        console.error("Failed to parse metadata:", e);
         return null;
       }
     }
-    
+
     return metadataObj?.payment_terms || null;
   };
 
@@ -98,14 +98,17 @@ function generateContractHTML(
     : `<span style="color: #9ca3af; font-size: 14px;">Signature</span>`;
 
   // Check if contract has lawyer signature
-  const hasLawyerSignature = contract.include_lawyer_signature || 
-    (typeof contract.metadata === 'object' && contract.metadata?.lawyer_signature) ||
-    (typeof contract.metadata === 'string' && JSON.parse(contract.metadata || '{}')?.lawyer_signature);
+  const hasLawyerSignature =
+    contract.include_lawyer_signature ||
+    (typeof contract.metadata === "object" &&
+      contract.metadata?.lawyer_signature) ||
+    (typeof contract.metadata === "string" &&
+      JSON.parse(contract.metadata || "{}")?.lawyer_signature);
 
   // Parse terms from contract_text
   const parseTerms = () => {
     if (!contract.contract_text) return null;
-    
+
     return contract.contract_text;
   };
 
@@ -559,7 +562,9 @@ function generateContractHTML(
         </div>
         
         <!-- PAYMENT TERMS Section -->
-        ${paymentTerms ? `
+        ${
+          paymentTerms
+            ? `
         <div class="payment-terms-section">
             <div class="section-divider">
                 <div class="divider-line"></div>
@@ -573,7 +578,9 @@ function generateContractHTML(
                 </div>
             </div>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
         
         <!-- Signature Section -->
         <div class="signatures-section">
@@ -587,7 +594,7 @@ function generateContractHTML(
                 <thead>
                     <tr>
                         <th>PARTY A</th>
-                        ${hasLawyerSignature ? '<th>LEGAL WITNESS</th>' : ''}
+                        ${hasLawyerSignature ? "<th>LEGAL WITNESS</th>" : ""}
                         <th>PARTY B</th>
                     </tr>
                 </thead>
@@ -609,7 +616,9 @@ function generateContractHTML(
                         </td>
                         
                         <!-- Lawyer Witness Signature -->
-                        ${hasLawyerSignature ? `
+                        ${
+                          hasLawyerSignature
+                            ? `
                         <td>
                             <div class="signature-cell">
                                 <div class="signature-name">Barr. Adewale Johnson</div>
@@ -628,7 +637,9 @@ function generateContractHTML(
                                 </div>
                             </div>
                         </td>
-                        ` : ''}
+                        `
+                            : ""
+                        }
                         
                         <!-- Party B Signature -->
                         <td>
@@ -677,7 +688,7 @@ function generateContractHTML(
         
         <!-- Footer -->
         <div class="contract-footer">
-            THIS CONTRACT WAS CREATED AND SIGNED ON ZIDWELL.COM
+            THIS CONTRACT WAS CREATED AND SIGNED ON zidwell.com
             <br />
             Contract ID: ${contract.token.substring(0, 8).toUpperCase()}
             ${
@@ -796,7 +807,7 @@ async function generatePdfBuffer(
     // A4 dimensions in pixels (approx)
     const A4_HEIGHT_PX = 1122; // 297mm * 3.78px/mm
     const A4_WIDTH_PX = 793; // 210mm * 3.78px/mm
-    
+
     // Adjust scale based on content height
     let scale = 1;
     if (contentHeight > A4_HEIGHT_PX * 2) {
@@ -830,10 +841,9 @@ async function generatePdfBuffer(
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    
-  
+
     let contract = data;
-    
+
     if (data.contract_token) {
       const { data: dbContract, error } = await supabase
         .from("contracts")
@@ -847,7 +857,7 @@ export async function POST(request: Request) {
           { status: 404 }
         );
       }
-      
+
       contract = dbContract;
     }
 
@@ -860,12 +870,14 @@ export async function POST(request: Request) {
     }
 
     // Get signature images
-    const signeeSignatureImage = contract.signee_signature_image || data.signee_signature_image || "";
-    const creatorSignatureImage = contract.creator_signature || data.creator_signature || "";
+    const signeeSignatureImage =
+      contract.signee_signature_image || data.signee_signature_image || "";
+    const creatorSignatureImage =
+      contract.creator_signature || data.creator_signature || "";
     const signeeName = contract.signee_name || data.signee_name || "Signee";
 
     // Generate PDF with all signature information
-    const pdfBuffer:any = await generatePdfBuffer(
+    const pdfBuffer: any = await generatePdfBuffer(
       contract,
       signeeName,
       signeeSignatureImage,
@@ -875,8 +887,8 @@ export async function POST(request: Request) {
     // Return PDF as response
     return new Response(pdfBuffer, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="signed-contract-${contract.token}.pdf"`,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="signed-contract-${contract.token}.pdf"`,
       },
     });
   } catch (error) {

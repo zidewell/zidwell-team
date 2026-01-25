@@ -1,8 +1,10 @@
 import { Button2 } from "./ui/button2";
 import { ArrowRight, Sparkles } from "lucide-react";
 import GridBackground from "./Gridbackground";
+import { useRouter } from "next/navigation";
 
 const CTA = () => {
+  const router = useRouter()
   return (
     <section className="relative py-20 md:py-32 overflow-hidden">
       <GridBackground />
@@ -33,7 +35,7 @@ const CTA = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button2 variant="hero" size="xl">
+            <Button2 onClick={() => router.push("/auth/signup")} variant="hero" size="xl">
               Get Started Free
               <ArrowRight className="ml-2" />
             </Button2>

@@ -62,40 +62,42 @@ function getSenderDisplayName(adminUser: any) {
 
 const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
   if (!text) return "";
-  
+
   console.log("parseMarkdown input (first 200 chars):", text.substring(0, 200));
-  
+
   let processed = text;
-  
+
   // First, check if the text contains HTML tags that are already escaped
-  if (processed.includes('&lt;') || processed.includes('&gt;')) {
+  if (processed.includes("&lt;") || processed.includes("&gt;")) {
     console.log("Found escaped HTML, unescaping...");
     processed = processed
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
   }
-  
+
   if (context === "email") {
     // CRITICAL FIX: Handle image tags FIRST, before any other processing
     // Match img tags with src attribute
     const imgRegex = /<img\s+([^>]*)src=["']([^"']+)["']([^>]*)>/gi;
-    
-    processed = processed.replace(imgRegex, (match, beforeSrc, src, afterSrc) => {
-      console.log("Processing img tag with src:", src.substring(0, 100));
-      
-      // Check if it's a base64 image
-      if (src.startsWith("data:image")) {
-        return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
+
+    processed = processed.replace(
+      imgRegex,
+      (match, beforeSrc, src, afterSrc) => {
+        console.log("Processing img tag with src:", src.substring(0, 100));
+
+        // Check if it's a base64 image
+        if (src.startsWith("data:image")) {
+          return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
                   🖼️ <strong>Image included in notification</strong><br>
                   <small>(View in the app to see the image)</small>
                 </div>`;
-      }
-      
-      // For uploaded images, create email-friendly version
-      return `
+        }
+
+        // For uploaded images, create email-friendly version
+        return `
         <div style="margin: 20px 0; text-align: center;">
           <img 
             src="${src}" 
@@ -106,19 +108,22 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
           />
         </div>
       `;
-    });
-    
+      }
+    );
+
     // Also handle markdown image syntax
     processed = processed.replace(
       /!\[([^\]]*)\]\(([^)]+)\)/g,
       (match, altText, imageUrl) => {
         if (imageUrl.startsWith("data:image")) {
           return `<div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #C29307; margin: 15px 0; font-size: 14px; color: #666666; text-align: center;">
-                    🖼️ <strong>${altText || "Image included in notification"}</strong><br>
+                    🖼️ <strong>${
+                      altText || "Image included in notification"
+                    }</strong><br>
                     <small>(View in the app to see the image)</small>
                   </div>`;
         }
-        
+
         return `
           <div style="margin: 20px 0; text-align: center;">
             <img 
@@ -128,17 +133,24 @@ const parseMarkdown = (text: string, context: "email" | "app" = "app") => {
               width="600"
               border="0"
             />
-            ${altText ? `<div style="font-size: 12px; color: #6b7280; margin-top: 10px; font-style: italic;">${altText}</div>` : ''}
+            ${
+              altText
+                ? `<div style="font-size: 12px; color: #6b7280; margin-top: 10px; font-style: italic;">${altText}</div>`
+                : ""
+            }
           </div>
         `;
       }
     );
   }
-  
+
   // Then handle other markdown formatting...
   // (keep your existing code for headers, bold, italic, etc.)
-  
-  console.log("parseMarkdown output (first 200 chars):", processed.substring(0, 200));
+
+  console.log(
+    "parseMarkdown output (first 200 chars):",
+    processed.substring(0, 200)
+  );
   return processed;
 };
 // Function to extract image URLs from markdown
@@ -220,7 +232,6 @@ async function sendEmailNotification({
   try {
     console.log(`📧 Sending email to: ${to}`);
 
-    
     const emailHtml = parseMarkdown(message, "email");
 
     const senderName = getSenderDisplayName(adminUser);

@@ -59,7 +59,7 @@ const Navbar = () => {
                   className="text-sm"
                   asChild
                 >
-                  <Link href="/">Go to App</Link>
+                  <Link href="/app">Go to App</Link>
                 </Button2>
               </div>
             </div>

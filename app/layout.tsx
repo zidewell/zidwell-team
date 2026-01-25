@@ -32,7 +32,7 @@ const organizationSchema = {
   },
   contactPoint: {
     "@type": "ContactPoint",
-    telephone: "+234-XXX-XXXX",
+    telephone: "+234-7069175399",
     contactType: "customer service",
     areaServed: "NG",
     availableLanguage: "en",
@@ -288,6 +288,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-
-

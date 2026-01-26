@@ -55,9 +55,7 @@ const ClienteleSection = () => {
                 <p className="font-bold text-[13px] md:text-[15px] text-[#8B7306] leading-snug md:leading-tight">
                   {client.name}
                 </p>
-                <p className="text-xs text-[#18171c]/60 mt-2 md:mt-3 font-medium">
-                  {client.location}
-                </p>
+               
               </div>
               
               {/* Bottom accent line */}

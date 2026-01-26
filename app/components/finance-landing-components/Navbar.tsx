@@ -12,14 +12,22 @@ const Navbar = () => {
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
 
   const navLinks = [
-    { label: "Blog", href: "/#", type: "link" },
-    { label: "Talk to Expert", href: "#talk-to-expert", type: "action" },
-    { label: "Book a Call", href: "#book-a-call", type: "action" },
+    { label: "Blog", href: "/blog", type: "link" },
+    { label: "Talk to Expert", href: "#talk-to-expert", type: "modal", variant: "heroOutline" as const },
+    { label: "Get Started", href: "https://tally.so/r/447JoO", type: "external" },
   ];
 
-  const handleActionClick = () => {
-    setIsConsultationOpen(true);
-    setIsMenuOpen(false);
+  const handleActionClick = (label: string, href?: string, type?: string) => {
+    console.log(`${label} clicked`);
+    
+    if (type === "modal") {
+      setIsConsultationOpen(true);
+      setIsMenuOpen(false);
+    } else if (type === "external" && href) {
+      // Open external link in new tab
+      window.open(href, '_blank', 'noopener,noreferrer');
+      setIsMenuOpen(false);
+    }
   };
 
   return (
@@ -64,26 +72,35 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* Right Side: Navigation Links (Desktop) */}
-            <div className="hidden md:flex items-center gap-6">
+            {/* Right Side: Navigation Links and Buttons (Desktop) */}
+            <div className="hidden md:flex items-center gap-4">
               {navLinks.map((link) => (
                 <div key={link.label}>
                   {link.type === "link" ? (
                     <Link
                       href={link.href}
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group"
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group px-3 py-2"
                     >
                       {link.label}
-                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
+                      <span className="absolute -bottom-1 left-3 right-3 w-[calc(100%-1.5rem)] h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
                     </Link>
-                  ) : (
-                    <button
-                      onClick={handleActionClick}
-                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative group"
+                  ) : link.type === "external" ? (
+                    <Button2
+                      onClick={() => handleActionClick(link.label, link.href, link.type)}
+                      size="sm"
+                      
                     >
                       {link.label}
-                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full" />
-                    </button>
+                    </Button2>
+                  ) : (
+                    <Button2
+                      onClick={() => handleActionClick(link.label, link.href, link.type)}
+                      variant={link.variant}
+                      size="sm"
+                      
+                    >
+                      {link.label}
+                    </Button2>
                   )}
                 </div>
               ))}
@@ -118,28 +135,36 @@ const Navbar = () => {
                     asChild
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <Link href="/">Go to App</Link>
+                    <Link href="/app">Go to App</Link>
                   </Button2>
                 </div>
 
-                {/* Mobile Navigation Links using same navLinks data */}
+                {/* Mobile Navigation Links and Buttons */}
                 {navLinks.map((link) => (
-                  <div key={link.label}>
+                  <div key={link.label} className="py-1">
                     {link.type === "link" ? (
                       <Link
                         href={link.href}
-                        className="text-lg font-medium py-2 text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-lg font-medium py-3 text-muted-foreground hover:text-foreground transition-colors block"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         {link.label}
                       </Link>
-                    ) : (
-                      <button
-                        onClick={handleActionClick}
-                        className="text-lg font-medium py-2 text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+                    ) : link.type === "external" ? (
+                      <Button2
+                        onClick={() => handleActionClick(link.label, link.href, link.type)}
+                        className="w-full justify-start text-lg py-3 font-medium bg-primary hover:bg-primary/90 text-primary-foreground"
                       >
                         {link.label}
-                      </button>
+                      </Button2>
+                    ) : (
+                      <Button2
+                        onClick={() => handleActionClick(link.label, link.href, link.type)}
+                        variant={link.variant}
+                        className="w-full justify-start text-lg py-3 font-medium transition-all"
+                      >
+                        {link.label}
+                      </Button2>
                     )}
                   </div>
                 ))}

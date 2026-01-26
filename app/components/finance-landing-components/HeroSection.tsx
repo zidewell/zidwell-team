@@ -7,10 +7,11 @@ import heroImage from "../../../public/hero-business-team.jpg";
 import ConsultationModal from "./ConsultationModal";
 import Image from "next/image";
 import { Button2 } from "../ui/button2";
+import { useRouter } from "next/navigation";
 
 const HeroSection = () => {
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
-
+  const router = useRouter();
   return (
     <section className="relative min-h-screen flex items-center pt-20 md:pt-24 overflow-hidden bg-gold-mesh">
       <div className="absolute inset-0 bg-grid-pattern pointer-events-none" />
@@ -53,7 +54,12 @@ const HeroSection = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button2 className="group">
+              <Button2
+                onClick={() => {
+                  router.push("https://tally.so/r/447JoO");
+                }}
+                className="group"
+              >
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button2>
@@ -112,7 +118,7 @@ const HeroSection = () => {
                       WhatsApp
                     </p>
                     <p className="text-xs text-muted-neutral-900">
-                     +234-7069175399
+                      +234-7069175399
                     </p>
                   </div>
                 </div>
@@ -123,9 +129,9 @@ const HeroSection = () => {
       </div>
 
       {/* Consultation Modal */}
-      <ConsultationModal 
-        open={isConsultationOpen} 
-        onOpenChange={setIsConsultationOpen} 
+      <ConsultationModal
+        open={isConsultationOpen}
+        onOpenChange={setIsConsultationOpen}
       />
     </section>
   );

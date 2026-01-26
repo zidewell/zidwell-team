@@ -65,7 +65,7 @@ const ProcessSection = () => {
                 </li>
               </ul>
 
-              <Button2 onClick={() => router.push("/auth/signup")} size="lg" className="w-full group">
+              <Button2  onClick={() => router.push("https://tally.so/r/447JoO")} size="lg" className="w-full group">
                 Start Now
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button2>

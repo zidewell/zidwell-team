@@ -5,10 +5,11 @@ import { Button } from "../ui/button";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { Button2 } from "../ui/button2";
 import ConsultationModal from "./ConsultationModal"; 
+import { useRouter } from "next/navigation";
 
 const CTASection = () => {
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
-
+const router = useRouter();
   return (
     <section className="py-20 md:py-28 lg:py-32 relative overflow-hidden bg-gold-gradient-subtle">
       {/* Grid pattern */}
@@ -47,7 +48,7 @@ const CTASection = () => {
             </h3>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button2 className="bg-[#C29307] text-neutral-900 border-white group">
+              <Button2  onClick={() => router.push("https://tally.so/r/447JoO")} className="bg-[#C29307] text-neutral-900 border-white group">
                 Get Started
                 <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
               </Button2>

@@ -4,6 +4,7 @@ import { Check, Star } from "lucide-react";
 import { Button2 } from "../ui/button2";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
+import { useRouter } from "next/navigation";
 
 const pricingData = {
   monthly: {
@@ -132,7 +133,7 @@ const plans = [
 const PricingSection = () => {
   const [billingPeriod, setBillingPeriod] =
     useState<keyof typeof pricingData>("monthly");
-
+const router = useRouter()
   return (
     <section id="pricing" className="py-20 md:py-28 lg:py-32 p-5 relative overflow-hidden">
       {/* Grid pattern */}
@@ -255,6 +256,7 @@ const PricingSection = () => {
 
                       {/* CTA */}
                       <Button2 
+                      onClick={() => router.push("https://tally.so/r/447JoO")}
                         className="w-full" 
                         size="lg" 
                         variant="heroOutline"

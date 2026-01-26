@@ -5,14 +5,14 @@ import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button2 } from "../ui/button2";
-// import ConsultationModal from "@/components/ConsultationModal";
+import ConsultationModal from "./ConsultationModal"; 
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
 
   const navLinks = [
-    { label: "Blog", href: "/blog", type: "link" },
+    { label: "Blog", href: "/#", type: "link" },
     { label: "Talk to Expert", href: "#talk-to-expert", type: "action" },
     { label: "Book a Call", href: "#book-a-call", type: "action" },
   ];
@@ -150,10 +150,10 @@ const Navbar = () => {
       </nav>
 
       {/* Consultation Modal */}
-      {/* <ConsultationModal 
+      <ConsultationModal 
         open={isConsultationOpen} 
         onOpenChange={setIsConsultationOpen} 
-      /> */}
+      />
     </>
   );
 };

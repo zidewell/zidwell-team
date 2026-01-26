@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "../ui/button";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import { Button2 } from "../ui/button2";
-// import ConsultationModal from "@/components/ConsultationModal";
+import ConsultationModal from "./ConsultationModal"; 
 
 const CTASection = () => {
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
@@ -65,10 +65,10 @@ const CTASection = () => {
       </div>
 
       {/* Consultation Modal */}
-      {/* <ConsultationModal 
+      <ConsultationModal 
         open={isConsultationOpen} 
         onOpenChange={setIsConsultationOpen} 
-      /> */}
+      />
     </section>
   );
 };

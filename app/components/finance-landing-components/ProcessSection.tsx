@@ -4,7 +4,7 @@ import { Button } from "../ui/button";
 import { ArrowRight, UserCheck, MessageCircle } from "lucide-react";
 import { Button2 } from "../ui/button2";
 import { useRouter } from "next/navigation";
-// import ConsultationModal from "@/components/ConsultationModal";
+import ConsultationModal from "./ConsultationModal";
 
 const ProcessSection = () => {
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
@@ -130,10 +130,10 @@ const ProcessSection = () => {
       </div>
 
       {/* Consultation Modal */}
-      {/* <ConsultationModal 
+      <ConsultationModal 
         open={isConsultationOpen} 
         onOpenChange={setIsConsultationOpen} 
-      /> */}
+      />
     </section>
   );
 };

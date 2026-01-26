@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "../ui/button";
 import { ArrowRight, MessageCircle } from "lucide-react";
 import heroImage from "../../../public/hero-business-team.jpg";
-// import ConsultationModal from "@/components/ConsultationModal";
+import ConsultationModal from "./ConsultationModal";
 import Image from "next/image";
 import { Button2 } from "../ui/button2";
 
@@ -123,10 +123,10 @@ const HeroSection = () => {
       </div>
 
       {/* Consultation Modal */}
-      {/* <ConsultationModal 
+      <ConsultationModal 
         open={isConsultationOpen} 
         onOpenChange={setIsConsultationOpen} 
-      /> */}
+      />
     </section>
   );
 };

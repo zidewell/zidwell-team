@@ -1,19 +1,15 @@
+"use client";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+} from "@/app/components/ui/select";
+import { Switch } from "@/app/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
 import {
   Bold,
   Italic,
@@ -22,7 +18,7 @@ import {
   ListOrdered,
   Quote,
   Link2,
-  Image,
+  Image as ImageIcon,
   Video,
   Mic,
   Heading1,
@@ -36,11 +32,27 @@ import {
   Save,
   Eye,
   Send,
+  X,
 } from "lucide-react";
-import { categories } from "@/data/mockBlogData";
-import { Separator } from "@/components/ui/separator";
+import { categories } from "@/app/blog/data/mockData";
+import { Separator } from "@/app/components/ui/separator";
+import { useRouter } from "next/navigation";
+import AdminLayout from "@/app/components/blog-components/admin/AdminLayout";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
+import { Label } from "@/app/components/ui/label";
+import { Textarea } from "@/app/components/ui/textarea";
+import Image from "next/image";
 
-const toolbarButtons = [
+// Define type for toolbar buttons
+type ToolbarButton = {
+  type?: "separator";
+  icon?: React.ComponentType<{ className?: string }>;
+  label?: string;
+  command?: string;
+};
+
+const toolbarButtons: ToolbarButton[] = [
   { icon: Bold, label: "Bold", command: "bold" },
   { icon: Italic, label: "Italic", command: "italic" },
   { icon: Underline, label: "Underline", command: "underline" },
@@ -61,13 +73,13 @@ const toolbarButtons = [
   { icon: Outdent, label: "Outdent", command: "outdent" },
   { type: "separator" },
   { icon: Link2, label: "Add Link", command: "link" },
-  { icon: Image, label: "Add Image", command: "image" },
+  { icon: ImageIcon, label: "Add Image", command: "image" },
   { icon: Video, label: "Add Video", command: "video" },
   { icon: Mic, label: "Add Audio", command: "audio" },
 ];
 
 const PostEditor = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [excerpt, setExcerpt] = useState("");
@@ -81,6 +93,60 @@ const PostEditor = () => {
   const handleToolbarClick = (command: string) => {
     // In a real implementation, this would apply formatting to the content
     console.log("Toolbar command:", command);
+    // For now, let's implement basic text insertion
+    const textArea = document.querySelector('textarea');
+    if (textArea) {
+      const start = textArea.selectionStart;
+      const end = textArea.selectionEnd;
+      const selectedText = content.substring(start, end);
+      
+      let formattedText = '';
+      
+      switch(command) {
+        case 'bold':
+          formattedText = `**${selectedText || 'bold text'}**`;
+          break;
+        case 'italic':
+          formattedText = `*${selectedText || 'italic text'}*`;
+          break;
+        case 'underline':
+          formattedText = `<u>${selectedText || 'underlined text'}</u>`;
+          break;
+        case 'h1':
+          formattedText = `# ${selectedText || 'Heading 1'}`;
+          break;
+        case 'h2':
+          formattedText = `## ${selectedText || 'Heading 2'}`;
+          break;
+        case 'h3':
+          formattedText = `### ${selectedText || 'Heading 3'}`;
+          break;
+        case 'ul':
+          formattedText = selectedText 
+            ? selectedText.split('\n').map(line => `- ${line}`).join('\n')
+            : '- List item';
+          break;
+        case 'ol':
+          formattedText = selectedText 
+            ? selectedText.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n')
+            : '1. List item';
+          break;
+        case 'quote':
+          formattedText = `> ${selectedText || 'Quote text'}`;
+          break;
+        default:
+          formattedText = selectedText;
+      }
+      
+      const newContent = content.substring(0, start) + formattedText + content.substring(end);
+      setContent(newContent);
+      
+      // Focus back on textarea
+      setTimeout(() => {
+        textArea.focus();
+        textArea.setSelectionRange(start + formattedText.length, start + formattedText.length);
+      }, 0);
+    }
   };
 
   const handleSave = (publish: boolean) => {
@@ -92,36 +158,58 @@ const PostEditor = () => {
       featuredImage,
       audioFile,
       isPublished: publish,
-      tags: tags.split(",").map((t) => t.trim()),
+      tags: tags.split(",").map((t) => t.trim()).filter(t => t),
     };
     console.log("Saving post:", post);
     alert(publish ? "Post published!" : "Draft saved!");
-    navigate("/admin/posts");
+    router.push("/admin/posts");
   };
 
   const addCategory = () => {
-    if (newCategory.trim()) {
+    if (newCategory.trim() && !selectedCategories.includes(newCategory.trim())) {
       setSelectedCategories([...selectedCategories, newCategory.trim()]);
       setNewCategory("");
+    }
+  };
+
+  const removeCategory = (category: string) => {
+    setSelectedCategories(selectedCategories.filter((c) => c !== category));
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFeaturedImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAudioFile(file.name);
     }
   };
 
   return (
     <AdminLayout>
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold">Create New Post</h1>
             <p className="text-muted-foreground">
               Write and publish your article
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <Button variant="outline" onClick={() => handleSave(false)}>
               <Save className="w-4 h-4 mr-2" />
               Save Draft
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => console.log("Preview")}>
               <Eye className="w-4 h-4 mr-2" />
               Preview
             </Button>
@@ -150,17 +238,18 @@ const PostEditor = () => {
             <div className="flex flex-wrap items-center gap-1 p-2 bg-secondary/50 rounded-lg border border-border">
               {toolbarButtons.map((btn, index) =>
                 btn.type === "separator" ? (
-                  <Separator key={index} orientation="vertical" className="h-6 mx-1" />
+                  <Separator key={`separator-${index}`} orientation="vertical" className="h-6 mx-1" />
                 ) : (
                   <Button
                     key={btn.command}
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
-                    onClick={() => handleToolbarClick(btn.command!)}
+                    onClick={() => btn.command && handleToolbarClick(btn.command)}
                     title={btn.label}
+                    type="button"
                   >
-                    <btn.icon className="w-4 h-4" />
+                    {btn.icon && <btn.icon className="w-4 h-4" />}
                   </Button>
                 )
               )}
@@ -171,13 +260,14 @@ const PostEditor = () => {
               placeholder="Start writing your story..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="min-h-[400px] text-lg leading-relaxed resize-none"
+              className="min-h-[400px] text-lg leading-relaxed resize-y"
             />
 
             {/* Excerpt */}
             <div className="space-y-2">
-              <Label>Excerpt</Label>
+              <Label htmlFor="excerpt">Excerpt</Label>
               <Textarea
+                id="excerpt"
                 placeholder="Write a brief summary of your article..."
                 value={excerpt}
                 onChange={(e) => setExcerpt(e.target.value)}
@@ -195,8 +285,9 @@ const PostEditor = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>Publish immediately</Label>
+                  <Label htmlFor="publish-switch">Publish immediately</Label>
                   <Switch
+                    id="publish-switch"
                     checked={isPublished}
                     onCheckedChange={setIsPublished}
                   />
@@ -211,27 +302,39 @@ const PostEditor = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 {featuredImage ? (
-                  <div className="relative">
-                    <img
-                      src={featuredImage}
-                      alt="Featured"
-                      className="w-full aspect-video object-cover rounded"
-                    />
+                  <div className="relative group">
+                    <div className="w-full aspect-video relative rounded overflow-hidden">
+                      <Image
+                        src={featuredImage}
+                        alt="Featured"
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 300px) 100vw, 300px"
+                      />
+                    </div>
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="absolute top-2 right-2"
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={() => setFeaturedImage("")}
                     >
-                      Remove
+                      <X className="w-4 h-4" />
                     </Button>
                   </div>
                 ) : (
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                    <Image className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:bg-secondary/50 transition-colors"
+                       onClick={() => document.getElementById('image-upload')?.click()}>
+                    <ImageIcon className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">
                       Click to upload or drag and drop
                     </p>
+                    <input
+                      id="image-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
                   </div>
                 )}
                 <Input
@@ -279,26 +382,25 @@ const PostEditor = () => {
                   </Button>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {selectedCategories.map((cat) => (
-                    <span
-                      key={cat}
-                      className="px-2 py-1 text-xs bg-secondary rounded-full flex items-center gap-1"
-                    >
-                      {cat}
-                      <button
-                        onClick={() =>
-                          setSelectedCategories(
-                            selectedCategories.filter((c) => c !== cat)
-                          )
-                        }
-                        className="hover:text-destructive"
+                {selectedCategories.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {selectedCategories.map((cat) => (
+                      <div
+                        key={cat}
+                        className="px-2 py-1 text-xs bg-secondary rounded-full flex items-center gap-1"
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                        {cat}
+                        <button
+                          onClick={() => removeCategory(cat)}
+                          className="hover:text-destructive text-xs"
+                          type="button"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -313,6 +415,9 @@ const PostEditor = () => {
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                 />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Separate tags with commas
+                </p>
               </CardContent>
             </Card>
 
@@ -325,12 +430,25 @@ const PostEditor = () => {
                 <p className="text-sm text-muted-foreground">
                   Upload an audio file if this is a podcast episode
                 </p>
-                <div className="border-2 border-dashed border-border rounded-lg p-4 text-center">
+                <div className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:bg-secondary/50 transition-colors"
+                     onClick={() => document.getElementById('audio-upload')?.click()}>
                   <Mic className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
                   <p className="text-xs text-muted-foreground">
                     MP3, WAV, or M4A
                   </p>
+                  <input
+                    id="audio-upload"
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={handleAudioUpload}
+                  />
                 </div>
+                {audioFile && (
+                  <div className="text-sm text-muted-foreground">
+                    Selected: {audioFile}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

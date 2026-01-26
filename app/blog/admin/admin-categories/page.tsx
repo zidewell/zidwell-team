@@ -1,7 +1,8 @@
+"use client"
 import { useState } from "react";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import AdminLayout from "@/app/components/blog-components/admin/AdminLayout"; 
+import { Button } from "@/app/components/ui/button"; 
+import { Input } from "@/app/components/ui/input"; 
 import {
   Table,
   TableBody,
@@ -9,17 +10,17 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/app/components/ui/table";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
-import { categories } from "@/data/mockBlogData";
+import { categories } from "../../data/mockData"; 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+} from "@/app/components/ui/dialog";
+import { Label } from "@/app/components/ui/label"; 
 
 const AdminCategories = () => {
   const [searchQuery, setSearchQuery] = useState("");

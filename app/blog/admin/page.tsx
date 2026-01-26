@@ -1,7 +1,7 @@
-import AdminLayout from "@/components/admin/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import AdminLayout from "@/app/components/blog-components/admin/AdminLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card"; 
 import { FileText, MessageSquare, Eye, TrendingUp } from "lucide-react";
-import { blogPosts } from "@/data/mockBlogData";
+import { blogPosts } from "../data/mockData"; 
 
 const stats = [
   {

@@ -1,7 +1,8 @@
+"use client"
 import { useState } from "react";
-import AdminLayout from "@/components/admin/AdminLayout";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import AdminLayout from "@/app/components/blog-components/admin/AdminLayout";
+import { Button } from "@/app/components/ui/button";
+import { Input } from "@/app/components/ui/input";
 import {
   Table,
   TableBody,
@@ -9,11 +10,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/app/components/ui/table";
 import { Search, Check, X, Eye } from "lucide-react";
-import { blogPosts } from "@/data/mockBlogData";
+import { blogPosts } from "../../data/mockData"; 
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/app/components/ui/badge"; 
 
 const AdminComments = () => {
   const [searchQuery, setSearchQuery] = useState("");

@@ -15,9 +15,11 @@ const AboutSection = () => {
               {/* Decorative background */}
               <div className="absolute -top-4 -left-4 w-full h-full border-2 border-[#C29307]" />
               <Image
-                src={accountantImage}
+                src="https://images.unsplash.com/photo-1666867936058-de34bfd5b320?q=80&w=442&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                 alt="Zidwell accountant at work"
                 className="relative w-full h-auto border-2 border-neutral-900 object-cover"
+                width={500}
+                height={500}
               />
             </div>
             

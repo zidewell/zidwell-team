@@ -90,9 +90,11 @@ const HeroSection = () => {
           <div className="relative">
             <div className="relative border-2 border-neutral-900 shadow-[8px_8px_0px_#C29307]">
               <Image
-                src={heroImage}
+                src="https://images.unsplash.com/photo-1653566031486-dc4ead13a35d?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                 alt="Zidwell Finance team collaborating in modern office"
                 className="w-full h-auto object-cover"
+                height={500}
+                width={500}
               />
               {/* Floating WhatsApp card */}
               <a

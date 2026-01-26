@@ -107,7 +107,7 @@ const page = () => {
           {component.id === "howItWorks" && <HowItWorks />}
           {component.id === "whyChoose" && <WhyChoose />}
           {component.id === "testimonials" && <Testimonials />}
-          {component.id === "pricing" && <Pricing />}
+          {/* {component.id === "pricing" && <Pricing />} */}
           {component.id === "zidCoin" && <ZidCoin />}
           {component.id === "faq" && <FAQ />}
           {component.id === "cta" && <CTA />}

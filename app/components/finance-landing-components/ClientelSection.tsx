@@ -1,16 +1,16 @@
 "use client";
 
 const clients = [
-  { name: "Nigerian Institute for Industrial Security", location: "Lagos" },
-  { name: "Bared Consult", location: "Lagos" },
-  { name: "Chiguard Services Nigeria Limited", location: "Lagos" },
-  { name: "NIIS Integrated Ventures", location: "Lagos" },
-  { name: "Wilson Esangbo and Co", location: "Lagos" },
-  { name: "Lara's E-Mart", location: "Port Harcourt" },
-  { name: "The Tech Corner", location: "Abuja" },
-  { name: "Digital Business School", location: "Lagos" },
-  { name: "Calabarfood Lagos", location: "Lagos" },
-  { name: "Many more happy clients", location: "Lagos" },
+  { name: "Nigerian Institute for Industrial Security" },
+  { name: "Bared Consult" },
+  { name: "Chiguard Services Nigeria Limited" },
+  { name: "NIIS Integrated Ventures" },
+  { name: "Wilson Esangbo and Co" },
+  { name: "Lara's E-Mart" },
+  { name: "The Tech Corner"},
+  { name: "Digital Business School" },
+  { name: "Calabarfood Lagos" },
+  { name: "Many more happy clients" },
 ];
 
 const ClienteleSection = () => {

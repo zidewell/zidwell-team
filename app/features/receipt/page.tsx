@@ -50,16 +50,8 @@ export default function ReceiptPage() {
         </div>
 
         {/* Key Benefits */}
-        <div className="grid md:grid-cols-3 gap-6 mb-16">
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center mb-4">
-              <CreditCard className="h-6 w-6 text-green-600" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Pay-Per-Use</h3>
-            <p className="text-muted-foreground">
-              Pay ₦100 only when you create a receipt. No monthly fees or commitments
-            </p>
-          </div>
+        <div className="grid md:grid-cols-2 gap-6 mb-16">
+         
           
           <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
             <div className="h-12 w-12 rounded-lg bg-purple-100 flex items-center justify-center mb-4">
@@ -88,7 +80,7 @@ export default function ReceiptPage() {
             Simple 4-Step Process
           </h2>
           
-          <div className="grid md:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-3 gap-8">
             {[
               {
                 step: "1",
@@ -104,13 +96,7 @@ export default function ReceiptPage() {
                 icon: Search,
                 color: "bg-green-500"
               },
-              {
-                step: "3",
-                title: "Pay ₦100",
-                description: "Complete one-time payment for this receipt",
-                icon: CreditCard,
-                color: "bg-purple-500"
-              },
+              
               {
                 step: "4",
                 title: "Download & Share",
